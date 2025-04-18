@@ -6,9 +6,9 @@ from .resource import DeviceInformation, ResourceTypes
 
 @dataclass
 class Lock:
-    """Representation of a Hubspace Lock"""
+    """Representation of a Afero Lock"""
 
-    id: str  # ID used when interacting with Hubspace
+    id: str  # ID used when interacting with Afero
     available: bool
 
     position: features.CurrentPositionFeature

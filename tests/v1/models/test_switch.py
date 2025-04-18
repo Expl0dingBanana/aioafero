@@ -1,7 +1,7 @@
 import pytest
 
-from aiohubspace.v1.models import features
-from aiohubspace.v1.models.switch import Switch
+from aioafero.v1.models import features
+from aioafero.v1.models.switch import Switch
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 """Controller holding and managing Hubspace resources of type `switch`."""
 
 from ... import errors
-from ...device import HubspaceDevice
+from ...device import AferoDevice
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.switch import Switch, SwitchPut
@@ -32,11 +32,11 @@ class SwitchController(BaseResourcesController[Switch]):
         """Turn off the switch."""
         await self.set_state(device_id, on=False, instance=instance)
 
-    async def initialize_elem(self, hs_device: HubspaceDevice) -> Switch:
+    async def initialize_elem(self, afero_device: AferoDevice) -> Switch:
         """Initialize the element"""
         available: bool = False
         on: dict[str, features.OnFeature] = {}
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 on[state.functionInstance] = features.OnFeature(
                     on=state.value == "on",
@@ -46,27 +46,27 @@ class SwitchController(BaseResourcesController[Switch]):
             elif state.functionClass == "available":
                 available = state.value
 
-        self._items[hs_device.id] = Switch(
-            hs_device.functions,
-            id=hs_device.id,
+        self._items[afero_device.id] = Switch(
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             device_information=DeviceInformation(
-                device_class=hs_device.device_class,
-                default_image=hs_device.default_image,
-                default_name=hs_device.default_name,
-                manufacturer=hs_device.manufacturerName,
-                model=hs_device.model,
-                name=hs_device.friendly_name,
-                parent_id=hs_device.device_id,
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
             ),
             on=on,
         )
-        return self._items[hs_device.id]
+        return self._items[afero_device.id]
 
-    async def update_elem(self, hs_device: HubspaceDevice) -> set:
-        cur_item = self.get_device(hs_device.id)
+    async def update_elem(self, afero_device: AferoDevice) -> set:
+        cur_item = self.get_device(afero_device.id)
         updated_keys = set()
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 new_val = state.value == "on"
                 if cur_item.on[state.functionInstance].on != new_val:

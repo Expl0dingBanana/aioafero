@@ -1,7 +1,7 @@
 """Controls Hubspace devices on v1 API"""
 
 __all__ = [
-    "HubspaceBridgeV1",
+    "AferoBridgeV1",
     "models",
     "BaseResourcesController",
     "DeviceController",
@@ -23,10 +23,11 @@ from typing import Any, Callable, Generator, Optional
 import aiohttp
 from aiohttp import web_exceptions
 
+from ..device import AferoResource
 from ..errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
 from . import models, v1_const
-from .auth import HubspaceAuth
-from .controllers.base import BaseResourcesController, HubspaceResource
+from .auth import AferoAuth
+from .controllers.base import BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
 from .controllers.fan import FanController
@@ -36,8 +37,8 @@ from .controllers.switch import SwitchController
 from .controllers.valve import ValveController
 
 
-class HubspaceBridgeV1:
-    """Controls Hubspace devices on v1 API"""
+class AferoBridgeV1:
+    """Controls Afero IoT devices on v1 API"""
 
     _web_session: Optional[aiohttp.ClientSession] = None
 
@@ -52,7 +53,7 @@ class HubspaceBridgeV1:
         self._close_session: bool = session is None
         self._web_session: aiohttp.ClientSession = session
         self._account_id: Optional[str] = None
-        self._auth = HubspaceAuth(username, password, refresh_token=refresh_token)
+        self._auth = AferoAuth(username, password, refresh_token=refresh_token)
         self.logger = logging.getLogger(f"{__package__}[{username}]")
         self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
@@ -68,7 +69,7 @@ class HubspaceBridgeV1:
         self._switches: SwitchController = SwitchController(self)
         self._valves: ValveController = ValveController(self)
 
-    async def __aenter__(self) -> "HubspaceBridgeV1":
+    async def __aenter__(self) -> "AferoBridgeV1":
         """Return Context manager."""
         await self.initialize()
         return self
@@ -138,7 +139,7 @@ class HubspaceBridgeV1:
         return set(self._known_devs.keys())
 
     def add_device(
-        self, device_id: str, controller: BaseResourcesController[HubspaceResource]
+        self, device_id: str, controller: BaseResourcesController[AferoResource]
     ) -> None:
         self._known_devs[device_id] = controller
 
@@ -148,12 +149,12 @@ class HubspaceBridgeV1:
 
     @property
     def account_id(self) -> str:
-        """Get the account ID for the Hubspace account"""
+        """Get the account ID for the Afero IoT account"""
         return self._account_id
 
     @property
     def refresh_token(self) -> Optional[str]:
-        """get the refresh token for the Hubspace account"""
+        """get the refresh token for the Afero IoT account"""
         return self._auth.refresh_token
 
     def set_polling_interval(self, polling_interval: int) -> None:
@@ -203,12 +204,12 @@ class HubspaceBridgeV1:
         return self._account_id
 
     async def initialize(self) -> None:
-        """Query Hubspace API for all data"""
+        """Query Afero API for all data"""
         await self.get_account_id()
-        hs_data = await self.fetch_data()
+        data = await self.fetch_data()
         await asyncio.gather(
             *[
-                controller.initialize(hs_data)
+                controller.initialize(data)
                 for controller in self._controllers
                 if not controller.initialized
             ]
@@ -288,7 +289,7 @@ class HubspaceBridgeV1:
         raise ExceededMaximumRetries("Exceeded maximum number of retries")
 
     async def send_service_request(self, device_id: str, states: list[dict[str, Any]]):
-        """Manually send state requests to Hubspace
+        """Manually send state requests to Afero IoT
 
         :param device_id: ID for the device
         :param states: List of states to send

@@ -5,18 +5,18 @@ from .resource import DeviceInformation, ResourceTypes
 
 
 @dataclass
-class Valve:
-    """Representation of a Hubspace Valve"""
+class Switch:
+    """Representation of an Afero Switch"""
 
-    id: str  # ID used when interacting with Hubspace
+    id: str  # ID used when interacting with Afero
     available: bool
 
-    open: dict[str | None, features.OpenFeature]
+    on: dict[str | None, features.OnFeature]
     # Defined at initialization
     instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
 
-    type: ResourceTypes = ResourceTypes.WATER_TIMER
+    type: ResourceTypes = ResourceTypes.FAN
 
     def __init__(self, functions: list, **kwargs):
         for key, value in kwargs.items():
@@ -36,7 +36,7 @@ class Valve:
 
 
 @dataclass
-class ValvePut:
+class SwitchPut:
     """States that can be updated for a Switch"""
 
-    open: features.OpenFeature | None = None
+    on: features.OnFeature | None = None

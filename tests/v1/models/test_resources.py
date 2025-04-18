@@ -1,4 +1,4 @@
-from aiohubspace.v1.models import resource
+from aioafero.v1.models import resource
 
 
 def test_resource_type_unknown():

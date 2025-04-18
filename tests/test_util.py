@@ -1,6 +1,6 @@
 import pytest
 
-from aiohubspace import util
+from aioafero import util
 
 
 @pytest.mark.parametrize(

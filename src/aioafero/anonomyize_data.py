@@ -5,7 +5,7 @@ __all__ = ["anonymize_devices", "anonymize_device"]
 from dataclasses import asdict
 from uuid import uuid4
 
-from .device import HubspaceDevice, HubspaceState
+from .device import AferoDevice, AferoState
 
 ANONYMIZE_STATES: set[str] = {"wifi-ssid", "wifi-mac-address", "ble-mac-address"}
 
@@ -13,7 +13,7 @@ FNAME_IND: int = 0
 
 
 def anonymize_devices(
-    devices: list[HubspaceDevice], anon_name: bool = False
+    devices: list[AferoDevice], anon_name: bool = False
 ) -> list[dict]:
     """Remove identifying information from the device
 
@@ -28,7 +28,7 @@ def anonymize_devices(
     return fake_devices
 
 
-def generate_parent_mapping(devices: list[HubspaceDevice]) -> dict:
+def generate_parent_mapping(devices: list[AferoDevice]) -> dict:
     """Generate anonymize links between parents and children
 
     :param devices: List of devices to anonymize
@@ -47,7 +47,7 @@ def generate_parent_mapping(devices: list[HubspaceDevice]) -> dict:
 
 
 def anonymize_device(
-    dev: HubspaceDevice,
+    dev: AferoDevice,
     parent_mapping: dict,
     device_links: dict,
     anon_name: bool,
@@ -71,7 +71,7 @@ def anonymize_device(
     return fake_dev
 
 
-def anonymize_state(state: HubspaceState, only_geo: bool = False) -> dict:
+def anonymize_state(state: AferoState, only_geo: bool = False) -> dict:
     fake_state = asdict(state)
     fake_state["lastUpdateTime"] = 0
     if fake_state["functionClass"] == "geo-coordinates":

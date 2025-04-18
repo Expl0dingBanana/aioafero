@@ -3,7 +3,7 @@
 from contextlib import suppress
 
 from ... import device, errors
-from ...device import HubspaceDevice, HubspaceState
+from ...device import AferoDevice, AferoState
 from ...util import process_range
 from ..models import features
 from ..models.light import Light, LightPut
@@ -60,7 +60,7 @@ class LightController(BaseResourcesController[Light]):
         """Set effect of the light. Turn on light if it's currently off."""
         await self.set_state(device_id, on=True, effect=effect, color_mode="sequence")
 
-    async def initialize_elem(self, hs_device: HubspaceDevice) -> Light:
+    async def initialize_elem(self, afero_device: AferoDevice) -> Light:
         """Initialize the element"""
         available: bool = False
         on: features.OnFeature | None = None
@@ -69,9 +69,9 @@ class LightController(BaseResourcesController[Light]):
         color_mode: features.ColorModeFeature | None = None
         dimming: features.DimmingFeature | None = None
         effect: features.EffectFeature | None = None
-        for state in hs_device.states:
+        for state in afero_device.states:
             func_def = device.get_function_from_device(
-                hs_device.functions, state.functionClass, state.functionInstance
+                afero_device.functions, state.functionClass, state.functionInstance
             )
             if state.functionClass == "power":
                 on = features.OnFeature(
@@ -98,7 +98,7 @@ class LightController(BaseResourcesController[Light]):
                 )
             elif state.functionClass == "color-sequence":
                 current_effect = state.value
-                effects = process_effects(hs_device.functions)
+                effects = process_effects(afero_device.functions)
                 effect = features.EffectFeature(effect=current_effect, effects=effects)
             elif state.functionClass == "color-rgb":
                 color = features.ColorFeature(
@@ -111,18 +111,18 @@ class LightController(BaseResourcesController[Light]):
             elif state.functionClass == "available":
                 available = state.value
 
-        self._items[hs_device.id] = Light(
-            hs_device.functions,
-            id=hs_device.id,
+        self._items[afero_device.id] = Light(
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             device_information=DeviceInformation(
-                device_class=hs_device.device_class,
-                default_image=hs_device.default_image,
-                default_name=hs_device.default_name,
-                manufacturer=hs_device.manufacturerName,
-                model=hs_device.model,
-                name=hs_device.friendly_name,
-                parent_id=hs_device.device_id,
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
             ),
             on=on,
             dimming=dimming,
@@ -131,13 +131,13 @@ class LightController(BaseResourcesController[Light]):
             color=color,
             effect=effect,
         )
-        return self._items[hs_device.id]
+        return self._items[afero_device.id]
 
-    async def update_elem(self, hs_device: HubspaceDevice) -> set:
-        cur_item = self.get_device(hs_device.id)
+    async def update_elem(self, afero_device: AferoDevice) -> set:
+        cur_item = self.get_device(afero_device.id)
         updated_keys = set()
-        color_seq_states: dict[str, HubspaceState] = {}
-        for state in hs_device.states:
+        color_seq_states: dict[str, AferoState] = {}
+        for state in afero_device.states:
             if state.functionClass == "power":
                 new_val = state.value == "on"
                 if cur_item.on.on != new_val:

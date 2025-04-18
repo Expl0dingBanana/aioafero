@@ -1,7 +1,7 @@
 """Controller holding and managing Hubspace resources of type `fan`."""
 
 from ... import device
-from ...device import HubspaceDevice
+from ...device import AferoDevice
 from ...util import ordered_list_item_to_percentage
 from ..models import features
 from ..models.fan import Fan, FanPut
@@ -48,19 +48,19 @@ class FanController(BaseResourcesController[Fan]):
         """Set the preset of the fan."""
         await self.set_state(device_id, on=True, preset=preset)
 
-    async def initialize_elem(self, hs_device: HubspaceDevice) -> Fan:
+    async def initialize_elem(self, afero_device: AferoDevice) -> Fan:
         """Initialize the element"""
         available: bool = False
         on: features.OnFeature | None = None
         speed: features.SpeedFeature | None = None
         direction: features.DirectionFeature | None = None
         preset: features.PresetFeature | None = None
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass == "power":
                 on = features.OnFeature(on=state.value == "on")
             elif state.functionClass == "fan-speed":
                 speeds = device.get_function_from_device(
-                    hs_device.functions, state.functionClass, state.functionInstance
+                    afero_device.functions, state.functionClass, state.functionInstance
                 )
                 tmp_speed = set()
                 for value in speeds["values"]:
@@ -84,30 +84,30 @@ class FanController(BaseResourcesController[Fan]):
             elif state.functionClass == "available":
                 available = state.value
 
-        self._items[hs_device.id] = Fan(
-            hs_device.functions,
-            id=hs_device.id,
+        self._items[afero_device.id] = Fan(
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             device_information=DeviceInformation(
-                device_class=hs_device.device_class,
-                default_image=hs_device.default_image,
-                default_name=hs_device.default_name,
-                manufacturer=hs_device.manufacturerName,
-                model=hs_device.model,
-                name=hs_device.friendly_name,
-                parent_id=hs_device.device_id,
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
             ),
             on=on,
             speed=speed,
             direction=direction,
             preset=preset,
         )
-        return self._items[hs_device.id]
+        return self._items[afero_device.id]
 
-    async def update_elem(self, hs_device: HubspaceDevice) -> set:
+    async def update_elem(self, afero_device: AferoDevice) -> set:
         updated_keys = set()
-        cur_item = self.get_device(hs_device.id)
-        for state in hs_device.states:
+        cur_item = self.get_device(afero_device.id)
+        for state in afero_device.states:
             if state.functionClass == "power":
                 new_val = state.value == "on"
                 if cur_item.on.on != new_val:

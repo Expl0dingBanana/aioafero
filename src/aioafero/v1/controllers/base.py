@@ -4,16 +4,16 @@ import time
 from asyncio.coroutines import iscoroutinefunction
 from dataclasses import dataclass, fields
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable, Generic, Iterator, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, Iterator
 
-from ...device import HubspaceDevice, HubspaceState, get_hs_device
+from ...device import AferoDevice, AferoResource, AferoState, get_afero_device
 from ...errors import DeviceNotFound, ExceededMaximumRetries
 from .. import v1_const
 from ..models.resource import ResourceTypes
-from .event import EventCallBackType, EventType, HubspaceEvent
+from .event import AferoEvent, EventCallBackType, EventType
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import HubspaceBridgeV1
+    from .. import AferoBridgeV1
 
 
 EventSubscriptionType = tuple[
@@ -23,32 +23,30 @@ EventSubscriptionType = tuple[
 
 ID_FILTER_ALL = "*"
 
-HubspaceResource = TypeVar("HubspaceResource")
 
-
-class BaseResourcesController(Generic[HubspaceResource]):
-    """Base Controller for Hubspace devices"""
+class BaseResourcesController(Generic[AferoResource]):
+    """Base Controller for Afero IoT Cloud devices"""
 
     ITEM_TYPE_ID: ResourceTypes | None = None
     ITEM_TYPES: list[ResourceTypes] | None = None
     ITEM_CLS = None
-    # functionClass map between controller -> Hubspace
+    # functionClass map between controller -> Afero IoT Cloud
     ITEM_MAPPING: dict = {}
 
-    def __init__(self, bridge: "HubspaceBridgeV1") -> None:
+    def __init__(self, bridge: "AferoBridgeV1") -> None:
         """Initialize instance."""
         self._bridge = bridge
-        self._items: dict[str, HubspaceResource] = {}
+        self._items: dict[str, AferoResource] = {}
         self._logger = bridge.logger.getChild(self.ITEM_CLS.__name__)
         self._subscribers: dict[str, EventSubscriptionType] = {ID_FILTER_ALL: []}
         self._initialized: bool = False
         self._item_values = [x.value for x in self.ITEM_TYPES]
 
-    def __getitem__(self, device_id: str) -> HubspaceResource:
+    def __getitem__(self, device_id: str) -> AferoResource:
         """Get item by device_id."""
         return self._items[device_id]
 
-    def __iter__(self) -> Iterator[HubspaceResource]:
+    def __iter__(self) -> Iterator[AferoResource]:
         """Iterate items."""
         return iter(self._items.values())
 
@@ -57,7 +55,7 @@ class BaseResourcesController(Generic[HubspaceResource]):
         return device_id in self._items
 
     @property
-    def items(self) -> list[HubspaceResource]:
+    def items(self) -> list[AferoResource]:
         """Return all items for this resource."""
         return list(self._items.values())
 
@@ -66,7 +64,7 @@ class BaseResourcesController(Generic[HubspaceResource]):
         return self._initialized
 
     async def _handle_event(
-        self, evt_type: EventType, evt_data: HubspaceEvent | None
+        self, evt_type: EventType, evt_data: AferoEvent | None
     ) -> None:
         """Handle incoming event for this resource"""
         if evt_data is None:
@@ -77,8 +75,8 @@ class BaseResourcesController(Generic[HubspaceResource]):
             await self.emit_to_subscribers(evt_type, item_id, cur_item)
 
     async def _handle_event_type(
-        self, evt_type: EventType, item_id: str, evt_data: HubspaceEvent
-    ) -> HubspaceResource | None:
+        self, evt_type: EventType, item_id: str, evt_data: AferoEvent
+    ) -> AferoResource | None:
         """Determines what to do with the incoming event
 
         :param evt_type: Type of event
@@ -113,7 +111,7 @@ class BaseResourcesController(Generic[HubspaceResource]):
         return cur_item
 
     async def emit_to_subscribers(
-        self, evt_type: EventType, item_id: str, item: HubspaceResource
+        self, evt_type: EventType, item_id: str, item: AferoResource
     ):
         """Emit updates to subscribers
 
@@ -133,8 +131,8 @@ class BaseResourcesController(Generic[HubspaceResource]):
             else:
                 callback(evt_type, item)
 
-    def get_filtered_devices(self, initial_data: list[dict]) -> list[HubspaceDevice]:
-        valid_devices: list[HubspaceDevice] = []
+    def get_filtered_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
+        valid_devices: list[AferoDevice] = []
         for element in initial_data:
             if element["typeId"] != self.ITEM_TYPE_ID.value:
                 self._logger.debug(
@@ -143,7 +141,7 @@ class BaseResourcesController(Generic[HubspaceResource]):
                     self.ITEM_TYPE_ID.value,
                 )
                 continue
-            device = get_hs_device(element)
+            device = get_afero_device(element)
             if device.device_class not in self._item_values:
                 self._logger.debug(
                     "Device Class [%s] is not contained in %s",
@@ -154,22 +152,18 @@ class BaseResourcesController(Generic[HubspaceResource]):
             valid_devices.append(device)
         return valid_devices
 
-    async def _get_valid_devices(
-        self, initial_data: list[dict]
-    ) -> list[HubspaceDevice]:
+    async def _get_valid_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
         return self.get_filtered_devices(initial_data)
 
     async def initialize(self, initial_data: list[dict]) -> None:
         """Initialize controller by fetching all items for this resource type from bridge."""
         if self._initialized:
             return
-        valid_devices: list[HubspaceDevice] = await self._get_valid_devices(
-            initial_data
-        )
+        valid_devices: list[AferoDevice] = await self._get_valid_devices(initial_data)
         for device in valid_devices:
             await self._handle_event(
                 EventType.RESOURCE_ADDED,
-                HubspaceEvent(
+                AferoEvent(
                     type=EventType.RESOURCE_ADDED,
                     device_id=device.id,
                     device=device,
@@ -189,12 +183,10 @@ class BaseResourcesController(Generic[HubspaceResource]):
             )
         self._initialized = True
 
-    async def initialize_elem(
-        self, element: HubspaceDevice
-    ) -> None:  # pragma: no cover
+    async def initialize_elem(self, element: AferoDevice) -> None:  # pragma: no cover
         raise NotImplementedError("Class should implement initialize_elem")
 
-    async def update_elem(self, element: HubspaceDevice) -> None:  # pragma: no cover
+    async def update_elem(self, element: AferoDevice) -> None:  # pragma: no cover
         raise NotImplementedError("Class should implement update_elem")
 
     def subscribe(
@@ -239,19 +231,19 @@ class BaseResourcesController(Generic[HubspaceResource]):
         return unsubscribe
 
     async def _process_state_update(
-        self, cur_item: HubspaceResource, device_id: str, states: list[dict]
+        self, cur_item: AferoResource, device_id: str, states: list[dict]
     ) -> None:
-        hs_dev_states = []
+        dev_states = []
         for state in states:
-            hs_dev_states.append(
-                HubspaceState(
+            dev_states.append(
+                AferoState(
                     functionClass=state["functionClass"],
                     value=state["value"],
                     functionInstance=state.get("functionInstance"),
                     lastUpdateTime=int(datetime.now(timezone.utc).timestamp() * 1000),
                 )
             )
-        dummy_hs_update = HubspaceDevice(
+        dummy_update = AferoDevice(
             id=device_id,
             device_id=cur_item.device_information.parent_id,
             model=cur_item.device_information.model,
@@ -259,23 +251,23 @@ class BaseResourcesController(Generic[HubspaceResource]):
             default_image=cur_item.device_information.default_image,
             default_name=cur_item.device_information.default_name,
             friendly_name=cur_item.device_information.name,
-            states=hs_dev_states,
+            states=dev_states,
         )
         # Update now, but also trigger all chained updates
-        await self.update_elem(dummy_hs_update)
+        await self.update_elem(dummy_update)
         self._bridge.events.add_job(
-            HubspaceEvent(
+            AferoEvent(
                 type=EventType.RESOURCE_UPDATED,
                 device_id=device_id,
-                device=dummy_hs_update,
+                device=dummy_update,
                 force_forward=True,
             )
         )
 
-    async def update_hubspace_api(self, device_id: str, states: list[dict]) -> bool:
-        """Update Hubspace API with the new states
+    async def update_afero_api(self, device_id: str, states: list[dict]) -> bool:
+        """Update Afero IoT API with the new states
 
-        :param device_id: Hubspace Device ID
+        :param device_id: Afero IoT Device ID
         :param states: States to manually set
 
         :return: True if successful, False otherwise.
@@ -305,13 +297,13 @@ class BaseResourcesController(Generic[HubspaceResource]):
     async def update(
         self,
         device_id: str,
-        obj_in: Generic[HubspaceResource] = None,
+        obj_in: Generic[AferoResource] = None,
         states: list[dict] | None = None,
     ) -> None:
-        """Update Hubspace with the new data
+        """Update Afero IoT with the new data
 
-        :param device_id: Hubspace Device ID
-        :param obj_in: Hubspace Resource elements to change
+        :param device_id: Afero IoT Device ID
+        :param obj_in: Afero IoT Resource elements to change
         :param states: States to manually set
         """
         try:
@@ -324,27 +316,27 @@ class BaseResourcesController(Generic[HubspaceResource]):
         # Make a clone to restore if the update fails
         fallback = copy.deepcopy(cur_item)
         if obj_in:
-            hs_states = dataclass_to_hs(cur_item, obj_in, self.ITEM_MAPPING)
-            if not hs_states:
+            device_states = dataclass_to_afero(cur_item, obj_in, self.ITEM_MAPPING)
+            if not device_states:
                 self._logger.debug("No states to send. Skipping")
                 return
             # Update the state of the item to match the new states
             update_dataclass(cur_item, obj_in)
         else:  # Manually setting states
-            hs_states = states
+            device_states = states
             await self._process_state_update(cur_item, device_id, states)
         # @TODO - Implement bluetooth logic for update
-        if not await self.update_hubspace_api(device_id, hs_states):
+        if not await self.update_afero_api(device_id, device_states):
             self._items[device_id] = fallback
 
-    def get_device(self, device_id) -> HubspaceResource:
+    def get_device(self, device_id) -> AferoResource:
         try:
             return self[device_id]
         except KeyError:
             raise DeviceNotFound(device_id)
 
 
-def update_dataclass(elem: HubspaceResource, update_vals: dataclass):
+def update_dataclass(elem: AferoResource, update_vals: dataclass):
     """Updates the element with the latest changes"""
     for f in fields(update_vals):
         cur_val = getattr(update_vals, f.name, None)
@@ -359,10 +351,10 @@ def update_dataclass(elem: HubspaceResource, update_vals: dataclass):
             setattr(elem, f.name, cur_val)
 
 
-def dataclass_to_hs(
-    elem: HubspaceResource, cls: dataclass, mapping: dict
+def dataclass_to_afero(
+    elem: AferoResource, cls: dataclass, mapping: dict
 ) -> list[dict]:
-    """Convert the current state to be consumed by Hubspace"""
+    """Convert the current state to be consumed by Afero IoT"""
     states = []
     for f in fields(cls):
         cur_val = getattr(cls, f.name, None)
@@ -370,19 +362,19 @@ def dataclass_to_hs(
             continue
         if cur_val == getattr(elem, f.name, None):
             continue
-        hs_key = mapping.get(f.name, f.name)
-        new_val = cur_val.hs_value
+        api_key = mapping.get(f.name, f.name)
+        new_val = cur_val.api_value
         if not isinstance(new_val, list):
             new_val = [new_val]
         for val in new_val:
             if hasattr(f, "func_instance"):
                 instance = getattr(cur_val, "func_instance", None)
             elif hasattr(elem, "get_instance"):
-                instance = elem.get_instance(hs_key)
+                instance = elem.get_instance(api_key)
             else:
                 instance = None
             new_state = {
-                "functionClass": hs_key,
+                "functionClass": api_key,
                 "functionInstance": instance,
                 "lastUpdateTime": int(time.time()),
                 "value": None,

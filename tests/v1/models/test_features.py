@@ -1,14 +1,14 @@
-from aiohubspace.v1.models import features
+from aioafero.v1.models import features
 
 
 def test_ColorModeFeature():
     feat = features.ColorModeFeature("white")
-    assert feat.hs_value == "white"
+    assert feat.api_value == "white"
 
 
 def test_ColorFeature():
     feat = features.ColorFeature(red=10, green=20, blue=30)
-    assert feat.hs_value == {
+    assert feat.api_value == {
         "value": {
             "color-rgb": {
                 "r": 10,
@@ -23,7 +23,7 @@ def test_ColorTemperatureFeature():
     feat = features.ColorTemperatureFeature(
         temperature=3000, supported=[1000, 2000, 3000], prefix="K"
     )
-    assert feat.hs_value == "3000K"
+    assert feat.api_value == "3000K"
 
 
 def test_CurrentPositionEnum():
@@ -35,28 +35,28 @@ def test_CurrentPositionEnum():
 
 def test_CurrentPositionFeature():
     feat = features.CurrentPositionFeature(features.CurrentPositionEnum.LOCKED)
-    assert feat.hs_value == "locked"
+    assert feat.api_value == "locked"
 
 
 def test_DimmingFeature():
     feat = features.DimmingFeature(
         brightness=30, supported=[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
     )
-    assert feat.hs_value == 30
+    assert feat.api_value == 30
 
 
 def test_DirectionFeature():
     feat = features.DirectionFeature(forward=True)
-    assert feat.hs_value == "forward"
+    assert feat.api_value == "forward"
     feat = features.DirectionFeature(forward=False)
-    assert feat.hs_value == "reverse"
+    assert feat.api_value == "reverse"
 
 
 def test_EffectFeature():
     feat = features.EffectFeature(
         effect="fade-3", effects={"preset": {"fade-3"}, "custom": {"rainbow"}}
     )
-    assert feat.hs_value == [
+    assert feat.api_value == [
         {
             "functionClass": "color-sequence",
             "functionInstance": "preset",
@@ -64,7 +64,7 @@ def test_EffectFeature():
         }
     ]
     feat.effect = "rainbow"
-    assert feat.hs_value == [
+    assert feat.api_value == [
         {
             "functionClass": "color-sequence",
             "functionInstance": "preset",
@@ -84,14 +84,14 @@ def test_EffectFeature():
 
 def test_ModeFeature():
     feat = features.ModeFeature(mode="color", modes={"color", "white"})
-    assert feat.hs_value == "color"
+    assert feat.api_value == "color"
 
 
 def test_OnFeature():
     feat = features.OnFeature(on=True)
-    assert feat.hs_value == {"value": "on", "functionClass": "power"}
+    assert feat.api_value == {"value": "on", "functionClass": "power"}
     feat = features.OnFeature(on=False, func_class="cool", func_instance="beans")
-    assert feat.hs_value == {
+    assert feat.api_value == {
         "value": "off",
         "functionClass": "cool",
         "functionInstance": "beans",
@@ -100,9 +100,9 @@ def test_OnFeature():
 
 def test_OpenFeature():
     feat = features.OpenFeature(open=True)
-    assert feat.hs_value == {"value": "on", "functionClass": "toggle"}
+    assert feat.api_value == {"value": "on", "functionClass": "toggle"}
     feat = features.OpenFeature(open=False, func_class="cool", func_instance="beans")
-    assert feat.hs_value == {
+    assert feat.api_value == {
         "value": "off",
         "functionClass": "cool",
         "functionInstance": "beans",
@@ -113,13 +113,13 @@ def test_PresetFeature():
     feat = features.PresetFeature(
         enabled=True, func_class="cool", func_instance="beans"
     )
-    assert feat.hs_value == {
+    assert feat.api_value == {
         "value": "enabled",
         "functionClass": "cool",
         "functionInstance": "beans",
     }
     feat.enabled = False
-    assert feat.hs_value == {
+    assert feat.api_value == {
         "value": "disabled",
         "functionClass": "cool",
         "functionInstance": "beans",
@@ -137,6 +137,6 @@ def test_SpeedFeature():
             "speed-4-100",
         ],
     )
-    assert feat.hs_value == "speed-4-25"
+    assert feat.api_value == "speed-4-25"
     feat.speed = 50
-    assert feat.hs_value == "speed-4-50"
+    assert feat.api_value == "speed-4-50"

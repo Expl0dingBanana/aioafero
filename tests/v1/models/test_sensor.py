@@ -1,8 +1,8 @@
-from aiohubspace.v1.models.sensor import HubspaceSensor, HubspaceSensorError
+from aioafero.v1.models.sensor import AferoSensor, AferoSensorError
 
 
 def test_init_sensor():
-    dev = HubspaceSensor(
+    dev = AferoSensor(
         id="entity-1",
         owner="device-link",
         _value="cool",
@@ -13,7 +13,7 @@ def test_init_sensor():
 
 
 def test_init_sensor_error():
-    dev = HubspaceSensorError(
+    dev = AferoSensorError(
         id="entity-1",
         owner="device-link",
         _value="alerting",

@@ -8,14 +8,14 @@ import aiohttp
 import pytest
 import pytest_asyncio
 
-from aiohubspace.v1 import auth
+from aioafero.v1 import auth
 
 current_path = pathlib.Path(__file__).parent.resolve()
 
 
 @pytest.fixture(scope="function")
 def hs_auth():
-    return auth.HubspaceAuth("username", "password")
+    return auth.AferoAuth("username", "password")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -135,7 +135,7 @@ async def test_webapp_login(
             response["body"] = f.read()
     challenge = await hs_auth.generate_challenge_data()
     generate_code = mocker.patch.object(hs_auth, "generate_code")
-    parse_code = mocker.patch.object(auth.HubspaceAuth, "parse_code")
+    parse_code = mocker.patch.object(auth.AferoAuth, "parse_code")
     params: dict[str, str] = {
         "response_type": "code",
         "client_id": auth.HUBSPACE_DEFAULT_CLIENT_ID,
@@ -160,11 +160,6 @@ async def test_webapp_login(
         with pytest.raises(expected_err):
             await hs_auth.webapp_login(challenge, aio_sess)
         generate_code.assert_not_called()
-
-
-#  https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth?&response_type=code&scope=openid+offline_access
-#  https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth?response_type=code&client_id=hubspace_android&redirect_uri=hubspace-app%253A%252F%252Floginredirect&code_challenge=eu8FHk6vLCD0cU8u0RPLfusdeMNog8yzdp454Fri3SA&code_challenge_method=S256&scope=openid+offline_access
-#  https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth?client_id=hubspace_android&code_challenge=lR9wKAJY-ZHPsLoEaYkHIS6xuNySzz6-yAWEa8RTjJU&&code_challenge_method=S256redirect_uri=hubspace-app%3A%2F%2Floginredirect&response_type=code&scope=openid+offline_access
 
 
 @pytest.mark.asyncio

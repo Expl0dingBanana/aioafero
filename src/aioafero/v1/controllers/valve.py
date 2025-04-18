@@ -1,7 +1,7 @@
 """Controller holding and managing Hubspace resources of type `valve`."""
 
 from ... import errors
-from ...device import HubspaceDevice
+from ...device import AferoDevice
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.valve import Valve, ValvePut
@@ -28,12 +28,12 @@ class ValveController(BaseResourcesController[Valve]):
         """Close the valve"""
         await self.set_state(device_id, valve_open=False, instance=instance)
 
-    async def initialize_elem(self, hs_device: HubspaceDevice) -> Valve:
+    async def initialize_elem(self, afero_device: AferoDevice) -> Valve:
         """Initialize the element"""
-        self._logger.info("Initializing %s", hs_device.id)
+        self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
         valve_open: dict[str, features.OpenFeature] = {}
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 valve_open[state.functionInstance] = features.OpenFeature(
                     open=state.value == "on",
@@ -43,27 +43,27 @@ class ValveController(BaseResourcesController[Valve]):
             elif state.functionClass == "available":
                 available = state.value
 
-        self._items[hs_device.id] = Valve(
-            hs_device.functions,
-            id=hs_device.id,
+        self._items[afero_device.id] = Valve(
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             device_information=DeviceInformation(
-                device_class=hs_device.device_class,
-                default_image=hs_device.default_image,
-                default_name=hs_device.default_name,
-                manufacturer=hs_device.manufacturerName,
-                model=hs_device.model,
-                name=hs_device.friendly_name,
-                parent_id=hs_device.device_id,
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
             ),
             open=valve_open,
         )
-        return self._items[hs_device.id]
+        return self._items[afero_device.id]
 
-    async def update_elem(self, hs_device: HubspaceDevice) -> set:
-        cur_item = self.get_device(hs_device.id)
+    async def update_elem(self, afero_device: AferoDevice) -> set:
+        cur_item = self.get_device(afero_device.id)
         updated_keys = set()
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 new_state = state.value == "on"
                 if cur_item.open[state.functionInstance].open != new_state:

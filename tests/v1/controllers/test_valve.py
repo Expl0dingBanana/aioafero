@@ -4,9 +4,9 @@ import asyncio
 
 import pytest
 
-from aiohubspace.device import HubspaceState
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.valve import ValveController, features
+from aioafero.device import AferoState
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.valve import ValveController, features
 
 from .. import utils
 
@@ -108,7 +108,7 @@ async def test_update_elem(mocked_controller):
     assert dev.available is True
     dev_update = utils.create_devices_from_data("water-timer.json")[0]
     new_states = [
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "toggle",
                 "value": "on",
@@ -116,7 +116,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "spigot-1",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "toggle",
                 "value": "off",
@@ -124,7 +124,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "spigot-2",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "available",
                 "value": False,
@@ -165,7 +165,7 @@ async def test_valve_emitting(bridge):
     # Simulate an update
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="available",
             functionInstance=None,
             value=False,
