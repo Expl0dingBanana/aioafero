@@ -17,31 +17,12 @@ from aiohttp import ClientSession, ContentTypeError
 from bs4 import BeautifulSoup
 
 from ..errors import InvalidAuth, InvalidResponse
-from .v1_const import HUBSPACE_DEFAULT_USERAGENT
+from . import v1_const
 
 logger = logging.getLogger(__name__)
 
-
-HUBSPACE_OPENID_URL: Final[str] = (
-    "https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth"
-)
-HUBSPACE_DEFAULT_CLIENT_ID: Final[str] = "hubspace_android"
-
-HUBSPACE_DEFAULT_REDIRECT_URI: Final[str] = "hubspace-app://loginredirect"
-HUBSPACE_CODE_URL: Final[str] = (
-    "https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate"
-)
-HUBSPACE_TOKEN_HEADERS: Final[dict[str, str]] = {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "user-agent": HUBSPACE_DEFAULT_USERAGENT,
-    "host": "accounts.hubspaceconnect.com",
-}
-HUBSPACE_TOKEN_URL: Final[str] = (
-    "https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/token"
-)
 TOKEN_TIMEOUT: Final[int] = 118
 STATUS_CODE: Final[str] = "Status Code: %s"
-
 
 auth_challenge = namedtuple("AuthChallenge", ["challenge", "verifier"])
 token_data = namedtuple("TokenData", ["token", "expiration"])
@@ -55,12 +36,26 @@ class AferoAuth:
     refresh tokens.
     """
 
-    def __init__(self, username, password, refresh_token: Optional[str] = None):
+    def __init__(
+        self,
+        username,
+        password,
+        refresh_token: Optional[str] = None,
+        afero_client: Optional[str] = "hubspace",
+    ):
         self._async_lock: asyncio.Lock = asyncio.Lock()
         self._username: str = username
         self._password: str = password
         self._refresh_token: Optional[str] = refresh_token
         self._token_data: Optional[token_data] = None
+        self._afero_client: str = afero_client
+        self._token_headers: dict[str, str] = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_USERAGENT"
+            ],
+            "host": v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_HOST"],
+        }
 
     @property
     async def is_expired(self) -> bool:
@@ -87,19 +82,25 @@ class AferoAuth:
         """
         code_params: dict[str, str] = {
             "response_type": "code",
-            "client_id": HUBSPACE_DEFAULT_CLIENT_ID,
-            "redirect_uri": HUBSPACE_DEFAULT_REDIRECT_URI,
+            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_CLIENT_ID"
+            ],
+            "redirect_uri": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_REDIRECT_URI"
+            ],
             "code_challenge": challenge.challenge,
             "code_challenge_method": "S256",
             "scope": "openid offline_access",
         }
         logger.debug(
             "URL: %s\n\tparams: %s",
-            HUBSPACE_OPENID_URL,
+            v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_URL"],
             code_params,
         )
         async with client.get(
-            HUBSPACE_OPENID_URL, params=code_params, allow_redirects=False
+            v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_URL"],
+            params=code_params,
+            allow_redirects=False,
         ) as response:
             if response.status == 200:
                 contents = await response.text()
@@ -154,12 +155,16 @@ class AferoAuth:
         params = {
             "session_code": session_code,
             "execution": execution,
-            "client_id": HUBSPACE_DEFAULT_CLIENT_ID,
+            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_CLIENT_ID"
+            ],
             "tab_id": tab_id,
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "user-agent": HUBSPACE_DEFAULT_USERAGENT,
+            "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_USERAGENT"
+            ],
         }
         auth_data = {
             "username": self._username,
@@ -168,12 +173,12 @@ class AferoAuth:
         }
         logger.debug(
             "URL: %s\n\tparams: %s\n\theaders: %s",
-            HUBSPACE_CODE_URL,
+            v1_const.AFERO_CLIENTS[self._afero_client]["CODE_URL"],
             params,
             headers,
         )
         async with client.post(
-            HUBSPACE_CODE_URL,
+            v1_const.AFERO_CLIENTS[self._afero_client]["CODE_URL"],
             params=params,
             data=auth_data,
             headers=headers,
@@ -200,9 +205,8 @@ class AferoAuth:
             )
         return code
 
-    @staticmethod
     async def generate_refresh_token(
-        code: str, challenge: auth_challenge, client: ClientSession
+        self, code: str, challenge: auth_challenge, client: ClientSession
     ) -> str:
         """Generate the refresh token from the given code and challenge
 
@@ -216,18 +220,24 @@ class AferoAuth:
         data = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": HUBSPACE_DEFAULT_REDIRECT_URI,
+            "redirect_uri": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_REDIRECT_URI"
+            ],
             "code_verifier": challenge.verifier,
-            "client_id": HUBSPACE_DEFAULT_CLIENT_ID,
+            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_CLIENT_ID"
+            ],
         }
         logger.debug(
             "URL: %s\n\tdata: %s\n\theaders: %s",
-            HUBSPACE_TOKEN_URL,
+            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
             data,
-            HUBSPACE_TOKEN_HEADERS,
+            self._token_headers,
         )
         async with client.post(
-            HUBSPACE_TOKEN_URL, headers=HUBSPACE_TOKEN_HEADERS, data=data
+            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
+            headers=self._token_headers,
+            data=data,
         ) as response:
             logger.debug(STATUS_CODE, response.status)
             response.raise_for_status()
@@ -262,7 +272,9 @@ class AferoAuth:
             if await self.is_expired:
                 logger.debug("Token has not been generated or is expired")
                 try:
-                    self._token_data = await generate_token(client, self._refresh_token)
+                    self._token_data = await self.generate_token(
+                        client, self._refresh_token
+                    )
                 except InvalidAuth:
                     logger.debug("Provided refresh token is no longer valid.")
                     if not retry:
@@ -276,11 +288,57 @@ class AferoAuth:
             return await self.token(client, retry=False)
         return self._token_data.token
 
+    async def generate_token(
+        self, client: ClientSession, refresh_token: str
+    ) -> token_data:
+        """Generate a token from the refresh token
+
+        :param client: async client for making request
+        :param refresh_token: Refresh token for generating request tokens
+        """
+        logger.debug("Generating token")
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "scope": "openid email offline_access profile",
+            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
+                "DEFAULT_CLIENT_ID"
+            ],
+        }
+        logger.debug(
+            ("URL: %s" "\n\tdata: %s" "\n\theaders: %s"),
+            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
+            data,
+            self._token_headers,
+        )
+        async with client.post(
+            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
+            headers=self._token_headers,
+            data=data,
+        ) as response:
+            if response.status != 200:
+                with contextlib.suppress(ValueError, ContentTypeError):
+                    data = await response.json()
+                if data and data.get("error") == "invalid_grant":
+                    raise InvalidAuth()
+                else:
+                    response.raise_for_status()
+            resp_json = await response.json()
+            try:
+                auth_token = resp_json["id_token"]
+            except KeyError:
+                raise InvalidResponse("Unable to extract the token")
+            logger.debug("JSON response: %s", resp_json)
+            return token_data(
+                auth_token, datetime.datetime.now().timestamp() + TOKEN_TIMEOUT
+            )
+
 
 async def extract_login_data(page: str) -> auth_sess_data:
     """Extract the required login data from the auth page
 
-    :param page: the response from performing a GET against HUBSPACE_OPENID_URL
+    :param page: the response from performing a GET against
+    v1_const.AFERO_CLIENTS[self._afero_client]['OPENID_URL']
     """
     auth_page = BeautifulSoup(page, features="html.parser")
     login_form = auth_page.find("form", id="kc-form-login")
@@ -300,43 +358,3 @@ async def extract_login_data(page: str) -> auth_sess_data:
         )
     except (KeyError, IndexError) as err:
         raise InvalidResponse("Unable to parse login url") from err
-
-
-async def generate_token(client: ClientSession, refresh_token: str) -> token_data:
-    """Generate a token from the refresh token
-
-    :param client: async client for making request
-    :param refresh_token: Refresh token for generating request tokens
-    """
-    logger.debug("Generating token")
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "scope": "openid email offline_access profile",
-        "client_id": HUBSPACE_DEFAULT_CLIENT_ID,
-    }
-    logger.debug(
-        ("URL: %s" "\n\tdata: %s" "\n\theaders: %s"),
-        HUBSPACE_TOKEN_URL,
-        data,
-        HUBSPACE_TOKEN_HEADERS,
-    )
-    async with client.post(
-        HUBSPACE_TOKEN_URL, headers=HUBSPACE_TOKEN_HEADERS, data=data
-    ) as response:
-        if response.status != 200:
-            with contextlib.suppress(ValueError, ContentTypeError):
-                data = await response.json()
-            if data and data.get("error") == "invalid_grant":
-                raise InvalidAuth()
-            else:
-                response.raise_for_status()
-        resp_json = await response.json()
-        try:
-            auth_token = resp_json["id_token"]
-        except KeyError:
-            raise InvalidResponse("Unable to extract the token")
-        logger.debug("JSON response: %s", resp_json)
-        return token_data(
-            auth_token, datetime.datetime.now().timestamp() + TOKEN_TIMEOUT
-        )

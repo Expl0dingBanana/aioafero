@@ -272,11 +272,11 @@ class BaseResourcesController(Generic[AferoResource]):
 
         :return: True if successful, False otherwise.
         """
-        url = v1_const.HUBSPACE_DEVICE_STATE.format(
+        url = v1_const.AFERO_CLIENTS[self._bridge.afero_client]["DEVICE_STATE"].format(
             self._bridge.account_id, str(device_id)
         )
         headers = {
-            "host": v1_const.HUBSPACE_DATA_HOST,
+            "host": v1_const.AFERO_CLIENTS[self._bridge.afero_client]["DATA_HOST"],
             "content-type": "application/json; charset=utf-8",
         }
         payload = {"metadeviceId": str(device_id), "values": states}
