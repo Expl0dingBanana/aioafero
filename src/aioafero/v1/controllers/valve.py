@@ -1,4 +1,4 @@
-"""Controller holding and managing Hubspace resources of type `valve`."""
+"""Controller holding and managing Afero IoT resources of type `valve`."""
 
 from ... import errors
 from ...device import AferoDevice
@@ -9,7 +9,7 @@ from .base import BaseResourcesController
 
 
 class ValveController(BaseResourcesController[Valve]):
-    """Controller holding and managing Hubspace resources of type `valve`.
+    """Controller holding and managing Afero IoT resources of type `valve`.
 
     A valve can have one or more toggleable elements. They are controlled
     by their functionInstance.

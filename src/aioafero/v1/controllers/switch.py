@@ -1,4 +1,4 @@
-"""Controller holding and managing Hubspace resources of type `switch`."""
+"""Controller holding and managing Afero IoT resources of type `switch`."""
 
 from ... import errors
 from ...device import AferoDevice
@@ -9,7 +9,7 @@ from .base import BaseResourcesController
 
 
 class SwitchController(BaseResourcesController[Switch]):
-    """Controller holding and managing Hubspace resources of type `switch`.
+    """Controller holding and managing Afero IoT resources of type `switch`.
 
     A switch can have one or more toggleable elements. They are controlled
     by their functionInstance.
