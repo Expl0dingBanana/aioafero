@@ -6,9 +6,9 @@ from .resource import DeviceInformation, ResourceTypes
 
 @dataclass
 class Fan:
-    """Representation of a Hubspace Fan"""
+    """Representation of an Afero Fan"""
 
-    id: str  # ID used when interacting with Hubspace
+    id: str  # ID used when interacting with Afero
     available: bool
 
     on: features.OnFeature

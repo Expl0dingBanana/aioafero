@@ -4,9 +4,9 @@ import asyncio
 
 import pytest
 
-from aiohubspace.device import HubspaceState
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.lock import LockController, features
+from aioafero.device import AferoState
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.lock import LockController, features
 
 from .. import utils
 
@@ -92,7 +92,7 @@ async def test_update_elem(value, expected, expected_updates, mocked_controller)
     assert dev.available
     dev_update = utils.create_devices_from_data("door-lock-TBD.json")[0]
     new_states = [
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "lock-control",
                 "value": value,
@@ -100,7 +100,7 @@ async def test_update_elem(value, expected, expected_updates, mocked_controller)
                 "functionInstance": None,
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "available",
                 "value": False,
@@ -140,7 +140,7 @@ async def test_lock_emitting(bridge):
     # Simulate an update
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="available",
             functionInstance=None,
             value=False,

@@ -1,32 +1,31 @@
-===========
-aiohubspace
-===========
+========
+aioafero
+========
 
 
-    Connects to Hubspace API and provides an easy way to interact
+    Connects to Afero cloud API and provides an easy way to interact
     with devices.
 
 
-This project was designed to asynchronously connect to the Hubspace API. It
-has the ability to retrieve the devices and set new states. It was updated
-from `hubspace_async` and merged with concepts from `aiohue`.
+This project was designed to asynchronously connect to the Afero IOT API. It
+has the ability to retrieve the devices and set new states.
 
 
-.. image:: https://github.com/Expl0dingBanana/aiohubspace/actions/workflows/cicd.yaml/badge.svg?branch=main
-   :target: https://github.com/Expl0dingBanana/aiohubspace/actions/workflows/cicd.yaml
+.. image:: https://github.com/Expl0dingBanana/aioafero/actions/workflows/cicd.yaml/badge.svg?branch=main
+   :target: https://github.com/Expl0dingBanana/aioafero/actions/workflows/cicd.yaml
 
-.. image:: https://codecov.io/github/Expl0dingBanana/aiohubspace/graph/badge.svg?token=NP2RE4I4XK
-   :target: https://codecov.io/github/Expl0dingBanana/aiohubspace
+.. image:: https://codecov.io/github/Expl0dingBanana/aioafero/graph/badge.svg?token=NP2RE4I4XK
+   :target: https://codecov.io/github/Expl0dingBanana/aioafero
 
 Overview
 ========
 All data is stored within a "bridge" that knows of all of the devices aligned
-with the Hubspace account. This bridge contains multiple controllers for each
-device type. These controllers know how to interact with the Hubspace devices.
+with the Afero IOT account. This bridge contains multiple controllers for each
+device type. These controllers know how to interact with the Afero IOT devices.
 Each controller manages the device's states. To retrieve a device, you must
-query ``bridge.<controller>.get_device(<hubspace_id>)`` which will return
+query ``bridge.<controller>.get_device(<device_id>)`` which will return
 a model containing all the states. Any changes to the model will not
-update Hubspace as the correct call needs to be made.
+update Afero IOT as the correct call needs to be made.
 
 Controllers
 ===========
@@ -82,14 +81,14 @@ All examples assume you entered the shell with ``python -m asyncio``
 
 .. code-block:: python
 
-    from aiohubspace import v1
+    from aioafero import v1
     import logging
-    logging.getLogger("aiohubspace").setLevel(logging.DEBUG)
-    USERNAME="" # Hubspace username
-    PASSWORD="" # Hubspace password
+    logging.getLogger("aioafero").setLevel(logging.DEBUG)
+    USERNAME="" # Afero IOT username
+    PASSWORD="" # Afero IOT password
     POLLING_INTERVAL=30 # Number of seconds between polling cycles
     # Create the bridge
-    bridge = v1.HubspaceBridgeV1(USERNAME, PASSWORD, polling_interval=POLLING_INTERVAL)
+    bridge = v1.AferoBridgeV1(USERNAME, PASSWORD, polling_interval=POLLING_INTERVAL)
     # Query the API and populate the controllers
     await bridge.initialize()
     # Turn on the light that matches id="84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6"
@@ -99,13 +98,13 @@ All examples assume you entered the shell with ``python -m asyncio``
 Troubleshooting
 ===============
 
-* Hubspace Device shows incorrect model
+* Device shows incorrect model
 
-  * Hubspace does not always report all the pertinent information through the API.
-    To resolve this, open a PR to ``src/aiohubspace/device.py`` and update the dataclass
-    ``HubspaceDevice.__post_init__`` function to correctly identify the device.
+  * Afero IoT does not always report all the pertinent information through the API.
+    To resolve this, open a PR to ``src/aioafero/device.py`` and update the dataclass
+    ``AferoDevice.__post_init__`` function to correctly identify the device.
 
-* Hubspace is slow to update
+* Afero IoT is slow to update
 
   * The API rate-limits request. If other things are hitting the API (such as the phone app
     or Home Assistant), you may need to stop using one to ensure a better connection.

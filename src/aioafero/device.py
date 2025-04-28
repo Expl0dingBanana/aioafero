@@ -1,17 +1,17 @@
 __all__ = [
-    "HubspaceDevice",
-    "HubspaceState",
-    "get_hs_device",
+    "AferoDevice",
+    "AferoState",
+    "get_afero_device",
 ]
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class HubspaceState:
+class AferoState:
     """State of a given function
 
     :param functionClass: Function class for the state (ie, power)
@@ -28,7 +28,7 @@ class HubspaceState:
 
 
 @dataclass
-class HubspaceDevice:
+class AferoDevice:
     id: str
     device_id: str
     model: str
@@ -37,7 +37,7 @@ class HubspaceDevice:
     default_image: str
     friendly_name: str
     functions: list[dict] = field(default=list)
-    states: list[HubspaceState] = field(default=list)
+    states: list[AferoState] = field(default=list)
     children: list[str] = field(default=list)
     manufacturerName: Optional[str] = field(default=None)
 
@@ -92,14 +92,14 @@ class HubspaceDevice:
             self.model = self.default_name
 
 
-def get_hs_device(hs_device: dict[str, Any]) -> HubspaceDevice:
-    """Convert the Hubspace device definition into a HubspaceDevice"""
-    description = hs_device.get("description", {})
+def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
+    """Convert the Afero device definition into a AferoDevice"""
+    description = afero_device.get("description", {})
     device = description.get("device", {})
-    processed_states: list[HubspaceState] = []
-    for state in hs_device.get("state", {}).get("values", []):
+    processed_states: list[AferoState] = []
+    for state in afero_device.get("state", {}).get("values", []):
         processed_states.append(
-            HubspaceState(
+            AferoState(
                 functionClass=state.get("functionClass"),
                 value=state.get("value"),
                 lastUpdateTime=state.get("lastUpdateTime"),
@@ -107,19 +107,19 @@ def get_hs_device(hs_device: dict[str, Any]) -> HubspaceDevice:
             )
         )
     dev_dict = {
-        "id": hs_device.get("id"),
-        "device_id": hs_device.get("deviceId"),
+        "id": afero_device.get("id"),
+        "device_id": afero_device.get("deviceId"),
         "model": device.get("model"),
         "device_class": device.get("deviceClass"),
         "default_name": device.get("defaultName"),
         "default_image": description.get("defaultImage"),
-        "friendly_name": hs_device.get("friendlyName"),
+        "friendly_name": afero_device.get("friendlyName"),
         "functions": description.get("functions", []),
         "states": processed_states,
-        "children": hs_device.get("children", []),
+        "children": afero_device.get("children", []),
         "manufacturerName": device.get("manufacturerName"),
     }
-    return HubspaceDevice(**dev_dict)
+    return AferoDevice(**dev_dict)
 
 
 def get_function_from_device(
@@ -138,3 +138,6 @@ def get_function_from_device(
             continue
         return func
     return None
+
+
+AferoResource = TypeVar("AferoResource")

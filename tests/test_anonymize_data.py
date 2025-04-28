@@ -2,8 +2,8 @@ from dataclasses import replace
 
 import pytest
 
-from aiohubspace import anonomyize_data
-from aiohubspace.device import HubspaceDevice, HubspaceState
+from aioafero import anonomyize_data
+from aioafero.device import AferoDevice, AferoState
 
 POWER_STATE = {
     "functionClass": "power",
@@ -21,7 +21,7 @@ MAC_STATE = {
     "functionInstance": None,
     "value": "aa:bb:cc:dd:ee:ff",
 }
-child_dev_1 = HubspaceDevice(
+child_dev_1 = AferoDevice(
     id="c-id-1",
     device_id="parent-1",
     model="test-c-dev-1",
@@ -31,14 +31,14 @@ child_dev_1 = HubspaceDevice(
     friendly_name="test-c-dev-1",
     functions=[],
     states=[
-        HubspaceState(**POWER_STATE),
-        HubspaceState(**GEO_STATE),
-        HubspaceState(**MAC_STATE),
+        AferoState(**POWER_STATE),
+        AferoState(**GEO_STATE),
+        AferoState(**MAC_STATE),
     ],
     children=[],
     manufacturerName="test-manuf",
 )
-child_dev_2 = HubspaceDevice(
+child_dev_2 = AferoDevice(
     id="c-id-2",
     device_id="parent-1",
     model="test-c-dev-2",
@@ -48,15 +48,15 @@ child_dev_2 = HubspaceDevice(
     friendly_name="test-c-dev-2",
     functions=[],
     states=[
-        HubspaceState(**POWER_STATE),
-        HubspaceState(**GEO_STATE),
-        HubspaceState(**MAC_STATE),
+        AferoState(**POWER_STATE),
+        AferoState(**GEO_STATE),
+        AferoState(**MAC_STATE),
     ],
     children=[],
     manufacturerName="test-manuf",
 )
 
-parent_dev_1 = HubspaceDevice(
+parent_dev_1 = AferoDevice(
     id="p-id-1",
     device_id="parent-1",
     model="test-dev-1",
@@ -66,9 +66,9 @@ parent_dev_1 = HubspaceDevice(
     friendly_name="test-dev-1",
     functions=[],
     states=[
-        HubspaceState(**POWER_STATE),
-        HubspaceState(**GEO_STATE),
-        HubspaceState(**MAC_STATE),
+        AferoState(**POWER_STATE),
+        AferoState(**GEO_STATE),
+        AferoState(**MAC_STATE),
     ],
     children=[child_dev_1.id, child_dev_2.id],
     manufacturerName="test-manuf",
@@ -95,7 +95,7 @@ def mock_uuid(mocker):
     [
         # Non-geo + only_geo
         (
-            HubspaceState(
+            AferoState(
                 functionClass="wifi-mac-address",
                 functionInstance=None,
                 value="aa:bb:cc:dd:ee:ff",
@@ -110,7 +110,7 @@ def mock_uuid(mocker):
         ),
         # Non-geo + not only_geo
         (
-            HubspaceState(
+            AferoState(
                 functionClass="wifi-mac-address",
                 functionInstance=None,
                 value="aa:bb:cc:dd:ee:ff",
@@ -125,7 +125,7 @@ def mock_uuid(mocker):
         ),
         # Geo data
         (
-            HubspaceState(
+            AferoState(
                 functionClass="geo-coordinates",
                 functionInstance=None,
                 value={"geo-coordinates": {"latitude": "5", "longitude": "5"}},
@@ -140,7 +140,7 @@ def mock_uuid(mocker):
         ),
         # Non-anon data
         (
-            HubspaceState(
+            AferoState(
                 functionClass="power",
                 functionInstance=None,
                 lastUpdateTime=12345,

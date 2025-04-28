@@ -1,14 +1,14 @@
 import pytest
 
-from aiohubspace import EventType, InvalidAuth
-from aiohubspace.errors import DeviceNotFound
-from aiohubspace.v1.controllers.device import DeviceController
-from aiohubspace.v1.controllers.event import EventStream
-from aiohubspace.v1.controllers.fan import FanController
-from aiohubspace.v1.controllers.light import LightController
-from aiohubspace.v1.controllers.lock import LockController
-from aiohubspace.v1.controllers.switch import SwitchController
-from aiohubspace.v1.controllers.valve import ValveController
+from aioafero import EventType, InvalidAuth
+from aioafero.errors import DeviceNotFound
+from aioafero.v1.controllers.device import DeviceController
+from aioafero.v1.controllers.event import EventStream
+from aioafero.v1.controllers.fan import FanController
+from aioafero.v1.controllers.light import LightController
+from aioafero.v1.controllers.lock import LockController
+from aioafero.v1.controllers.switch import SwitchController
+from aioafero.v1.controllers.valve import ValveController
 
 from . import utils
 

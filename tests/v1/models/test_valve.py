@@ -1,7 +1,7 @@
 import pytest
 
-from aiohubspace.v1.models import features
-from aiohubspace.v1.models.valve import Valve
+from aioafero.v1.models import features
+from aioafero.v1.models.valve import Valve
 
 
 @pytest.fixture

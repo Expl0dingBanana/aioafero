@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 2.0.0
+=============
+
+ * Migration from aiohubspace to aioafero to support the Aefro IoT Cloud
+
 Version 1.2.0
 =============
 

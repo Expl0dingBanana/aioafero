@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock
 import pytest
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
-from aiohubspace import InvalidAuth
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.models.resource import ResourceTypes
+from aioafero import InvalidAuth
+from aioafero.v1.controllers import event
+from aioafero.v1.models.resource import ResourceTypes
 
 from .. import utils
 
@@ -82,11 +82,11 @@ async def test_event_reader_dev_add(bridge, mocker):
     stream._subscribers = []
     await stream.stop()
 
-    def hs_dev(dev):
+    def afero_dev(dev):
         return dev
 
     mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=[a21_light]))
-    mocker.patch.object(event, "get_hs_device", side_effect=hs_dev)
+    mocker.patch.object(event, "get_afero_device", side_effect=afero_dev)
     await stream.initialize_reader()
     max_retry = 10
     retry = 0
@@ -170,7 +170,7 @@ def gather_data_invalid_auth():
         (
             event.EventStreamStatus.CONNECTING,
             gather_data_timeout_gen,
-            ["Timeout when contacting Hubspace API"],
+            ["Timeout when contacting Afero IoT API"],
             None,
             [event.EventType.DISCONNECTED, event.EventType.CONNECTED],
         ),
@@ -180,7 +180,7 @@ def gather_data_invalid_auth():
         (
             event.EventStreamStatus.CONNECTING,
             gather_data_error_gen,
-            ["seconds before next poll", "Lost connection to the Hubspace API"],
+            ["seconds before next poll", "Lost connection to the Afero IoT API"],
             None,
             [event.EventType.DISCONNECTED, event.EventType.RECONNECTED],
         ),
@@ -188,7 +188,7 @@ def gather_data_invalid_auth():
         (
             event.EventStreamStatus.CONNECTING,
             gather_data_multi_error_gen,
-            ["Lost connection to the Hubspace API"],
+            ["Lost connection to the Afero IoT API"],
             None,
             [event.EventType.DISCONNECTED, event.EventType.RECONNECTED],
         ),
@@ -196,7 +196,7 @@ def gather_data_invalid_auth():
         (
             event.EventStreamStatus.CONNECTING,
             gather_data_bad_collection,
-            ["Unexpected data from Hubspace API, ['bad data']"],
+            ["Unexpected data from Afero IoT API, ['bad data']"],
             None,
             [event.EventType.DISCONNECTED, event.EventType.RECONNECTED],
         ),
@@ -264,7 +264,7 @@ async def test_generate_events_from_data(bridge, mocker):
     }
     bad_switch = dataclasses.replace(switch)
     bad_switch.device_class = ""
-    mocker.patch.object(event, "get_hs_device", side_effect=lambda x: x)
+    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
     await stream.generate_events_from_data([a21_light, switch, bad_switch])
     assert stream._event_queue.qsize() == 3
     assert await stream._event_queue.get() == {
@@ -352,7 +352,7 @@ async def test_perform_poll(
         "doesnt_exist_list": bridge.lights,
     }
     emit_calls = mocker.patch.object(stream, "emit")
-    mocker.patch.object(event, "get_hs_device", side_effect=lambda x: x)
+    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
 
     await stream.perform_poll()
     assert emit_calls.call_count == len(expected_emits)
@@ -374,7 +374,7 @@ async def test_event_reader_dev_update(bridge, mocker):
     await stream.stop()
 
     mocker.patch.object(stream, "gather_data", AsyncMock(return_value=[a21_light]))
-    mocker.patch.object(event, "get_hs_device", side_effect=lambda x: x)
+    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
     await stream.initialize_reader()
     max_retry = 10
     retry = 0
@@ -404,11 +404,11 @@ async def test_event_reader_dev_delete(bridge, mocker):
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
 
-    def hs_dev(dev):
+    def afero_dev(dev):
         return dev
 
     mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=[]))
-    mocker.patch.object(event, "get_hs_device", side_effect=hs_dev)
+    mocker.patch.object(event, "get_afero_device", side_effect=afero_dev)
     await stream.initialize_reader()
     max_retry = 10
     retry = 0
@@ -470,7 +470,7 @@ async def test_process_event(pop_event, has_exception, bridge, mocker, caplog):
 async def test___event_processor(bridge, mocker):
     stream = bridge.events
     emit = mocker.patch.object(stream, "emit")
-    exp_event = event.HubspaceEvent(
+    exp_event = event.AferoEvent(
         type=event.EventType.RESOURCE_DELETED, device_id="1234"
     )
     stream._event_queue.put_nowait(exp_event)
@@ -505,7 +505,7 @@ async def test_emit_event_type(
     stream._subscribers = []
     await stream.stop()
 
-    event_to_emit = event.HubspaceEvent(
+    event_to_emit = event.AferoEvent(
         type=event_type, device_id=a21_light.id, device=a21_light
     )
 
@@ -526,7 +526,7 @@ async def test_emit_invalid_auth(bridge, mocker):
     callback = mocker.AsyncMock()
     event_type = event.EventType.INVALID_AUTH
     stream.subscribe(callback, event_filter=(event_type,))
-    event_to_emit = event.HubspaceEvent(type=event_type)
+    event_to_emit = event.AferoEvent(type=event_type)
     stream.emit(event_type, event_to_emit)
     callback.assert_called_once()
 
@@ -554,7 +554,7 @@ async def test_emit_resource_filter(
     stream = bridge.events
     await stream.stop()
 
-    event_to_emit = event.HubspaceEvent(
+    event_to_emit = event.AferoEvent(
         type=event.EventType.RESOURCE_UPDATED, device_id=device.id, device=device
     )
 
@@ -571,7 +571,7 @@ async def test_emit_resource_filter(
 @pytest.mark.asyncio
 async def test_emit_resource_filter_exception(bridge, caplog):
     stream = bridge.events
-    event_to_emit = event.HubspaceEvent(
+    event_to_emit = event.AferoEvent(
         type=event.EventType.RESOURCE_UPDATED,
         device_id="cool_id",
         device="im not a hubspace device",

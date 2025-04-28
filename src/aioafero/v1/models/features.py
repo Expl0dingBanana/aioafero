@@ -1,4 +1,4 @@
-"""Feature Schemas used by various Hubspace resources."""
+"""Feature Schemas used by various Afero resources."""
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -13,7 +13,7 @@ class ColorModeFeature:
     mode: str
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return self.mode
 
 
@@ -26,7 +26,7 @@ class ColorFeature:
     blue: int
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return {
             "value": {
                 "color-rgb": {
@@ -47,7 +47,7 @@ class ColorTemperatureFeature:
     prefix: str | None = None
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return f"{self.temperature}{self.prefix}"
 
 
@@ -72,7 +72,7 @@ class CurrentPositionFeature:
     position: CurrentPositionEnum
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return self.position.value
 
 
@@ -84,7 +84,7 @@ class DimmingFeature:
     supported: list[int]
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return self.brightness
 
 
@@ -95,7 +95,7 @@ class DirectionFeature:
     forward: bool
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return "forward" if self.forward else "reverse"
 
 
@@ -107,7 +107,7 @@ class EffectFeature:
     effects: dict[str, set[str]]
 
     @property
-    def hs_value(self):
+    def api_value(self):
         states = []
         seq_key = None
         for effect_group, effects in self.effects.items():
@@ -149,20 +149,20 @@ class ModeFeature:
     modes: set[str]
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return self.mode
 
 
 @dataclass
 class OnFeature:
-    """Represent `On` Feature object as used by various Hubspace resources."""
+    """Represent `On` Feature object as used by various Afero resources."""
 
     on: bool
     func_class: str | None = field(default="power")
     func_instance: str | None = field(default=None)
 
     @property
-    def hs_value(self):
+    def api_value(self):
         state = {
             "value": "on" if self.on else "off",
             "functionClass": self.func_class,
@@ -181,7 +181,7 @@ class OpenFeature:
     func_instance: str | None = field(default=None)
 
     @property
-    def hs_value(self):
+    def api_value(self):
         state = {
             "value": "on" if self.open else "off",
             "functionClass": self.func_class,
@@ -200,7 +200,7 @@ class PresetFeature:
     func_class: str
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return {
             "functionClass": self.func_class,
             "functionInstance": self.func_instance,
@@ -216,5 +216,5 @@ class SpeedFeature:
     speeds: list[str]
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return percentage_to_ordered_list_item(self.speeds, self.speed)

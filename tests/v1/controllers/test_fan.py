@@ -5,9 +5,9 @@ import logging
 
 import pytest
 
-from aiohubspace.device import HubspaceState
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.fan import FanController, features
+from aioafero.device import AferoState
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.fan import FanController, features
 
 from .. import utils
 
@@ -206,7 +206,7 @@ async def test_update_elem(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("fan-ZandraFan.json")[0]
     new_states = [
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "toggle",
                 "value": "disabled",
@@ -214,7 +214,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "comfort-breeze",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "fan-speed",
                 "value": "fan-speed-6-016",
@@ -222,7 +222,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "fan-speed",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "fan-reverse",
                 "value": "forward",
@@ -230,7 +230,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "fan-reverse",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "power",
                 "value": "off",
@@ -238,7 +238,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "fan-power",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "toggle",
                 "value": "disabled",
@@ -246,7 +246,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "comfort-breeze",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "available",
                 "value": False,
@@ -315,7 +315,7 @@ async def test_fan_emitting(bridge):
     # Simulate an update
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="available",
             functionInstance=None,
             value=False,

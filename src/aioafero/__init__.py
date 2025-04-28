@@ -1,10 +1,10 @@
 __all__ = [
-    "HubspaceError",
+    "AferoError",
     "InvalidAuth",
     "InvalidResponse",
-    "HubspaceDevice",
-    "HubspaceState",
-    "get_hs_device",
+    "AferoDevice",
+    "AferoState",
+    "get_afero_device",
     "anonymize_device",
     "anonymize_devices",
     "v1",
@@ -16,7 +16,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 try:
     # Change here if project is renamed and does not equal the package name
-    dist_name = "aiohubspace"
+    dist_name = "aioafero"
     __version__ = version(dist_name)
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
@@ -26,6 +26,6 @@ finally:
 
 from . import v1
 from .anonomyize_data import anonymize_device, anonymize_devices
-from .device import HubspaceDevice, HubspaceState, get_hs_device
-from .errors import HubspaceError, InvalidAuth, InvalidResponse
+from .device import AferoDevice, AferoState, get_afero_device
+from .errors import AferoError, InvalidAuth, InvalidResponse
 from .types import EventType

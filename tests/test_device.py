@@ -3,18 +3,18 @@ import os
 
 import pytest
 
-from aiohubspace import device
+from aioafero import device
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 
 
 with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
     device_lock_response = json.load(fh)
-    lock_dev = device.get_hs_device(device_lock_response[0])
+    lock_dev = device.get_afero_device(device_lock_response[0])
 
 
 @pytest.mark.parametrize(
-    "hs_device,expected",
+    "afero_device,expected",
     [
         # Everything is set correctly
         (
@@ -29,7 +29,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -56,7 +56,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -83,7 +83,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -110,7 +110,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -137,7 +137,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -164,7 +164,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -190,7 +190,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "friendly_name": "friendly_name",
                 "functions": ["functions!"],
                 "states": [
-                    device.HubspaceState(
+                    device.AferoState(
                         **{
                             "functionClass": "brightness",
                             "functionInstance": None,
@@ -200,7 +200,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     )
                 ],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -211,7 +211,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     "friendly_name": "friendly_name",
                     "functions": ["functions!"],
                     "states": [
-                        device.HubspaceState(
+                        device.AferoState(
                             **{
                                 "functionClass": "brightness",
                                 "functionInstance": None,
@@ -235,7 +235,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "friendly_name": "friendly_name",
                 "functions": ["functions!"],
                 "states": [
-                    device.HubspaceState(
+                    device.AferoState(
                         **{
                             "functionClass": "power",
                             "functionInstance": None,
@@ -245,7 +245,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     )
                 ],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -256,7 +256,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     "friendly_name": "friendly_name",
                     "functions": ["functions!"],
                     "states": [
-                        device.HubspaceState(
+                        device.AferoState(
                             **{
                                 "functionClass": "power",
                                 "functionInstance": None,
@@ -281,7 +281,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "friendly_name": "friendly_name",
                 "functions": ["functions!"],
                 "states": [
-                    device.HubspaceState(
+                    device.AferoState(
                         **{
                             "functionClass": "power",
                             "functionInstance": None,
@@ -291,7 +291,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     )
                 ],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -302,7 +302,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     "friendly_name": "friendly_name",
                     "functions": ["functions!"],
                     "states": [
-                        device.HubspaceState(
+                        device.AferoState(
                             **{
                                 "functionClass": "power",
                                 "functionInstance": None,
@@ -327,7 +327,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "friendly_name": "friendly_name",
                 "functions": ["functions!"],
                 "states": [
-                    device.HubspaceState(
+                    device.AferoState(
                         **{
                             "functionClass": "power",
                             "functionInstance": None,
@@ -337,7 +337,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     )
                 ],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -348,7 +348,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     "friendly_name": "friendly_name",
                     "functions": ["functions!"],
                     "states": [
-                        device.HubspaceState(
+                        device.AferoState(
                             **{
                                 "functionClass": "power",
                                 "functionInstance": None,
@@ -372,7 +372,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "friendly_name": "friendly_name",
                 "functions": ["functions!"],
                 "states": [
-                    device.HubspaceState(
+                    device.AferoState(
                         **{
                             "functionClass": "power",
                             "functionInstance": None,
@@ -382,7 +382,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     )
                 ],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -393,7 +393,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     "friendly_name": "friendly_name",
                     "functions": ["functions!"],
                     "states": [
-                        device.HubspaceState(
+                        device.AferoState(
                             **{
                                 "functionClass": "power",
                                 "functionInstance": None,
@@ -417,7 +417,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "friendly_name": "friendly_name",
                 "functions": ["functions!"],
                 "states": [
-                    device.HubspaceState(
+                    device.AferoState(
                         **{
                             "functionClass": "power",
                             "functionInstance": None,
@@ -427,7 +427,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     )
                 ],
             },
-            device.HubspaceDevice(
+            device.AferoDevice(
                 **{
                     "id": "id",
                     "device_id": "device_id",
@@ -438,7 +438,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                     "friendly_name": "friendly_name",
                     "functions": ["functions!"],
                     "states": [
-                        device.HubspaceState(
+                        device.AferoState(
                             **{
                                 "functionClass": "power",
                                 "functionInstance": None,
@@ -453,12 +453,12 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
         ),
     ],
 )
-def test_HubspaceDevice(hs_device, expected):
-    assert device.HubspaceDevice(**hs_device) == expected
+def test_AferoDevice(afero_device, expected):
+    assert device.AferoDevice(**afero_device) == expected
 
 
 @pytest.mark.parametrize(
-    "hs_device,expected_attrs",
+    "afero_device,expected_attrs",
     [
         # Validate when values are missing
         (
@@ -490,8 +490,8 @@ def test_HubspaceDevice(hs_device, expected):
         ),
     ],
 )
-def test_get_hs_device(hs_device, expected_attrs):
-    dev = device.get_hs_device(hs_device)
+def test_get_afero_device(afero_device, expected_attrs):
+    dev = device.get_afero_device(afero_device)
     for key, val in expected_attrs.items():
         assert (
             getattr(dev, key) == val
@@ -531,14 +531,14 @@ def test_get_hs_device(hs_device, expected_attrs):
         ),
     ],
 )
-def test_HubspaceState(data, expected_attrs):
-    elem = device.HubspaceState(**data)
+def test_AferoState(data, expected_attrs):
+    elem = device.AferoState(**data)
     for key, val in expected_attrs.items():
         assert getattr(elem, key) == val
 
 
-def test_HubspaceDevice_hash():
-    dev = device.get_hs_device(device_lock_response[0])
+def test_AferoDevice_hash():
+    dev = device.get_afero_device(device_lock_response[0])
     hash_check = {dev: True}
     assert dev in hash_check
 

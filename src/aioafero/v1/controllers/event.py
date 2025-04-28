@@ -1,4 +1,4 @@
-"""Handle connecting to Hubspace and distribute events."""
+"""Handle connecting to Afero IoT and distribute events."""
 
 import asyncio
 from asyncio.coroutines import iscoroutinefunction
@@ -10,12 +10,12 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 from aiohttp.client_exceptions import ClientError
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
-from ...device import HubspaceDevice, get_hs_device
+from ...device import AferoDevice, get_afero_device
 from ...errors import InvalidAuth
 from ...types import EventType
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import HubspaceBridgeV1
+    from .. import AferoBridgeV1
 
 
 class BackoffException(Exception):
@@ -32,12 +32,12 @@ class EventStreamStatus(Enum):
     DISCONNECTED = 2
 
 
-class HubspaceEvent(TypedDict):
-    """Hubspace Event message as emitted by the EventStream."""
+class AferoEvent(TypedDict):
+    """Afero IoT Event message as emitted by the EventStream."""
 
     type: EventType  # = EventType (add, update, delete)
     device_id: NotRequired[str]  # ID for interacting with the device
-    device: NotRequired[HubspaceDevice]  # Hubspace Device
+    device: NotRequired[AferoDevice]  # Afero Device
     force_forward: NotRequired[bool]
 
 
@@ -51,7 +51,7 @@ EventSubscriptionType = tuple[
 
 class EventStream:
 
-    def __init__(self, bridge: "HubspaceBridgeV1", polling_interval: int) -> None:
+    def __init__(self, bridge: "AferoBridgeV1", polling_interval: int) -> None:
         """Initialize instance."""
         self._bridge = bridge
         self._listeners = set()
@@ -128,11 +128,11 @@ class EventStream:
         self._subscribers.append(subscription)
         return unsubscribe
 
-    def add_job(self, event: HubspaceEvent) -> None:
+    def add_job(self, event: AferoEvent) -> None:
         """Manually add a job to be processed."""
         self._event_queue.put_nowait(event)
 
-    def emit(self, event_type: EventType, data: HubspaceEvent = None) -> None:
+    def emit(self, event_type: EventType, data: AferoEvent = None) -> None:
         """Emit event to all listeners."""
         for callback, event_filter, resource_filter in self._subscribers:
             try:
@@ -159,7 +159,7 @@ class EventStream:
                 self._logger.exception("Unhandled exception. Please open a bug report")
 
     async def process_backoff(self, attempt: int) -> None:
-        """Handle backoff timer for Hubspace API
+        """Handle backoff timer for Afero IoT API
 
         :param attempt: Number of attempts
         :param reason: Reason why the backoff is occurring
@@ -167,7 +167,7 @@ class EventStream:
         backoff_time = min(attempt * self.polling_interval, 600)
         debug_message = f"Waiting {backoff_time} seconds before next poll"
         if attempt == 1:
-            self._logger.info("Lost connection to the Hubspace API.")
+            self._logger.info("Lost connection to the Afero IoT API.")
             self._logger.debug(debug_message)
         if self._status != EventStreamStatus.DISCONNECTED:
             self._status = EventStreamStatus.DISCONNECTED
@@ -175,13 +175,13 @@ class EventStream:
         await asyncio.sleep(backoff_time)
 
     async def gather_data(self) -> list[dict[Any, str]]:
-        """Gather all data from the Hubspace API"""
+        """Gather all data from the Afero IoT API"""
         consecutive_http_errors = 0
         while True:
             try:
                 data = await self._bridge.fetch_data()
             except asyncio.TimeoutError:
-                self._logger.warning("Timeout when contacting Hubspace API.")
+                self._logger.warning("Timeout when contacting Afero IoT API.")
                 await self.process_backoff(consecutive_http_errors)
             except InvalidAuth:
                 consecutive_http_errors += 1
@@ -192,7 +192,7 @@ class EventStream:
                 await self.process_backoff(consecutive_http_errors)
             except ValueError as err:
                 self._logger.warning(
-                    "Unexpected data from Hubspace API, %s.", err.args[0]
+                    "Unexpected data from Afero IoT API, %s.", err.args[0]
                 )
                 consecutive_http_errors += 1
                 await self.process_backoff(consecutive_http_errors)
@@ -204,7 +204,7 @@ class EventStream:
             else:
                 # Successful connection
                 if consecutive_http_errors > 0:
-                    self._logger.info("Reconnected to the Hubspace API")
+                    self._logger.info("Reconnected to the Afero IoT API")
                     self.emit(EventType.RECONNECTED)
                 elif self._status != EventStreamStatus.CONNECTED:
                     self._status = EventStreamStatus.CONNECTED
@@ -212,38 +212,38 @@ class EventStream:
                 return data
 
     async def generate_events_from_data(self, data: list[dict[Any, str]]) -> None:
-        """Process the raw Hubspace data for emitting
+        """Process the raw Afero IoT data for emitting
 
-        :param data: Raw data from Hubspace
+        :param data: Raw data from Afero IoT
         """
         processed_ids = []
         skipped_ids = []
         for dev in data:
-            hs_dev = get_hs_device(dev)
-            if not hs_dev.device_class:
+            device = get_afero_device(dev)
+            if not device.device_class:
                 continue
             event_type = EventType.RESOURCE_UPDATED
-            if hs_dev.id not in self._bridge.tracked_devices:
+            if device.id not in self._bridge.tracked_devices:
                 event_type = EventType.RESOURCE_ADDED
             self._event_queue.put_nowait(
-                HubspaceEvent(
+                AferoEvent(
                     type=event_type,
-                    device_id=hs_dev.id,
-                    device=hs_dev,
+                    device_id=device.id,
+                    device=device,
                     force_forward=False,
                 )
             )
-            processed_ids.append(hs_dev.id)
+            processed_ids.append(device.id)
         # Handle devices that did not report in from the API
         for dev_id in self._bridge.tracked_devices:
             if dev_id not in processed_ids + skipped_ids:
                 self._event_queue.put_nowait(
-                    HubspaceEvent(type=EventType.RESOURCE_DELETED, device_id=dev_id)
+                    AferoEvent(type=EventType.RESOURCE_DELETED, device_id=dev_id)
                 )
                 self._bridge.remove_device(dev_id)
 
     async def perform_poll(self) -> None:
-        """Poll Hubspace and generate the required events"""
+        """Poll Afero IoT and generate the required events"""
         try:
             data = await self.gather_data()
         except Exception:
@@ -253,7 +253,7 @@ class EventStream:
             try:
                 await self.generate_events_from_data(data)
             except Exception:
-                self._logger.exception("Unable to process Hubspace data. %s", data)
+                self._logger.exception("Unable to process Afero IoT data. %s", data)
 
     async def __event_reader(self) -> None:
         """Poll the current states"""
@@ -264,12 +264,12 @@ class EventStream:
 
     async def process_event(self):
         try:
-            event: HubspaceEvent = await self._event_queue.get()
+            event: AferoEvent = await self._event_queue.get()
             self.emit(event["type"], event)
         except Exception:
             self._logger.exception("Unhandled exception. Please open a bug report")
 
     async def __event_processor(self) -> None:
-        """Process the hubspace devices"""
+        """Process the Afero IoT devices"""
         while True:
             await self.process_event()

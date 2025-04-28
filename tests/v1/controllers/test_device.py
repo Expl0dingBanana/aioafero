@@ -2,11 +2,11 @@ import asyncio
 
 import pytest
 
-from aiohubspace.device import HubspaceState
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.device import DeviceController, split_sensor_data
-from aiohubspace.v1.models.resource import DeviceInformation
-from aiohubspace.v1.models.sensor import HubspaceSensor, HubspaceSensorError
+from aioafero.device import AferoState
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.device import DeviceController, split_sensor_data
+from aioafero.v1.models.resource import DeviceInformation
+from aioafero.v1.models.sensor import AferoSensor, AferoSensorError
 
 from .. import utils
 
@@ -41,7 +41,7 @@ async def test_initialize_a21(mocked_controller):
         ble_mac="9c70c759-1d54-4f61-a067-bb4294bef7ae",
     )
     assert dev.sensors == {
-        "wifi-rssi": HubspaceSensor(
+        "wifi-rssi": AferoSensor(
             id="wifi-rssi",
             owner="30a2df8c-109b-42c2-aed6-a6b30c565f8f",
             _value=-50,
@@ -71,7 +71,7 @@ async def test_initialize_binary_sensors(mocked_controller):
         ble_mac="c2e189e8-c80c-4948-9492-14ac390f480d",
     )
     assert dev.sensors == {
-        "wifi-rssi": HubspaceSensor(
+        "wifi-rssi": AferoSensor(
             id="wifi-rssi",
             owner="596c120d-4e0d-4e33-ae9a-6330dcf2cbb5",
             _value=-71,
@@ -80,25 +80,25 @@ async def test_initialize_binary_sensors(mocked_controller):
         )
     }
     assert dev.binary_sensors == {
-        "error|freezer-high-temperature-alert": HubspaceSensorError(
+        "error|freezer-high-temperature-alert": AferoSensorError(
             id="error|freezer-high-temperature-alert",
             owner="596c120d-4e0d-4e33-ae9a-6330dcf2cbb5",
             _value="normal",
             instance="freezer-high-temperature-alert",
         ),
-        "error|fridge-high-temperature-alert": HubspaceSensorError(
+        "error|fridge-high-temperature-alert": AferoSensorError(
             id="error|fridge-high-temperature-alert",
             owner="596c120d-4e0d-4e33-ae9a-6330dcf2cbb5",
             _value="alerting",
             instance="fridge-high-temperature-alert",
         ),
-        "error|mcu-communication-failure": HubspaceSensorError(
+        "error|mcu-communication-failure": AferoSensorError(
             id="error|mcu-communication-failure",
             owner="596c120d-4e0d-4e33-ae9a-6330dcf2cbb5",
             _value="normal",
             instance="mcu-communication-failure",
         ),
-        "error|temperature-sensor-failure": HubspaceSensorError(
+        "error|temperature-sensor-failure": AferoSensorError(
             id="error|temperature-sensor-failure",
             owner="596c120d-4e0d-4e33-ae9a-6330dcf2cbb5",
             _value="normal",
@@ -143,15 +143,13 @@ async def test_update_elem_sensor(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.id == a21_light.id
-    dev_update: utils.HubspaceDevice = utils.create_devices_from_data("light-a21.json")[
-        0
-    ]
-    unavail = utils.HubspaceState(
+    dev_update: utils.AferoDevice = utils.create_devices_from_data("light-a21.json")[0]
+    unavail = utils.AferoState(
         functionClass="available",
         value=False,
     )
     utils.modify_state(dev_update, unavail)
-    rssi = utils.HubspaceState(
+    rssi = utils.AferoState(
         functionClass="wifi-rssi",
         value="40db",
     )
@@ -168,8 +166,8 @@ async def test_update_elem_binary_sensor(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.id == freezer.id
-    dev_update: utils.HubspaceDevice = utils.create_devices_from_data("freezer.json")[0]
-    temp_sensor_failure = utils.HubspaceState(
+    dev_update: utils.AferoDevice = utils.create_devices_from_data("freezer.json")[0]
+    temp_sensor_failure = utils.AferoState(
         functionClass="error",
         functionInstance="temperature-sensor-failure",
         value="alerting",
@@ -184,16 +182,16 @@ async def test_update_elem_binary_sensor(mocked_controller):
     "state, expected_val, expected_unit",
     [
         (
-            utils.HubspaceState(functionClass="doesnt_matter", value="4000K"),
+            utils.AferoState(functionClass="doesnt_matter", value="4000K"),
             4000,
             "K",
         ),
         (
-            utils.HubspaceState(functionClass="doesnt_matter", value="normal"),
+            utils.AferoState(functionClass="doesnt_matter", value="normal"),
             "normal",
             None,
         ),
-        (utils.HubspaceState(functionClass="doesnt_matter", value=4000), 4000, None),
+        (utils.AferoState(functionClass="doesnt_matter", value=4000), 4000, None),
     ],
 )
 def test_split_sensor_data(state, expected_val, expected_unit):
@@ -222,7 +220,7 @@ async def test_valve_emitting(bridge):
     # Simulate an update
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="available",
             functionInstance=None,
             value=False,
@@ -230,7 +228,7 @@ async def test_valve_emitting(bridge):
     )
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="wifi-rssi",
             functionInstance=None,
             value=-42,
@@ -238,7 +236,7 @@ async def test_valve_emitting(bridge):
     )
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="error",
             functionInstance="temperature-sensor-failure",
             value="alerting",

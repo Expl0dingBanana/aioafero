@@ -8,14 +8,14 @@ import aiohttp
 import pytest
 import pytest_asyncio
 
-from aiohubspace.v1 import auth
+from aioafero.v1 import auth, v1_const
 
 current_path = pathlib.Path(__file__).parent.resolve()
 
 
 @pytest.fixture(scope="function")
 def hs_auth():
-    return auth.HubspaceAuth("username", "password")
+    return auth.AferoAuth("username", "password")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -135,16 +135,16 @@ async def test_webapp_login(
             response["body"] = f.read()
     challenge = await hs_auth.generate_challenge_data()
     generate_code = mocker.patch.object(hs_auth, "generate_code")
-    parse_code = mocker.patch.object(auth.HubspaceAuth, "parse_code")
+    parse_code = mocker.patch.object(auth.AferoAuth, "parse_code")
     params: dict[str, str] = {
         "response_type": "code",
-        "client_id": auth.HUBSPACE_DEFAULT_CLIENT_ID,
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
         "redirect_uri": "hubspace-app%3A%2F%2Floginredirect",
         "code_challenge": challenge.challenge,
         "code_challenge_method": "S256",
         "scope": "openid offline_access",
     }
-    url = await build_url(auth.HUBSPACE_OPENID_URL, params)
+    url = await build_url(v1_const.AFERO_CLIENTS["hubspace"]["OPENID_URL"], params)
     mock_aioresponse.get(url, **response)
     if not expected_err:
         await hs_auth.webapp_login(challenge, aio_sess)
@@ -160,11 +160,6 @@ async def test_webapp_login(
         with pytest.raises(expected_err):
             await hs_auth.webapp_login(challenge, aio_sess)
         generate_code.assert_not_called()
-
-
-#  https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth?&response_type=code&scope=openid+offline_access
-#  https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth?response_type=code&client_id=hubspace_android&redirect_uri=hubspace-app%253A%252F%252Floginredirect&code_challenge=eu8FHk6vLCD0cU8u0RPLfusdeMNog8yzdp454Fri3SA&code_challenge_method=S256&scope=openid+offline_access
-#  https://accounts.hubspaceconnect.com/auth/realms/thd/protocol/openid-connect/auth?client_id=hubspace_android&code_challenge=lR9wKAJY-ZHPsLoEaYkHIS6xuNySzz6-yAWEa8RTjJU&&code_challenge_method=S256redirect_uri=hubspace-app%3A%2F%2Floginredirect&response_type=code&scope=openid+offline_access
 
 
 @pytest.mark.asyncio
@@ -219,10 +214,10 @@ async def test_generate_code(
     params = {
         "session_code": session_code,
         "execution": execution,
-        "client_id": auth.HUBSPACE_DEFAULT_CLIENT_ID,
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
         "tab_id": tab_id,
     }
-    url = await build_url(auth.HUBSPACE_CODE_URL, params)
+    url = await build_url(v1_const.AFERO_CLIENTS["hubspace"]["CODE_URL"], params)
     aioresponses.post(url, **response)
     if not expected_err:
         assert (
@@ -260,7 +255,7 @@ async def test_generate_refresh_token(
     code, response, expected, err, hs_auth, aioresponses, aio_sess
 ):
     challenge = await hs_auth.generate_challenge_data()
-    aioresponses.post(auth.HUBSPACE_TOKEN_URL, **response)
+    aioresponses.post(v1_const.AFERO_CLIENTS["hubspace"]["TOKEN_URL"], **response)
     if expected:
         assert expected == await hs_auth.generate_refresh_token(
             code, challenge, aio_sess
@@ -270,13 +265,13 @@ async def test_generate_refresh_token(
             await hs_auth.generate_refresh_token(code, challenge, aio_sess)
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
-    assert call_args.kwargs["headers"] == auth.HUBSPACE_TOKEN_HEADERS
+    assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": auth.HUBSPACE_DEFAULT_REDIRECT_URI,
+        "redirect_uri": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_REDIRECT_URI"],
         "code_verifier": challenge.verifier,
-        "client_id": auth.HUBSPACE_DEFAULT_CLIENT_ID,
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
     }
 
 
@@ -310,17 +305,17 @@ async def test_generate_refresh_token(
     ],
 )
 async def test_generate_token(
-    refresh_token, response, expected, err, aioresponses, aio_sess
+    refresh_token, response, expected, err, hs_auth, aioresponses, aio_sess
 ):
-    aioresponses.post(auth.HUBSPACE_TOKEN_URL, **response)
+    aioresponses.post(v1_const.AFERO_CLIENTS["hubspace"]["TOKEN_URL"], **response)
     if expected:
-        assert expected == (await auth.generate_token(aio_sess, refresh_token)).token
+        assert expected == (await hs_auth.generate_token(aio_sess, refresh_token)).token
     else:
         with pytest.raises(err):
-            await auth.generate_token(aio_sess, refresh_token)
+            await hs_auth.generate_token(aio_sess, refresh_token)
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
-    assert call_args.kwargs["headers"] == auth.HUBSPACE_TOKEN_HEADERS
+    assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,

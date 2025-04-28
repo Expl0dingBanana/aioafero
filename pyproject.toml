@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aiohubspace"
+name = "aioafero"
 version = "1.2.0"
 dependencies = [
   "aiohttp",
@@ -43,8 +43,8 @@ cli = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Expl0dingBanana/aiohubspace"
-Changelog = "https://github.com/Expl0dingBanana/aiohubspace/CHANGELOG.md"
+Repository = "https://github.com/Expl0dingBanana/aioafero"
+Changelog = "https://github.com/Expl0dingBanana/aioafero/CHANGELOG.md"
 
 # pyproject.toml
 [tool.pytest.ini_options]

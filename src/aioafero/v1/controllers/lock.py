@@ -1,6 +1,6 @@
 """Controller holding and managing Hubspace resources of type `lock`."""
 
-from ...device import HubspaceDevice
+from ...device import AferoDevice
 from ..models import features
 from ..models.lock import Lock, LockPut
 from ..models.resource import DeviceInformation, ResourceTypes
@@ -27,11 +27,11 @@ class LockController(BaseResourcesController[Lock]):
             device_id, lock_position=features.CurrentPositionEnum.UNLOCKING
         )
 
-    async def initialize_elem(self, hs_device: HubspaceDevice) -> Lock:
+    async def initialize_elem(self, afero_device: AferoDevice) -> Lock:
         """Initialize the element"""
         available: bool = False
         current_position: features.CurrentPositionFeature | None = None
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass == "lock-control":
                 current_position = features.CurrentPositionFeature(
                     position=features.CurrentPositionEnum(state.value)
@@ -39,28 +39,28 @@ class LockController(BaseResourcesController[Lock]):
             elif state.functionClass == "available":
                 available = state.value
 
-        self._items[hs_device.id] = Lock(
-            hs_device.functions,
-            id=hs_device.id,
+        self._items[afero_device.id] = Lock(
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             device_information=DeviceInformation(
-                device_class=hs_device.device_class,
-                default_image=hs_device.default_image,
-                default_name=hs_device.default_name,
-                manufacturer=hs_device.manufacturerName,
-                model=hs_device.model,
-                name=hs_device.friendly_name,
-                parent_id=hs_device.device_id,
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
             ),
             position=current_position,
         )
-        return self._items[hs_device.id]
+        return self._items[afero_device.id]
 
-    async def update_elem(self, hs_device: HubspaceDevice) -> set:
+    async def update_elem(self, afero_device: AferoDevice) -> set:
 
-        cur_item = self.get_device(hs_device.id)
+        cur_item = self.get_device(afero_device.id)
         updated_keys = set()
-        for state in hs_device.states:
+        for state in afero_device.states:
             if state.functionClass == "lock-control":
                 new_val = features.CurrentPositionEnum(state.value)
                 if cur_item.position.position != new_val:

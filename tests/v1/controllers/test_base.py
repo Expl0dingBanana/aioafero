@@ -3,13 +3,13 @@ from dataclasses import dataclass, field, replace
 
 import pytest
 
-from aiohubspace import HubspaceDevice, HubspaceState
-from aiohubspace.device import get_hs_device
-from aiohubspace.errors import DeviceNotFound, ExceededMaximumRetries
-from aiohubspace.v1 import HubspaceBridgeV1, models, v1_const
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.base import BaseResourcesController, update_dataclass
-from aiohubspace.v1.models.resource import DeviceInformation
+from aioafero import AferoDevice, AferoState
+from aioafero.device import get_afero_device
+from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
+from aioafero.v1 import AferoBridgeV1, models, v1_const
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.base import BaseResourcesController, update_dataclass
+from aioafero.v1.models.resource import DeviceInformation
 
 from .. import utils
 
@@ -19,7 +19,7 @@ class TestFeatureBool:
     on: bool
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return self.on
 
 
@@ -29,7 +29,7 @@ class TestFeatureInstance:
     func_instance: str | None
 
     @property
-    def hs_value(self):
+    def api_value(self):
         return {
             "value": "on" if self.on else "off",
             "functionClass": "beans",
@@ -75,7 +75,7 @@ test_res_update = TestResource(
 )
 
 
-test_device = HubspaceDevice(
+test_device = AferoDevice(
     id="cool",
     device_id="cool-parent",
     model="bean",
@@ -84,24 +84,24 @@ test_device = HubspaceDevice(
     default_image="bean",
     friendly_name="bean",
     states=[
-        HubspaceState(
+        AferoState(
             functionClass="power",
             value="on",
             lastUpdateTime=0,
             functionInstance=None,
         ),
-        HubspaceState(
+        AferoState(
             functionClass="mapped_beans",
             value="on",
             lastUpdateTime=0,
         ),
-        HubspaceState(
+        AferoState(
             functionClass="mapped_beans",
             value="on",
             lastUpdateTime=0,
             functionInstance="bean1",
         ),
-        HubspaceState(
+        AferoState(
             functionClass="mapped_beans",
             value="off",
             lastUpdateTime=0,
@@ -110,7 +110,7 @@ test_device = HubspaceDevice(
     ],
 )
 
-test_device_update = HubspaceDevice(
+test_device_update = AferoDevice(
     id="cool",
     device_id="cool-parent",
     model="bean",
@@ -119,24 +119,24 @@ test_device_update = HubspaceDevice(
     default_image="bean",
     friendly_name="bean",
     states=[
-        HubspaceState(
+        AferoState(
             functionClass="power",
             value="on",
             lastUpdateTime=0,
             functionInstance=None,
         ),
-        HubspaceState(
+        AferoState(
             functionClass="mapped_beans",
             value="on",
             lastUpdateTime=0,
         ),
-        HubspaceState(
+        AferoState(
             functionClass="mapped_beans",
             value="on",
             lastUpdateTime=0,
             functionInstance="bean1",
         ),
-        HubspaceState(
+        AferoState(
             functionClass="mapped_beans",
             value="on",
             lastUpdateTime=0,
@@ -152,12 +152,12 @@ class Example1ResourceController(BaseResourcesController):
     ITEM_CLS = TestResource
     ITEM_MAPPING: dict = {"beans": "mapped_beans"}
 
-    async def initialize_elem(self, hs_device: HubspaceDevice) -> TestResource:
+    async def initialize_elem(self, afero_dev: AferoDevice) -> TestResource:
         """Initialize the element"""
-        self._logger.info("Initializing %s", hs_device.id)
+        self._logger.info("Initializing %s", afero_dev.id)
         on: TestFeatureBool | None = None
         beans: dict[str | None, TestFeatureInstance] = {}
-        for state in hs_device.states:
+        for state in afero_dev.states:
             if state.functionClass == "power":
                 on = TestFeatureBool(on=state.value == "on")
             elif state.functionClass == "mapped_beans":
@@ -165,16 +165,16 @@ class Example1ResourceController(BaseResourcesController):
                     on=state.value == "on", func_instance=state.functionInstance
                 )
         return TestResource(
-            id=hs_device.id,
+            id=afero_dev.id,
             available=True,
             on=on,
             beans=beans,
         )
 
-    async def update_elem(self, hs_device: HubspaceDevice) -> set:
+    async def update_elem(self, afero_dev: AferoDevice) -> set:
         updated_keys = set()
-        cur_item = self.get_device(hs_device.id)
-        for state in hs_device.states:
+        cur_item = self.get_device(afero_dev.id)
+        for state in afero_dev.states:
             if state.functionClass == "power":
                 new_val = state.value == "on"
                 if cur_item.on.on != new_val:
@@ -194,7 +194,7 @@ def ex1_rc(mocked_bridge_req):
 
 
 def test_init(ex1_rc):
-    assert isinstance(ex1_rc._bridge, HubspaceBridgeV1)
+    assert isinstance(ex1_rc._bridge, AferoBridgeV1)
     assert ex1_rc._items == {}
     ex1_rc._initialized = False
     assert not ex1_rc.initialized
@@ -220,7 +220,7 @@ def test_basic(ex1_rc):
             [],
             event.EventType.RESOURCE_ADDED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_ADDED,
                 device_id=test_device.id,
                 device=test_device,
@@ -234,7 +234,7 @@ def test_basic(ex1_rc):
             [],
             event.EventType.RESOURCE_UPDATED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_UPDATED,
                 device_id=test_device.id,
                 device=test_device_update,
@@ -248,7 +248,7 @@ def test_basic(ex1_rc):
             [test_device],
             event.EventType.RESOURCE_UPDATED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_UPDATED,
                 device_id=test_device.id,
                 device=test_device_update,
@@ -262,7 +262,7 @@ def test_basic(ex1_rc):
             [test_device],
             event.EventType.RESOURCE_UPDATED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_UPDATED,
                 device_id=test_device.id,
                 device=test_device,
@@ -276,7 +276,7 @@ def test_basic(ex1_rc):
             [test_device],
             event.EventType.RESOURCE_UPDATED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_UPDATED,
                 device_id=test_device.id,
                 device=test_device,
@@ -290,7 +290,7 @@ def test_basic(ex1_rc):
             [test_device],
             event.EventType.RESOURCE_DELETED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_DELETED,
                 device_id=test_device.id,
                 force_forward=False,
@@ -303,7 +303,7 @@ def test_basic(ex1_rc):
             [],
             event.EventType.RECONNECTED,
             test_device.id,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RECONNECTED,
                 device_id=test_device.id,
                 force_forward=False,
@@ -370,7 +370,7 @@ async def test_emit_to_subscribers(
         # data
         (
             event.EventType.RESOURCE_DELETED,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_DELETED,
                 device_id=test_device.id,
                 force_forward=False,
@@ -380,7 +380,7 @@ async def test_emit_to_subscribers(
         # data but not an item
         (
             event.EventType.RESOURCE_UPDATED,
-            event.HubspaceEvent(
+            event.AferoEvent(
                 type=event.EventType.RESOURCE_UPDATED,
                 device_id="no-thanks",
                 device=test_device,
@@ -401,13 +401,13 @@ async def test__handle_event(evt_type, evt_data, called, ex1_rc, mocker):
         emitted.assert_not_called()
 
 
-def mocked_get_filtered_devices(initial_data) -> list[HubspaceDevice]:
+def mocked_get_filtered_devices(initial_data) -> list[AferoDevice]:
     valid = []
     for ind, element in enumerate(initial_data):
         if element["typeId"] != models.ResourceTypes.DEVICE.value:
             continue
         if ind % 2 == 0:
-            valid.append(get_hs_device(element))
+            valid.append(get_afero_device(element))
     return valid
 
 
@@ -562,7 +562,7 @@ async def test__process_state_update(ex1_rc):
                     ],
                 },
                 "headers": {
-                    "host": v1_const.HUBSPACE_DATA_HOST,
+                    "host": v1_const.AFERO_CLIENTS["hubspace"]["DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
             },
@@ -594,7 +594,7 @@ async def test__process_state_update(ex1_rc):
                     ],
                 },
                 "headers": {
-                    "host": v1_const.HUBSPACE_DATA_HOST,
+                    "host": v1_const.AFERO_CLIENTS["hubspace"]["DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
             },
@@ -626,7 +626,7 @@ async def test__process_state_update(ex1_rc):
                     ],
                 },
                 "headers": {
-                    "host": v1_const.HUBSPACE_DATA_HOST,
+                    "host": v1_const.AFERO_CLIENTS["hubspace"]["DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
             },
@@ -635,7 +635,7 @@ async def test__process_state_update(ex1_rc):
         ),
     ],
 )
-async def test_update_hubspace_api(
+async def test_update_afero_api(
     response,
     response_err,
     states,
@@ -647,14 +647,14 @@ async def test_update_hubspace_api(
     caplog,
 ):
     device_id = "cool"
-    url = v1_const.HUBSPACE_DEVICE_STATE.format(
+    url = v1_const.AFERO_CLIENTS["hubspace"]["DEVICE_STATE"].format(
         ex1_rc._bridge.account_id, str(device_id)
     )
     if response:
         mock_aioresponse.put(url, **response)
     if response_err:
         ex1_rc._bridge.request.side_effect = response_err
-    assert await ex1_rc.update_hubspace_api(device_id, states) == expected
+    assert await ex1_rc.update_afero_api(device_id, states) == expected
     if expected_call:
         ex1_rc._bridge.request.assert_called_with("put", url, **expected_call)
     else:
@@ -740,14 +740,14 @@ async def test_update(
     mocker.patch("time.time", return_value=12345)
     ex1_rc._items[test_res.id] = await ex1_rc.initialize_elem(test_device)
     ex1_rc._bridge.add_device(test_res.id, ex1_rc)
-    update_hubspace_api = mocker.patch.object(
-        ex1_rc, "update_hubspace_api", return_value=successful
+    update_afero_api = mocker.patch.object(
+        ex1_rc, "update_afero_api", return_value=successful
     )
     await ex1_rc.update(test_res.id, obj_in=obj_in, states=states)
     if not expected_states:
-        update_hubspace_api.assert_not_called()
+        update_afero_api.assert_not_called()
     else:
-        update_hubspace_api.assert_called_once_with(test_res.id, expected_states)
+        update_afero_api.assert_called_once_with(test_res.id, expected_states)
     assert ex1_rc._items[test_res.id] == expected_item
 
 

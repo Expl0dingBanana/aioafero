@@ -4,15 +4,11 @@ import asyncio
 
 import pytest
 
-from aiohubspace.device import HubspaceState
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.light import (
-    LightController,
-    features,
-    process_color_temps,
-)
-from aiohubspace.v1.models.features import EffectFeature
-from aiohubspace.v1.models.light import Light
+from aioafero.device import AferoState
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.light import LightController, features, process_color_temps
+from aioafero.v1.models.features import EffectFeature
+from aioafero.v1.models.light import Light
 
 from .. import utils
 
@@ -244,20 +240,20 @@ async def test_initialize_dimmer(mocked_controller):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "hs_dev, expected_instance",
+    "afero_dev, expected_instance",
     [
         (a21_light, None),
         (zandra_light, "light-power"),
         (dimmer_light, "gang-1"),
     ],
 )
-async def test_turn_on(hs_dev, expected_instance, mocked_controller):
-    await mocked_controller.initialize_elem(hs_dev)
+async def test_turn_on(afero_dev, expected_instance, mocked_controller):
+    await mocked_controller.initialize_elem(afero_dev)
     dev = mocked_controller.items[0]
     dev.on.on = False
-    await mocked_controller.turn_on(hs_dev.id)
+    await mocked_controller.turn_on(afero_dev.id)
     req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == hs_dev.id
+    assert req["metadeviceId"] == afero_dev.id
     expected_states = [
         {
             "functionClass": "power",
@@ -272,20 +268,20 @@ async def test_turn_on(hs_dev, expected_instance, mocked_controller):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "hs_dev, expected_instance",
+    "afero_dev, expected_instance",
     [
         (a21_light, None),
         (zandra_light, "light-power"),
         (dimmer_light, "gang-1"),
     ],
 )
-async def test_turn_off(hs_dev, expected_instance, mocked_controller):
-    await mocked_controller.initialize_elem(hs_dev)
+async def test_turn_off(afero_dev, expected_instance, mocked_controller):
+    await mocked_controller.initialize_elem(afero_dev)
     dev = mocked_controller.items[0]
     dev.on.on = True
-    await mocked_controller.turn_off(hs_dev.id)
+    await mocked_controller.turn_off(afero_dev.id)
     req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == hs_dev.id
+    assert req["metadeviceId"] == afero_dev.id
     expected_states = [
         {
             "functionClass": "power",
@@ -470,7 +466,7 @@ async def test_update_elem(mocked_controller):
     dev.on.on = False
     dev_update = utils.create_devices_from_data("light-a21.json")[0]
     new_states = [
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "color-temperature",
                 "value": "3000K",
@@ -478,7 +474,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": None,
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "brightness",
                 "value": 40,
@@ -486,7 +482,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": None,
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "color-rgb",
                 "value": {
@@ -500,7 +496,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": None,
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "power",
                 "value": "on",
@@ -508,7 +504,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": None,
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "color-mode",
                 "value": "color",
@@ -516,7 +512,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": None,
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "available",
                 "value": True,
@@ -554,7 +550,7 @@ async def test_update_elem_no_updates(mocked_controller):
 
 
 states_custom = [
-    HubspaceState(
+    AferoState(
         **{
             "functionClass": "color-sequence",
             "functionInstance": "preset",
@@ -562,7 +558,7 @@ states_custom = [
             "value": "custom",
         }
     ),
-    HubspaceState(
+    AferoState(
         **{
             "functionClass": "color-sequence",
             "functionInstance": "custom",
@@ -573,7 +569,7 @@ states_custom = [
 ]
 
 states_preset = [
-    HubspaceState(
+    AferoState(
         **{
             "functionClass": "color-sequence",
             "functionInstance": "preset",
@@ -581,7 +577,7 @@ states_preset = [
             "value": "fade-7",
         }
     ),
-    HubspaceState(
+    AferoState(
         **{
             "functionClass": "color-sequence",
             "functionInstance": "custom",
@@ -633,7 +629,7 @@ async def test_light_emitting(bridge):
     # Simulate an update
     utils.modify_state(
         dev_update,
-        HubspaceState(
+        AferoState(
             functionClass="available",
             functionInstance=None,
             value=False,
@@ -662,7 +658,7 @@ async def test_set_state_no_dev(mocked_controller, caplog):
 
 
 seq_custom = {
-    "preset": HubspaceState(
+    "preset": AferoState(
         **{
             "functionClass": "color-sequence",
             "value": "custom",
@@ -670,7 +666,7 @@ seq_custom = {
             "functionInstance": "preset",
         }
     ),
-    "custom": HubspaceState(
+    "custom": AferoState(
         **{
             "functionClass": "color-sequence",
             "value": "rainbow",
@@ -681,7 +677,7 @@ seq_custom = {
 }
 
 seq_preset = {
-    "preset": HubspaceState(
+    "preset": AferoState(
         **{
             "functionClass": "color-sequence",
             "value": "fade-3",
@@ -689,7 +685,7 @@ seq_preset = {
             "functionInstance": "preset",
         }
     ),
-    "custom": HubspaceState(
+    "custom": AferoState(
         **{
             "functionClass": "color-sequence",
             "value": "rainbow",

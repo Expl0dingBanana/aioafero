@@ -4,9 +4,9 @@ import asyncio
 
 import pytest
 
-from aiohubspace.device import HubspaceState
-from aiohubspace.v1.controllers import event
-from aiohubspace.v1.controllers.switch import SwitchController, features
+from aioafero.device import AferoState
+from aioafero.v1.controllers import event
+from aioafero.v1.controllers.switch import SwitchController, features
 
 from .. import utils
 
@@ -214,7 +214,7 @@ async def test_update_elem(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("transformer.json")[0]
     new_states = [
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "toggle",
                 "value": "on",
@@ -222,7 +222,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "zone-1",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "toggle",
                 "value": "off",
@@ -230,7 +230,7 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "zone-2",
             }
         ),
-        HubspaceState(
+        AferoState(
             **{
                 "functionClass": "available",
                 "value": False,
@@ -274,7 +274,7 @@ async def test_switch_emit_update(bridge):
     transformer_update = utils.create_devices_from_data("transformer.json")[0]
     utils.modify_state(
         transformer_update,
-        HubspaceState(
+        AferoState(
             functionClass="toggle",
             functionInstance="zone-2",
             value="off",
