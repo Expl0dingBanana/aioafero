@@ -1,4 +1,4 @@
-"""Controller holding and managing Hubspace resources of type `fan`."""
+"""Controller holding and managing Afero IoT resources of type `fan`."""
 
 from ... import device
 from ...device import AferoDevice
@@ -12,7 +12,7 @@ KNOWN_PRESETS = {"comfort-breeze"}
 
 
 class FanController(BaseResourcesController[Fan]):
-    """Controller holding and managing Hubspace resources of type `fan`."""
+    """Controller holding and managing Afero IoT resources of type `fan`."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.FAN]

@@ -1,4 +1,4 @@
-"""Controller holding and managing Hubspace resources of type `lock`."""
+"""Controller holding and managing Afero IoT resources of type `lock`."""
 
 from ...device import AferoDevice
 from ..models import features
@@ -8,7 +8,7 @@ from .base import BaseResourcesController
 
 
 class LockController(BaseResourcesController[Lock]):
-    """Controller holding and managing Hubspace resources of type `lock`."""
+    """Controller holding and managing Afero IoT resources of type `lock`."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.LOCK]
