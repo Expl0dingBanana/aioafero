@@ -110,6 +110,13 @@ class LightController(BaseResourcesController[Light]):
                 color_mode = features.ColorModeFeature(state.value)
             elif state.functionClass == "available":
                 available = state.value
+        supported_color_modes: list[str] = []
+        for function in afero_device.functions:
+            if function["functionClass"] != "color-mode":
+                continue
+            for supported_color_mode in function["values"]:
+                supported_color_modes.append(supported_color_mode["name"])
+            break
 
         self._items[afero_device.id] = Light(
             afero_device.functions,
@@ -129,6 +136,7 @@ class LightController(BaseResourcesController[Light]):
             color_mode=color_mode,
             color_temperature=color_temp,
             color=color,
+            color_modes=supported_color_modes,
             effect=effect,
         )
         return self._items[afero_device.id]
