@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 2.0.1
+=============
+
+ * Add support for determining if "white" is a supported option for lights
+
 Version 2.0.0
 =============
 

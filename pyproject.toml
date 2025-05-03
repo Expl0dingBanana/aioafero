@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
   "aiohttp",
   "beautifulsoup4",
@@ -20,7 +20,7 @@ maintainers = [
 description = "Talk to the Hubspace API asynchronously"
 readme = "README.rst"
 license = {file = "LICENSE.txt"}
-keywords = ["Hubspace"]
+keywords = ["Afero", "Afero IoT", "Hubspace", "Myko"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
