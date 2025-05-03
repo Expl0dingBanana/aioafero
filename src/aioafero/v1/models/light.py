@@ -14,6 +14,7 @@ class Light:
     on: features.OnFeature | None
     color: features.ColorFeature | None
     color_mode: features.ColorModeFeature | None
+    color_modes: list[str] | None
     color_temperature: features.ColorTemperatureFeature | None
     dimming: features.DimmingFeature | None
     effect: features.EffectFeature | None
@@ -49,6 +50,11 @@ class Light:
     def supports_color_temperature(self) -> bool:
         """Return if this light supports color_temperature control."""
         return self.color_temperature is not None
+
+    @property
+    def supports_color_white(self) -> bool:
+        """Return if this light supports setting white"""
+        return self.color_modes is not None and "white" in self.color_modes
 
     @property
     def supports_dimming(self) -> bool:
