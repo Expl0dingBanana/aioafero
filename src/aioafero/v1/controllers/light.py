@@ -43,7 +43,7 @@ class LightController(BaseResourcesController[Light]):
     async def set_color_temperature(self, device_id: str, temperature: int) -> None:
         """Set Color Temperature to light. Turn on light if it's currently off."""
         await self.set_state(
-            device_id, on=True, temperature=temperature, color_mode="white"
+            device_id, on=True, temperature=temperature, color_mode="temperature"
         )
 
     async def set_brightness(self, device_id: str, brightness: int) -> None:
@@ -55,6 +55,10 @@ class LightController(BaseResourcesController[Light]):
         await self.set_state(
             device_id, on=True, color=(red, green, blue), color_mode="color"
         )
+
+    async def set_white(self, device_id: str) -> None:
+        """Set the color to white"""
+        await self.set_state(device_id, on=True, color_mode="white")
 
     async def set_effect(self, device_id: str, effect: str) -> None:
         """Set effect of the light. Turn on light if it's currently off."""
@@ -117,6 +121,11 @@ class LightController(BaseResourcesController[Light]):
             for supported_color_mode in function["values"]:
                 supported_color_modes.append(supported_color_mode["name"])
             break
+        actual_color_mode = color_mode.mode if color_mode else None
+        if actual_color_mode:
+            color_mode.mode = determine_current_color_mode(
+                afero_device.states, actual_color_mode
+            )
 
         self._items[afero_device.id] = Light(
             afero_device.functions,
@@ -145,6 +154,7 @@ class LightController(BaseResourcesController[Light]):
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         color_seq_states: dict[str, AferoState] = {}
+        color_mode = None
         for state in afero_device.states:
             if state.functionClass == "power":
                 new_val = state.value == "on"
@@ -180,13 +190,17 @@ class LightController(BaseResourcesController[Light]):
                     cur_item.color.blue = color_blue
                     updated_keys.add("color")
             elif state.functionClass == "color-mode":
-                if cur_item.color_mode.mode != state.value:
-                    cur_item.color_mode.mode = state.value
-                    updated_keys.add("color_mode")
+                color_mode = state.value
             elif state.functionClass == "available":
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
+        # Determine the current color-mode (white vs temp)
+        if color_mode:
+            latest_mode = determine_current_color_mode(afero_device.states, color_mode)
+            if latest_mode != cur_item.color_mode.mode:
+                cur_item.color_mode.mode = latest_mode
+                updated_keys.add("color_mode")
         # Several states hold the effect, but its always derived from the preset functionInstance
         updated_keys = updated_keys.union(
             await self.update_elem_color(cur_item, color_seq_states)
@@ -257,7 +271,12 @@ class LightController(BaseResourcesController[Light]):
             update_obj.effect = features.EffectFeature(
                 effect=effect, effects=cur_item.effect.effects
             )
-        await self.update(device_id, obj_in=update_obj)
+        # Color mode for temperate / white LED are both white. Ensure the state is sent
+        # without temperate to switch to white
+        force_forward = False
+        if color_mode and not temperature:
+            force_forward = True
+        await self.update(device_id, obj_in=update_obj, force_forward=force_forward)
 
 
 def process_color_temps(color_temps: dict) -> list[int]:
@@ -286,3 +305,23 @@ def process_effects(functions: list[dict]) -> dict[str, set]:
     with suppress(KeyError):
         supported_effects["preset"].remove("custom")
     return supported_effects
+
+
+def determine_current_color_mode(states: list[AferoState], color_mode: str) -> str:
+    """Determine the current color mode"""
+    tracked_states = {}
+    tracked_classes = ["color-mode", "color-temperature"]
+    for state in states:
+        if state.functionClass in tracked_classes and state.lastUpdateTime is not None:
+            tracked_states[state.functionClass] = state.lastUpdateTime
+    if "color-temperature" not in tracked_states or len(tracked_classes) != len(
+        tracked_states
+    ):
+        return color_mode
+    if (
+        tracked_states["color-temperature"] >= tracked_states["color-mode"]
+        and color_mode == "white"
+    ):
+        return "temperature"
+    else:
+        return color_mode

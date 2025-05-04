@@ -6,7 +6,12 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.light import LightController, features, process_color_temps
+from aioafero.v1.controllers.light import (
+    LightController,
+    determine_current_color_mode,
+    features,
+    process_color_temps,
+)
 from aioafero.v1.models.features import EffectFeature
 from aioafero.v1.models.light import Light
 
@@ -398,6 +403,33 @@ async def test_set_rgb(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_set_white(mocked_controller):
+    await mocked_controller.initialize_elem(a21_light)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    dev.on.on = False
+    dev.color_mode.mode = "color"
+    await mocked_controller.set_white(a21_light.id)
+    req = utils.get_json_call(mocked_controller)
+    assert req["metadeviceId"] == a21_light.id
+    expected_states = [
+        {
+            "functionClass": "power",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "on",
+        },
+        {
+            "functionClass": "color-mode",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "white",
+        },
+    ]
+    utils.ensure_states_sent(mocked_controller, expected_states)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "effect, expected_instance",
     [
@@ -611,6 +643,27 @@ async def test_update_elem_effect(new_states, expected, mocked_controller):
 async def test_set_state_empty(mocked_controller):
     await mocked_controller.initialize_elem(a21_light)
     await mocked_controller.set_state(a21_light.id)
+    mocked_controller._bridge.request.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_set_state_white(mocked_controller, mocker):
+    await mocked_controller.initialize_elem(a21_light)
+    update = mocker.patch.object(mocked_controller, "update")
+    mocked_controller._items[a21_light.id].color_mode.mode = "color"
+    await mocked_controller.set_state(a21_light.id, color_mode="white")
+    update.assert_called_once_with(a21_light.id, obj_in=mocker.ANY, force_forward=True)
+
+
+@pytest.mark.asyncio
+async def test_set_state_color_temp(mocked_controller, mocker):
+    await mocked_controller.initialize_elem(a21_light)
+    update = mocker.patch.object(mocked_controller, "update")
+    mocked_controller._items[a21_light.id].color_mode.mode = "color"
+    await mocked_controller.set_state(
+        a21_light.id, color_mode="white", temperature=3000
+    )
+    update.assert_called_once_with(a21_light.id, obj_in=mocker.ANY, force_forward=False)
 
 
 @pytest.mark.asyncio
@@ -741,3 +794,71 @@ async def test_update_elem_color(
 def test_process_color_temps():
     temps = [{"name": "2700K"}, {"name": "3000"}]
     assert process_color_temps(temps) == [2700, 3000]
+
+
+@pytest.mark.parametrize(
+    "states, color_mode, expected",
+    [
+        # Fallback due to not enough data
+        ([], "white", "white"),
+        # color-mode was set last
+        (
+            [
+                AferoState(
+                    functionClass="color-mode",
+                    functionInstance=None,
+                    value="white",
+                    lastUpdateTime=12345,
+                ),
+                AferoState(
+                    functionClass="color-temperature",
+                    functionInstance=None,
+                    value=3000,
+                    lastUpdateTime=12344,
+                ),
+            ],
+            "white",
+            "white",
+        ),
+        # color-temp was set at the same time
+        (
+            [
+                AferoState(
+                    functionClass="color-mode",
+                    functionInstance=None,
+                    value="white",
+                    lastUpdateTime=12345,
+                ),
+                AferoState(
+                    functionClass="color-temperature",
+                    functionInstance=None,
+                    value=3000,
+                    lastUpdateTime=12345,
+                ),
+            ],
+            "white",
+            "temperature",
+        ),
+        # Using RGB
+        (
+            [
+                AferoState(
+                    functionClass="color-mode",
+                    functionInstance=None,
+                    value="color",
+                    lastUpdateTime=12345,
+                ),
+                AferoState(
+                    functionClass="color-temperature",
+                    functionInstance=None,
+                    value=3000,
+                    lastUpdateTime=12345,
+                ),
+            ],
+            "color",
+            "color",
+        ),
+    ],
+)
+def test_determine_current_color_mode(states, color_mode, expected):
+    assert determine_current_color_mode(states, color_mode) == expected

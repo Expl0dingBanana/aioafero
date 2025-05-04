@@ -4,6 +4,8 @@ from aioafero.v1.models import features
 def test_ColorModeFeature():
     feat = features.ColorModeFeature("white")
     assert feat.api_value == "white"
+    feat = features.ColorModeFeature("temperature")
+    assert feat.api_value == "white"
 
 
 def test_ColorFeature():

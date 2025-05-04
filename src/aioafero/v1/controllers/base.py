@@ -299,12 +299,14 @@ class BaseResourcesController(Generic[AferoResource]):
         device_id: str,
         obj_in: Generic[AferoResource] = None,
         states: list[dict] | None = None,
+        force_forward: bool = False,
     ) -> None:
         """Update Afero IoT with the new data
 
         :param device_id: Afero IoT Device ID
         :param obj_in: Afero IoT Resource elements to change
         :param states: States to manually set
+        :param force_forward: Force to send regardless of changes
         """
         try:
             cur_item = self.get_device(device_id)
@@ -316,7 +318,9 @@ class BaseResourcesController(Generic[AferoResource]):
         # Make a clone to restore if the update fails
         fallback = copy.deepcopy(cur_item)
         if obj_in:
-            device_states = dataclass_to_afero(cur_item, obj_in, self.ITEM_MAPPING)
+            device_states = dataclass_to_afero(
+                cur_item, obj_in, self.ITEM_MAPPING, force_forward=force_forward
+            )
             if not device_states:
                 self._logger.debug("No states to send. Skipping")
                 return
@@ -352,7 +356,7 @@ def update_dataclass(elem: AferoResource, update_vals: dataclass):
 
 
 def dataclass_to_afero(
-    elem: AferoResource, cls: dataclass, mapping: dict
+    elem: AferoResource, cls: dataclass, mapping: dict, force_forward: bool = False
 ) -> list[dict]:
     """Convert the current state to be consumed by Afero IoT"""
     states = []
@@ -360,7 +364,7 @@ def dataclass_to_afero(
         cur_val = getattr(cls, f.name, None)
         if cur_val is None:
             continue
-        if cur_val == getattr(elem, f.name, None):
+        if cur_val == getattr(elem, f.name, None) and not force_forward:
             continue
         api_key = mapping.get(f.name, f.name)
         new_val = cur_val.api_value

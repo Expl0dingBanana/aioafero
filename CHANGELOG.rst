@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 2.0.2?
+=============
+
+ * Update logic for Lights to better track the current mode of operation
+   as several different options use color-mode=white
+
 Version 2.0.1
 =============
 

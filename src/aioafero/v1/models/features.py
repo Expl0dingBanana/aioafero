@@ -14,6 +14,8 @@ class ColorModeFeature:
 
     @property
     def api_value(self):
+        if self.mode == "temperature":
+            return "white"
         return self.mode
 
 
