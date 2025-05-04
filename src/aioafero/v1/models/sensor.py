@@ -10,6 +10,20 @@ MAPPED_SENSORS = [
 BINARY_SENSORS = ["error"]
 
 
+# Sensor -> Issue
+BINARY_SENSOR_MAPPING = {
+    "error": "alerting",
+    "filter-replacement": "replacement-needed",
+    "min-temp-exceeded": "alerting",
+    "max-temp-exceeded": "alerting",
+}
+
+SWITCH_MAPPING = {
+    "safety-cool-mode": "on",
+    "safety-heat-mode": "on",
+}
+
+
 @dataclass
 class AferoSensor:
     id: str
@@ -36,6 +50,24 @@ class AferoSensorError:
     @property
     def value(self) -> bool:
         return self._value == "alerting"
+
+    @value.setter
+    def value(self, value):
+        self._value = value
+
+
+@dataclass
+class AferoSensorMappedError:
+    id: str
+    owner: str
+    _value: str
+    _error: str
+
+    instance: str | None = field(default=None)
+
+    @property
+    def value(self) -> bool:
+        return self._value == self._error
 
     @value.setter
     def value(self, value):

@@ -59,6 +59,14 @@ class DeviceController(BaseResourcesController[Device]):
                     unit=unit,
                     instance=state.functionInstance,
                 )
+            elif state.functionClass in sensor.BINARY_SENSOR_MAPPING:
+                key = f"{state.functionClass}|{state.functionInstance}"
+                binary_sensors[key] = sensor.AferoSensorMappedError(
+                    id=key,
+                    owner=device.device_id,
+                    _value=state.value,
+                    _error=sensor.BINARY_SENSOR_MAPPING[state.functionClass],
+                )
             elif state.functionClass == "wifi-mac-address":
                 wifi_mac = state.value
             elif state.functionClass == "ble-mac-address":

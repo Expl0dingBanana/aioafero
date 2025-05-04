@@ -54,6 +54,7 @@ def test_controllers(mocked_bridge):
     mocked_bridge.lights._initialized = False
     mocked_bridge.locks._initialized = True
     mocked_bridge.switches._initialized = False
+    mocked_bridge.thermostats._initialized = False
     mocked_bridge.valves._initialized = True
     assert mocked_bridge.controllers == [mocked_bridge.locks, mocked_bridge.valves]
     mocked_bridge.switches._initialized = True

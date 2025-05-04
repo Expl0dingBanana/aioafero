@@ -142,6 +142,19 @@ class EffectFeature:
 
 
 @dataclass
+class HVACModeFeature:
+    """Represent HVAC Mode Feature"""
+
+    mode: str | None
+    previous_mode: str | None
+    modes: set[str]
+
+    @property
+    def api_value(self):
+        return self.mode
+
+
+@dataclass
 class ModeFeature:
     """Represent Current Fan mode Feature"""
 
@@ -218,3 +231,22 @@ class SpeedFeature:
     @property
     def api_value(self):
         return percentage_to_ordered_list_item(self.speeds, self.speed)
+
+
+@dataclass
+class TargetTemperatureFeature:
+    """Represents the target temperature for auto"""
+
+    value: float
+    min: float
+    max: float
+    step: float
+    instance: str
+
+    @property
+    def api_value(self):
+        return {
+            "functionClass": "temperature",
+            "functionInstance": self.instance,
+            "value": self.value,
+        }

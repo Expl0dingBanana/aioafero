@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 
 def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int) -> _T:
@@ -67,3 +67,27 @@ def process_range(range_vals: dict) -> list[Any]:
     if range_max not in supported_range:
         supported_range.append(range_max)
     return supported_range
+
+
+def process_function(
+    functions: list[dict], func_class: str, func_instance: Optional[str] = None
+) -> list[Any]:
+    """Generates a list of whatever you are searching for
+
+    :param functions: List of functions for the given device
+    :param func_class: functionClass to search
+    :param func_instance: functionInstance to search
+    """
+    results = []
+    for function in functions:
+        if function["functionClass"] != func_class:
+            continue
+        if func_instance and function.get("functionInstance") != func_instance:
+            continue
+        if function["type"] == "numeric":
+            results = process_range(function["values"][0])
+        elif function["type"] == "category":
+            for value in function["values"]:
+                results.append(value["name"])
+        break
+    return results

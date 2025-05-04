@@ -9,6 +9,7 @@ __all__ = [
     "LightController",
     "LockController",
     "SwitchController",
+    "ThermostatController",
     "ValveController",
 ]
 
@@ -33,6 +34,7 @@ from .controllers.fan import FanController
 from .controllers.light import LightController
 from .controllers.lock import LockController
 from .controllers.switch import SwitchController
+from .controllers.thermostat import ThermostatController
 from .controllers.valve import ValveController
 
 
@@ -70,6 +72,7 @@ class AferoBridgeV1:
         self._lights: LightController = LightController(self)
         self._locks: LockController = LockController(self)
         self._switches: SwitchController = SwitchController(self)
+        self._thermostats: ThermostatController = ThermostatController(self)
         self._valves: ValveController = ValveController(self)
 
     async def __aenter__(self) -> "AferoBridgeV1":
@@ -114,6 +117,10 @@ class AferoBridgeV1:
         return self._switches
 
     @property
+    def thermostats(self) -> ThermostatController:
+        return self._thermostats
+
+    @property
     def valves(self) -> ValveController:
         return self._valves
 
@@ -125,6 +132,7 @@ class AferoBridgeV1:
             self._lights,
             self._locks,
             self._switches,
+            self._thermostats,
             self._valves,
         ]
         return dev_controllers
