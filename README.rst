@@ -68,6 +68,16 @@ The following controllers are implemented:
    * turn_on
    * turn_off
 
+
+* ``bridge.thermostats``: Any device that matches a thermostat. Can perform the following
+  actions:
+
+   * set_fan_mode
+   * set_hvac_mode
+   * set_target_temperature
+   * set_temperature_range
+
+
 * ``bridge.valves``: Any device that matches a valves. Can perform the following
   actions:
 

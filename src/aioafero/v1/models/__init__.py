@@ -8,6 +8,7 @@ __all__ = [
     "Valve",
     "Fan",
     "ResourceTypes",
+    "Thermostat",
 ]
 
 
@@ -18,4 +19,5 @@ from .lock import Lock
 from .resource import ResourceTypes
 from .sensor import AferoSensor, AferoSensorError
 from .switch import Switch
+from .thermostat import Thermostat
 from .valve import Valve

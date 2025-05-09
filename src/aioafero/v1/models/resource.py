@@ -20,6 +20,7 @@ class ResourceTypes(Enum):
     PARENT_DEVICE = "parent-device"
     POWER_OUTLET = "power-outlet"
     SWITCH = "switch"
+    THERMOSTAT = "thermostat"
     UNKNOWN = "unknown"
     WATER_TIMER = "water-timer"
 

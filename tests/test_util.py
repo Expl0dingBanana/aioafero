@@ -2,6 +2,10 @@ import pytest
 
 from aioafero import util
 
+from .v1 import utils
+
+thermostat = utils.create_devices_from_data("thermostat.json")[0]
+
 
 @pytest.mark.parametrize(
     "vals, percentage, expected, err",
@@ -44,3 +48,43 @@ def test_ordered_list_item_to_percentage(vals, value, expected, err):
 )
 def test_process_range(range_vals, expected):
     assert util.process_range(range_vals) == expected
+
+
+@pytest.mark.parametrize(
+    "functions, func_class, func_instance, expected",
+    [
+        # None
+        ([], "cool", None, []),
+        (
+            thermostat.functions,
+            "temperature",
+            "safety-mode-max-temp",
+            [
+                29.5,
+                30.0,
+                30.5,
+                31.0,
+                31.5,
+                32.0,
+                32.5,
+                33.0,
+                33.5,
+                34.0,
+                34.5,
+                35.0,
+                35.5,
+                36.0,
+                36.5,
+                37,
+            ],
+        ),
+        (thermostat.functions, "temperature-units", None, ["fahrenheit", "celsius"]),
+        # Not processable
+        (thermostat.functions, "preset", "preset-1", []),
+    ],
+)
+def test_process_function(functions, func_class, func_instance, expected):
+    assert (
+        util.process_function(functions, func_class, func_instance=func_instance)
+        == expected
+    )

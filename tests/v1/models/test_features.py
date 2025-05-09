@@ -82,6 +82,13 @@ def test_EffectFeature():
     assert not feat.is_preset("rainbow")
 
 
+def test_HVACModeFeature():
+    feat = features.HVACModeFeature(
+        mode="beans", previous_mode="not_beans", modes={"beans", "not_beans"}
+    )
+    assert feat.api_value == "beans"
+
+
 def test_ModeFeature():
     feat = features.ModeFeature(mode="color", modes={"color", "white"})
     assert feat.api_value == "color"
@@ -140,3 +147,18 @@ def test_SpeedFeature():
     assert feat.api_value == "speed-4-25"
     feat.speed = 50
     assert feat.api_value == "speed-4-50"
+
+
+def test_TargetTemperatureAutoFeature():
+    feat = features.TargetTemperatureFeature(
+        value=12,
+        min=10,
+        max=14,
+        step=0.5,
+        instance="whatever",
+    )
+    assert feat.api_value == {
+        "functionClass": "temperature",
+        "functionInstance": "whatever",
+        "value": 12,
+    }

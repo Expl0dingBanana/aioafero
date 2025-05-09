@@ -6,13 +6,18 @@ from aioafero.device import AferoState
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.device import DeviceController, split_sensor_data
 from aioafero.v1.models.resource import DeviceInformation
-from aioafero.v1.models.sensor import AferoSensor, AferoSensorError
+from aioafero.v1.models.sensor import (
+    AferoSensor,
+    AferoSensorError,
+    AferoSensorMappedError,
+)
 
 from .. import utils
 
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 freezer = utils.create_devices_from_data("freezer.json")[0]
+thermostat = utils.create_devices_from_data("thermostat.json")[0]
 
 
 @pytest.fixture
@@ -50,6 +55,58 @@ async def test_initialize_a21(mocked_controller):
         )
     }
     assert dev.binary_sensors == {}
+
+
+@pytest.mark.asyncio
+async def test_initialize_thermostat(mocked_controller):
+    await mocked_controller.initialize_elem(thermostat)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == "cc770a99-25da-4888-8a09-2a569da5be08"
+    assert dev.available is True
+    assert dev.device_information == DeviceInformation(
+        device_class=thermostat.device_class,
+        default_image=thermostat.default_image,
+        default_name=thermostat.default_name,
+        manufacturer=thermostat.manufacturerName,
+        model=thermostat.model,
+        name=thermostat.friendly_name,
+        parent_id=thermostat.device_id,
+        wifi_mac="9834e9e6-b8e8-459b-8c85-cd6fd8eca9cb",
+        ble_mac="94e548e2-77d7-4770-b282-a8282b1ec442",
+    )
+    assert dev.sensors == {
+        "wifi-rssi": AferoSensor(
+            id="wifi-rssi",
+            owner="bfdc5e8f-f457-4491-86dd-63ee07a6ecf9",
+            _value=-32,
+            instance=None,
+            unit="dB",
+        )
+    }
+    assert dev.binary_sensors == {
+        "filter-replacement|None": AferoSensorMappedError(
+            id="filter-replacement|None",
+            owner="bfdc5e8f-f457-4491-86dd-63ee07a6ecf9",
+            _value="not-needed",
+            _error="replacement-needed",
+            instance=None,
+        ),
+        "max-temp-exceeded|None": AferoSensorMappedError(
+            id="max-temp-exceeded|None",
+            owner="bfdc5e8f-f457-4491-86dd-63ee07a6ecf9",
+            _value="normal",
+            _error="alerting",
+            instance=None,
+        ),
+        "min-temp-exceeded|None": AferoSensorMappedError(
+            id="min-temp-exceeded|None",
+            owner="bfdc5e8f-f457-4491-86dd-63ee07a6ecf9",
+            _value="normal",
+            _error="alerting",
+            instance=None,
+        ),
+    }
 
 
 @pytest.mark.asyncio
