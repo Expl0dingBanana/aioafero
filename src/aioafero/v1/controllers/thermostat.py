@@ -134,7 +134,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     updated_keys.add("fan-mode")
             elif state.functionClass == "mode":
                 if cur_item.hvac_mode.mode != state.value:
-                    # We only want to update the previous mdoe when we are in heat or cool
+                    # We only want to update the previous mode when we are in heat or cool
                     if cur_item.hvac_mode.mode in ["cool", "heat"]:
                         cur_item.hvac_mode.previous_mode = cur_item.hvac_mode.mode
                     cur_item.hvac_mode.mode = state.value
@@ -224,12 +224,11 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     mode=fan_mode,
                     modes=cur_item.fan_mode.modes,
                 )
-                if fan_mode != "off":
-                    update_obj.hvac_mode = features.HVACModeFeature(
-                        mode="fan",
-                        modes=cur_item.hvac_mode.modes,
-                        previous_mode=cur_item.hvac_mode.mode,
-                    )
+                update_obj.hvac_mode = features.HVACModeFeature(
+                    mode="fan",
+                    modes=cur_item.hvac_mode.modes,
+                    previous_mode=cur_item.hvac_mode.mode,
+                )
             else:
                 self._logger.debug(
                     "Unknown fan mode %s. Available modes: %s",

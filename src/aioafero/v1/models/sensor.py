@@ -63,6 +63,7 @@ class AferoSensorMappedError:
     _value: str
     _error: str
 
+    unit: str | None = field(default=None)
     instance: str | None = field(default=None)
 
     @property

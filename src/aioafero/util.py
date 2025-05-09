@@ -62,11 +62,17 @@ def process_range(range_vals: dict) -> list[Any]:
     if range_min == range_max:
         supported_range.append(range_max)
     else:
-        for val in range(range_min, range_max, range_step):
+        for val in float_range(range_min, range_max, range_step):
             supported_range.append(val)
     if range_max not in supported_range:
         supported_range.append(range_max)
     return supported_range
+
+
+def float_range(start, stop, step):
+    while start < stop:
+        yield start
+        start += step
 
 
 def process_function(

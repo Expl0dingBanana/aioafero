@@ -168,6 +168,7 @@ async def test_update_elem(mocked_controller):
     assert dev.fan_mode.mode == "on"
     assert dev.hvac_action == "cooling"
     assert dev.hvac_mode.mode == "cool"
+    assert dev.hvac_mode.previous_mode == "heat"
     assert dev.safety_max_temp.value == 35
     assert dev.safety_min_temp.value == 32
     assert dev.target_temperature_auto_heating.value == 22
@@ -189,6 +190,32 @@ async def test_update_elem(mocked_controller):
         "temperature-safety-mode-min-temp",
         "fan-mode",
     }
+
+
+@pytest.mark.asyncio
+async def test_update_elem_no_prev_mode_change(mocked_controller):
+    await mocked_controller.initialize_elem(thermostat)
+    mocked_controller._items[thermostat_id].hvac_mode.mode = "off"
+    mocked_controller._items[thermostat_id].hvac_mode.previous_mode = "heat"
+    assert len(mocked_controller.items) == 1
+    dev_update = utils.create_devices_from_data("thermostat.json")[0]
+    new_states = [
+        AferoState(
+            **{
+                "functionClass": "mode",
+                "value": "cool",
+                "lastUpdateTime": 0,
+                "functionInstance": None,
+            }
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(dev_update, state)
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller.items[0]
+    assert dev.hvac_mode.mode == "cool"
+    assert dev.hvac_mode.previous_mode == "heat"
+    assert updates == {"mode"}
 
 
 @pytest.mark.asyncio
@@ -437,7 +464,7 @@ async def test_set_state(mocked_controller):
         ),
     ],
 )
-async def test_set_state_generics(
+async def test_set_state_hvac_generics(
     current_mode,
     prev_mode,
     params,
@@ -450,6 +477,86 @@ async def test_set_state_generics(
     await mocked_controller.initialize_elem(thermostat)
     mocked_controller._items[thermostat_id].hvac_mode.mode = current_mode
     mocked_controller._items[thermostat_id].hvac_mode.previous_mode = prev_mode
+    assert len(mocked_controller.items) == 1
+    await mocked_controller.set_state(thermostat_id, **params)
+    if expected_calls:
+        post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
+        assert post["metadeviceId"] == thermostat_id
+        for call in expected_calls:
+            assert call in post["values"]
+        assert len(expected_calls) == len(post["values"])
+    else:
+        mocked_controller._bridge.request.assert_not_called()
+    for message in expected_messages:
+        assert message in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "fan_mode, hvac_mode, params, expected_calls, expected_messages",
+    [
+        (
+            "off",
+            "off",
+            {"fan_mode": "auto"},
+            [
+                {
+                    "functionClass": "fan-mode",
+                    "functionInstance": None,
+                    "lastUpdateTime": 12345,
+                    "value": "auto",
+                },
+                {
+                    "functionClass": "mode",
+                    "functionInstance": None,
+                    "lastUpdateTime": 12345,
+                    "value": "fan",
+                },
+            ],
+            [],
+        ),
+        (
+            "on",
+            "fan",
+            {"fan_mode": "auto"},
+            [
+                {
+                    "functionClass": "fan-mode",
+                    "functionInstance": None,
+                    "lastUpdateTime": 12345,
+                    "value": "auto",
+                },
+                {
+                    "functionClass": "mode",
+                    "functionInstance": None,
+                    "lastUpdateTime": 12345,
+                    "value": "fan",
+                },
+            ],
+            [],
+        ),
+        (
+            "off",
+            "off",
+            {"fan_mode": "bad"},
+            [],
+            ["Unknown fan mode bad. Available modes: auto, intermittent, on"],
+        ),
+    ],
+)
+async def test_set_state_fan_generics(
+    fan_mode,
+    hvac_mode,
+    params,
+    expected_calls,
+    expected_messages,
+    mocked_controller,
+    caplog,
+):
+    caplog.set_level(logging.DEBUG)
+    await mocked_controller.initialize_elem(thermostat)
+    mocked_controller._items[thermostat_id].hvac_mode.mode = hvac_mode
+    mocked_controller._items[thermostat_id].fan_mode.mode = fan_mode
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(thermostat_id, **params)
     if expected_calls:

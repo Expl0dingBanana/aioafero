@@ -84,6 +84,16 @@ def test__get_mode_to_check(mode, prev_mode, expected, populated_entity):
     assert populated_entity.get_mode_to_check() == expected
 
 
+def test__get_mode_to_not_populated(populated_entity):
+    populated_entity.hvac_mode = None
+    assert populated_entity.get_mode_to_check() is None
+
+
+def test_target_temperature_step_not_populated(populated_entity):
+    populated_entity.hvac_mode = None
+    assert populated_entity.target_temperature_step == 0.5
+
+
 def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
