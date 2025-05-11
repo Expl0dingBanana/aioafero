@@ -1,8 +1,4 @@
-from aioafero.v1.models.sensor import (
-    AferoSensor,
-    AferoSensorError,
-    AferoSensorMappedError,
-)
+from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 
 
 def test_init_sensor():
@@ -16,20 +12,8 @@ def test_init_sensor():
     assert dev.unit == "beans"
 
 
-def test_init_sensor_error():
-    dev = AferoSensorError(
-        id="entity-1",
-        owner="device-link",
-        _value="alerting",
-        unit="beans",
-    )
-    assert dev.value is True
-    dev.value = "normal"
-    assert dev.value is False
-
-
 def test_init_mapped_sensor_error():
-    dev = AferoSensorMappedError(
+    dev = AferoBinarySensor(
         id="entity-1",
         owner="device-link",
         _value="alerting",

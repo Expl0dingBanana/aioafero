@@ -5,6 +5,7 @@ import logging
 import pytest
 
 from aioafero.device import AferoState
+from aioafero.v1.controllers.device import AferoBinarySensor
 from aioafero.v1.controllers.thermostat import ThermostatController, features
 
 from .. import utils
@@ -53,6 +54,30 @@ async def test_initialize(mocked_controller):
     assert dev.target_temperature_heating == features.TargetTemperatureFeature(
         value=18, step=0.5, min=4, max=32, instance="heating-target"
     )
+    assert dev.sensors == {}
+    assert dev.binary_sensors == {
+        "filter-replacement|None": AferoBinarySensor(
+            id="filter-replacement|None",
+            owner="cc770a99-25da-4888-8a09-2a569da5be08",
+            _value="not-needed",
+            _error="replacement-needed",
+            instance=None,
+        ),
+        "max-temp-exceeded|None": AferoBinarySensor(
+            id="max-temp-exceeded|None",
+            owner="cc770a99-25da-4888-8a09-2a569da5be08",
+            _value="normal",
+            _error="alerting",
+            instance=None,
+        ),
+        "min-temp-exceeded|None": AferoBinarySensor(
+            id="min-temp-exceeded|None",
+            owner="cc770a99-25da-4888-8a09-2a569da5be08",
+            _value="normal",
+            _error="alerting",
+            instance=None,
+        ),
+    }
 
 
 @pytest.mark.asyncio

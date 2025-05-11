@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from ..models import features
 from .resource import DeviceInformation, ResourceTypes
+from .sensor import AferoBinarySensor, AferoSensor
 
 
 @dataclass
@@ -26,6 +27,8 @@ class Thermostat:
     # Defined at initialization
     instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
+    sensors: dict[str, AferoSensor] = field(default_factory=lambda: dict())
+    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=lambda: dict())
 
     type: ResourceTypes = ResourceTypes.THERMOSTAT
 

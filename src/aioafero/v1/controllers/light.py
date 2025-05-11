@@ -8,7 +8,7 @@ from ...util import process_range
 from ..models import features
 from ..models.light import Light, LightPut
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 def process_names(values: list[dict]) -> set[str]:
@@ -31,6 +31,10 @@ class LightController(BaseResourcesController[Light]):
         "dimming": "brightness",
         "effect": "color-sequence",
     }
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str) -> None:
         """Turn on the light."""
@@ -69,6 +73,8 @@ class LightController(BaseResourcesController[Light]):
         color_mode: features.ColorModeFeature | None = None
         dimming: features.DimmingFeature | None = None
         effect: features.EffectFeature | None = None
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -110,6 +116,12 @@ class LightController(BaseResourcesController[Light]):
                 color_mode = features.ColorModeFeature(state.value)
             elif state.functionClass == "available":
                 available = state.value
+            elif sensor := await self.initialize_sensor(state, afero_device.device_id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
+
         supported_color_modes: list[str] = []
         for function in afero_device.functions:
             if function["functionClass"] != "color-mode":
@@ -122,6 +134,8 @@ class LightController(BaseResourcesController[Light]):
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -187,6 +201,9 @@ class LightController(BaseResourcesController[Light]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
+
         # Several states hold the effect, but its always derived from the preset functionInstance
         updated_keys = updated_keys.union(
             await self.update_elem_color(cur_item, color_seq_states)

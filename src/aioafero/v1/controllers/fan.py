@@ -6,7 +6,7 @@ from ...util import ordered_list_item_to_percentage
 from ..models import features
 from ..models.fan import Fan, FanPut
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 KNOWN_PRESETS = {"comfort-breeze"}
 
@@ -22,6 +22,10 @@ class FanController(BaseResourcesController[Fan]):
         "speed": "fan-speed",
         "direction": "fan-reverse",
     }
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str) -> None:
         """Turn on the fan."""
@@ -55,6 +59,8 @@ class FanController(BaseResourcesController[Fan]):
         speed: features.SpeedFeature | None = None
         direction: features.DirectionFeature | None = None
         preset: features.PresetFeature | None = None
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass == "power":
                 on = features.OnFeature(on=state.value == "on")
@@ -83,11 +89,18 @@ class FanController(BaseResourcesController[Fan]):
                 )
             elif state.functionClass == "available":
                 available = state.value
+            elif sensor := await self.initialize_sensor(state, afero_device.device_id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Fan(
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -137,6 +150,9 @@ class FanController(BaseResourcesController[Fan]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
+
         return updated_keys
 
     async def set_state(

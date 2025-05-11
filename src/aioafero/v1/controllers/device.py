@@ -1,19 +1,13 @@
 """Controller that holds top-level devices"""
 
-import re
-from typing import Any
-
-from ...device import AferoDevice, AferoState, get_afero_device
-from ..models import sensor
+from ...device import AferoDevice, get_afero_device
 from ..models.device import Device
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
-unit_extractor = re.compile(r"(\d*)(\D*)")
-
+# Generic sensors that should be applied to all devices
 SENSOR_TO_UNIT: dict[str, str] = {
-    "power": "W",
-    "watts": "W",
+    "battery-level": "%",
     "wifi-rssi": "dB",
 }
 
@@ -24,72 +18,52 @@ class DeviceController(BaseResourcesController[Device]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = []
     ITEM_CLS = Device
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {"wifi-rssi": "dB"}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {
+        "error": "alerting",
+    }
 
-    async def initialize_elem(self, device: AferoDevice) -> Device:
+    async def initialize_elem(self, afero_device: AferoDevice) -> Device:
         """Initialize the element"""
         available: bool = False
-        sensors: dict[str, sensor.AferoSensor] = {}
-        binary_sensors: dict[str, sensor.AferoSensor | sensor.AferoSensorError] = {}
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         wifi_mac: str | None = None
         ble_mac: str | None = None
 
-        for state in device.states:
+        for state in afero_device.states:
             if state.functionClass == "available":
                 available = state.value
-            elif state.functionClass in sensor.MAPPED_SENSORS:
-                value, unit = split_sensor_data(state)
-                sensors[state.functionClass] = sensor.AferoSensor(
-                    id=state.functionClass,
-                    owner=device.device_id,
-                    _value=value,
-                    unit=unit,
-                )
-            elif state.functionClass in sensor.BINARY_SENSORS:
-                value, unit = split_sensor_data(state)
-                key = f"{state.functionClass}|{state.functionInstance}"
-                sensor_class = (
-                    sensor.AferoSensorError
-                    if state.functionClass == "error"
-                    else sensor.AferoSensor
-                )
-                binary_sensors[key] = sensor_class(
-                    id=key,
-                    owner=device.device_id,
-                    _value=value,
-                    unit=unit,
-                    instance=state.functionInstance,
-                )
-            elif state.functionClass in sensor.BINARY_SENSOR_MAPPING:
-                key = f"{state.functionClass}|{state.functionInstance}"
-                binary_sensors[key] = sensor.AferoSensorMappedError(
-                    id=key,
-                    owner=device.device_id,
-                    _value=state.value,
-                    _error=sensor.BINARY_SENSOR_MAPPING[state.functionClass],
-                )
+            elif sensor := await self.initialize_sensor(state, afero_device.id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
             elif state.functionClass == "wifi-mac-address":
                 wifi_mac = state.value
             elif state.functionClass == "ble-mac-address":
                 ble_mac = state.value
 
-        self._items[device.id] = Device(
-            id=device.id,
+        self._items[afero_device.id] = Device(
+            id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
             device_information=DeviceInformation(
-                device_class=device.device_class,
-                default_image=device.default_image,
-                default_name=device.default_name,
-                manufacturer=device.manufacturerName,
-                model=device.model,
-                name=device.friendly_name,
-                parent_id=device.device_id,
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
                 wifi_mac=wifi_mac,
                 ble_mac=ble_mac,
             ),
         )
-        return self._items[device.id]
+        return self._items[afero_device.id]
 
     def get_filtered_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
         """Find parent devices"""
@@ -126,23 +100,6 @@ class DeviceController(BaseResourcesController[Device]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add(state.functionClass)
-            elif state.functionClass in sensor.MAPPED_SENSORS:
-                value, _ = split_sensor_data(state)
-                if cur_item.sensors[state.functionClass]._value != value:
-                    cur_item.sensors[state.functionClass]._value = value
-                    updated_keys.add(f"sensor-{state.functionClass}")
-            elif state.functionClass in sensor.BINARY_SENSORS:
-                value, _ = split_sensor_data(state)
-                key = f"{state.functionClass}|{state.functionInstance}"
-                if cur_item.binary_sensors[key]._value != value:
-                    cur_item.binary_sensors[key]._value = value
-                    updated_keys.add(f"binary-{key}")
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
         return updated_keys
-
-
-def split_sensor_data(state: AferoState) -> tuple[Any, str | None]:
-    if isinstance(state.value, str):
-        match = unit_extractor.match(state.value)
-        if match and match.group(1) and match.group(2):
-            return int(match.group(1)), match.group(2)
-    return state.value, SENSOR_TO_UNIT.get(state.functionClass, None)

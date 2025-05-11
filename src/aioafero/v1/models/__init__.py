@@ -3,7 +3,7 @@ __all__ = [
     "Light",
     "Lock",
     "AferoSensor",
-    "AferoSensorError",
+    "AferoBinarySensor",
     "Switch",
     "Valve",
     "Fan",
@@ -17,7 +17,7 @@ from .fan import Fan
 from .light import Light
 from .lock import Lock
 from .resource import ResourceTypes
-from .sensor import AferoSensor, AferoSensorError
+from .sensor import AferoBinarySensor, AferoSensor
 from .switch import Switch
 from .thermostat import Thermostat
 from .valve import Valve

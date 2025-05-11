@@ -5,7 +5,7 @@ from ...device import AferoDevice
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.valve import Valve, ValvePut
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class ValveController(BaseResourcesController[Valve]):
@@ -19,6 +19,10 @@ class ValveController(BaseResourcesController[Valve]):
     ITEM_TYPES = [ResourceTypes.WATER_TIMER]
     ITEM_CLS = Valve
     ITEM_MAPPING = {}
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str, instance: str | None = None) -> None:
         """Open the valve"""
@@ -33,6 +37,8 @@ class ValveController(BaseResourcesController[Valve]):
         self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
         valve_open: dict[str, features.OpenFeature] = {}
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 valve_open[state.functionInstance] = features.OpenFeature(
@@ -42,11 +48,18 @@ class ValveController(BaseResourcesController[Valve]):
                 )
             elif state.functionClass == "available":
                 available = state.value
+            elif sensor := await self.initialize_sensor(state, afero_device.device_id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Valve(
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -73,6 +86,9 @@ class ValveController(BaseResourcesController[Valve]):
                 if cur_item.available != state.value:
                     updated_keys.add("available")
                 cur_item.available = state.value
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
+
         return updated_keys
 
     async def set_state(

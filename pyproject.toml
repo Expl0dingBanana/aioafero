@@ -37,6 +37,7 @@ test = [
   "aioresponses",
   "pytest-aioresponses",
   "anyio",
+  "tox",
 ]
 cli = [
   "click",
