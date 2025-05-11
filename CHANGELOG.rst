@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 3.0.0
+=============
+
+ * API Break: Binary Sensors / Sensors may no longer be included under the Device Resource
+ * Binary Sensors / Sensors are now included with the most logical parent
+
 Version 2.0.1
 =============
 
