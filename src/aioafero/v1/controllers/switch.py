@@ -51,7 +51,7 @@ class SwitchController(BaseResourcesController[Switch]):
                 )
             elif state.functionClass == "available":
                 available = state.value
-            elif sensor := await self.initialize_sensor(state, afero_device.id):
+            elif sensor := await self.initialize_sensor(state, afero_device.device_id):
                 if isinstance(sensor, AferoBinarySensor):
                     binary_sensors[sensor.id] = sensor
                 else:
@@ -89,6 +89,9 @@ class SwitchController(BaseResourcesController[Switch]):
                 if cur_item.available != state.value:
                     updated_keys.add("available")
                 cur_item.available = state.value
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
+
         return updated_keys
 
     async def set_state(

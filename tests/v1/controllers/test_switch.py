@@ -57,14 +57,14 @@ async def test_initialize_multi(mocked_controller):
     assert dev.sensors == {
         "output-voltage-switch": AferoSensor(
             id="output-voltage-switch",
-            owner="f9aa07e9-a4ce-46b4-b6bc-ad3bc070bc90",
+            owner="1a6ac487-63bd-42a3-927d-66866eb641ac",
             _value=12,
             unit="V",
             instance=None,
         ),
         "watts": AferoSensor(
             id="watts",
-            owner="f9aa07e9-a4ce-46b4-b6bc-ad3bc070bc90",
+            owner="1a6ac487-63bd-42a3-927d-66866eb641ac",
             _value=0,
             unit="W",
             instance=None,
@@ -260,6 +260,11 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": None,
             }
         ),
+        AferoState(
+            functionClass="watts",
+            functionInstance=None,
+            value=22,
+        ),
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
@@ -267,7 +272,8 @@ async def test_update_elem(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.on["zone-1"].on is True
     assert dev.on["zone-2"].on is False
-    assert updates == {"on", "available"}
+    assert dev.sensors["watts"].value == 22
+    assert updates == {"on", "available", "sensor-watts"}
     assert dev.available is False
 
 
@@ -292,6 +298,7 @@ async def test_switch_emit_update(bridge):
     # Bad way to check, but just wait a second so it can get processed
     await asyncio.sleep(1)
     assert len(bridge.switches._items) == 1
+    bridge.switches._items[transformer.id].sensors["watts"]._value = 0
     # Simulate an update
     transformer_update = utils.create_devices_from_data("transformer.json")[0]
     utils.modify_state(
@@ -300,6 +307,14 @@ async def test_switch_emit_update(bridge):
             functionClass="toggle",
             functionInstance="zone-2",
             value="off",
+        ),
+    )
+    utils.modify_state(
+        transformer_update,
+        AferoState(
+            functionClass="watts",
+            functionInstance=None,
+            value=1,
         ),
     )
     update_event = {
@@ -312,6 +327,7 @@ async def test_switch_emit_update(bridge):
     await asyncio.sleep(1)
     assert len(bridge.switches._items) == 1
     assert not bridge.switches._items[transformer.id].on["zone-2"].on
+    assert bridge.switches._items[transformer.id].sensors["watts"].value == 1
 
 
 @pytest.mark.asyncio

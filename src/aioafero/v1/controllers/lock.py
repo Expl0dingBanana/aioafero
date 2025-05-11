@@ -14,6 +14,10 @@ class LockController(BaseResourcesController[Lock]):
     ITEM_TYPES = [ResourceTypes.LOCK]
     ITEM_CLS = Lock
     ITEM_MAPPING = {"position": "lock-control"}
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def lock(self, device_id: str) -> None:
         """Engage the lock"""
@@ -40,6 +44,11 @@ class LockController(BaseResourcesController[Lock]):
                 )
             elif state.functionClass == "available":
                 available = state.value
+            elif sensor := await self.initialize_sensor(state, afero_device.device_id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Lock(
             afero_device.functions,
@@ -61,7 +70,6 @@ class LockController(BaseResourcesController[Lock]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
-
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         for state in afero_device.states:
@@ -74,6 +82,9 @@ class LockController(BaseResourcesController[Lock]):
                 if cur_item.available != state.value:
                     updated_keys.add("available")
                 cur_item.available = state.value
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
+
         return updated_keys
 
     async def set_state(

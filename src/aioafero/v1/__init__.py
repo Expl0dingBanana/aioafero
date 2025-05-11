@@ -2,6 +2,8 @@
 
 __all__ = [
     "AferoBridgeV1",
+    "AferoController",
+    "AferoModelResource",
     "models",
     "BaseResourcesController",
     "DeviceController",
@@ -27,7 +29,7 @@ from ..device import AferoResource
 from ..errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
 from . import models, v1_const
 from .auth import AferoAuth
-from .controllers.base import BaseResourcesController
+from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
 from .controllers.fan import FanController
@@ -36,6 +38,19 @@ from .controllers.lock import LockController
 from .controllers.switch import SwitchController
 from .controllers.thermostat import ThermostatController
 from .controllers.valve import ValveController
+
+type AferoModelResource = models.Device | models.Fan | models.Light | models.Lock | models.Switch | models.Valve | models.Thermostat | models.sensor.AferoBinarySensor | models.sensor.AferoSensor
+
+type AferoController = (
+    DeviceController
+    | FanController
+    | LightController
+    | LockController
+    | AferoSensor
+    | SwitchController
+    | ThermostatController
+    | ValveController
+)
 
 
 class AferoBridgeV1:
