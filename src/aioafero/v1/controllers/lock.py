@@ -4,7 +4,7 @@ from ...device import AferoDevice
 from ..models import features
 from ..models.lock import Lock, LockPut
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class LockController(BaseResourcesController[Lock]):
@@ -31,6 +31,8 @@ class LockController(BaseResourcesController[Lock]):
         """Initialize the element"""
         available: bool = False
         current_position: features.CurrentPositionFeature | None = None
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass == "lock-control":
                 current_position = features.CurrentPositionFeature(
@@ -43,6 +45,8 @@ class LockController(BaseResourcesController[Lock]):
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,

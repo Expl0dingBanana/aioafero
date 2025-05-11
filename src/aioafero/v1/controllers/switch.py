@@ -5,7 +5,7 @@ from ...device import AferoDevice
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.switch import Switch, SwitchPut
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class SwitchController(BaseResourcesController[Switch]):
@@ -23,6 +23,10 @@ class SwitchController(BaseResourcesController[Switch]):
     ]
     ITEM_CLS = Switch
     ITEM_MAPPING = {}
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {"watts": "W", "output-voltage-switch": "V"}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str, instance: str | None = None) -> None:
         """Turn on the switch."""
@@ -36,6 +40,8 @@ class SwitchController(BaseResourcesController[Switch]):
         """Initialize the element"""
         available: bool = False
         on: dict[str, features.OnFeature] = {}
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 on[state.functionInstance] = features.OnFeature(
@@ -45,11 +51,18 @@ class SwitchController(BaseResourcesController[Switch]):
                 )
             elif state.functionClass == "available":
                 available = state.value
+            elif sensor := await self.initialize_sensor(state, afero_device.id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Switch(
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,

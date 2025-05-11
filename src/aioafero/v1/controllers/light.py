@@ -8,7 +8,7 @@ from ...util import process_range
 from ..models import features
 from ..models.light import Light, LightPut
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 def process_names(values: list[dict]) -> set[str]:
@@ -69,6 +69,8 @@ class LightController(BaseResourcesController[Light]):
         color_mode: features.ColorModeFeature | None = None
         dimming: features.DimmingFeature | None = None
         effect: features.EffectFeature | None = None
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -122,6 +124,8 @@ class LightController(BaseResourcesController[Light]):
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,

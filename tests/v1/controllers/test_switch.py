@@ -7,6 +7,7 @@ import pytest
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.switch import SwitchController, features
+from aioafero.v1.models import AferoSensor
 
 from .. import utils
 
@@ -31,6 +32,8 @@ async def test_initialize(mocked_controller):
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None),
     }
+    assert dev.sensors == {}
+    assert dev.binary_sensors == {}
 
 
 @pytest.mark.asyncio
@@ -51,6 +54,23 @@ async def test_initialize_multi(mocked_controller):
             on=False, func_class="toggle", func_instance="zone-3"
         ),
     }
+    assert dev.sensors == {
+        "output-voltage-switch": AferoSensor(
+            id="output-voltage-switch",
+            owner="f9aa07e9-a4ce-46b4-b6bc-ad3bc070bc90",
+            _value=12,
+            unit="V",
+            instance=None,
+        ),
+        "watts": AferoSensor(
+            id="watts",
+            owner="f9aa07e9-a4ce-46b4-b6bc-ad3bc070bc90",
+            _value=0,
+            unit="W",
+            instance=None,
+        ),
+    }
+    assert dev.binary_sensors == {}
 
 
 @pytest.mark.asyncio
@@ -83,6 +103,8 @@ async def test_turn_on(mocked_controller):
     assert dev.on == {
         None: features.OnFeature(on=True, func_class="power", func_instance=None)
     }
+    assert dev.sensors == {}
+    assert dev.binary_sensors == {}
 
 
 @pytest.mark.asyncio

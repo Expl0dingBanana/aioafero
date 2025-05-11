@@ -1,15 +1,17 @@
 import asyncio
 import copy
+import re
 import time
 from asyncio.coroutines import iscoroutinefunction
 from dataclasses import dataclass, fields
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable, Generic, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator
 
 from ...device import AferoDevice, AferoResource, AferoState, get_afero_device
 from ...errors import DeviceNotFound, ExceededMaximumRetries
 from .. import v1_const
 from ..models.resource import ResourceTypes
+from ..models.sensor import AferoBinarySensor, AferoSensor
 from .event import AferoEvent, EventCallBackType, EventType
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -23,6 +25,8 @@ EventSubscriptionType = tuple[
 
 ID_FILTER_ALL = "*"
 
+unit_extractor = re.compile(r"(\d*)(\D*)")
+
 
 class BaseResourcesController(Generic[AferoResource]):
     """Base Controller for Afero IoT Cloud devices"""
@@ -32,6 +36,10 @@ class BaseResourcesController(Generic[AferoResource]):
     ITEM_CLS = None
     # functionClass map between controller -> Afero IoT Cloud
     ITEM_MAPPING: dict = {}
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     def __init__(self, bridge: "AferoBridgeV1") -> None:
         """Initialize instance."""
@@ -182,6 +190,63 @@ class BaseResourcesController(Generic[AferoResource]):
                 self._handle_event,
             )
         self._initialized = True
+
+    async def initialize_sensor(
+        self, state: AferoState, child_id: str
+    ) -> AferoSensor | AferoBinarySensor | None:
+        """Initialize the sensor
+
+        :param state: State to update
+        :param child_id: device_id of the parent device
+        """
+        if state.functionClass in self.ITEM_SENSORS.keys():
+            value, unit = await self.split_sensor_data(state)
+            return AferoSensor(
+                id=state.functionClass,
+                owner=child_id,
+                _value=value,
+                unit=unit,
+            )
+        elif state.functionClass in self.ITEM_BINARY_SENSORS.keys():
+            value, _ = await self.split_sensor_data(state)
+            key = f"{state.functionClass}|{state.functionInstance}"
+            return AferoBinarySensor(
+                id=key,
+                owner=child_id,
+                instance=state.functionInstance,
+                _value=value,
+                _error=self.ITEM_BINARY_SENSORS[state.functionClass],
+            )
+        return None
+
+    async def update_sensor(
+        self, state: AferoState, cur_item: AferoResource
+    ) -> str | None:
+        """Update the sensor if its tracked and a change has been detected
+
+        :param state: State to update
+        :param cur_item: Current item to update
+        :return: Identifier of the sensor that was updated or None
+        """
+        if state.functionClass in self.ITEM_SENSORS.keys():
+            value, _ = await self.split_sensor_data(state)
+            if cur_item.sensors[state.functionClass]._value != value:
+                cur_item.sensors[state.functionClass]._value = value
+                return f"sensor-{state.functionClass}"
+        elif state.functionClass in self.ITEM_BINARY_SENSORS.keys():
+            value, _ = await self.split_sensor_data(state)
+            key = f"{state.functionClass}|{state.functionInstance}"
+            if cur_item.binary_sensors[key]._value != value:
+                cur_item.binary_sensors[key]._value = value
+                return f"binary-{key}"
+        return None
+
+    async def split_sensor_data(self, state: AferoState) -> tuple[Any, str | None]:
+        if isinstance(state.value, str):
+            match = unit_extractor.match(state.value)
+            if match and match.group(1) and match.group(2):
+                return int(match.group(1)), match.group(2)
+        return state.value, self.ITEM_SENSORS.get(state.functionClass, None)
 
     async def initialize_elem(self, element: AferoDevice) -> None:  # pragma: no cover
         raise NotImplementedError("Class should implement initialize_elem")

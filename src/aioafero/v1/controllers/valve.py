@@ -5,7 +5,7 @@ from ...device import AferoDevice
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.valve import Valve, ValvePut
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class ValveController(BaseResourcesController[Valve]):
@@ -33,6 +33,8 @@ class ValveController(BaseResourcesController[Valve]):
         self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
         valve_open: dict[str, features.OpenFeature] = {}
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 valve_open[state.functionInstance] = features.OpenFeature(
@@ -47,6 +49,8 @@ class ValveController(BaseResourcesController[Valve]):
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,

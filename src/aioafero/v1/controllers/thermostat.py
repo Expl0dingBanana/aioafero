@@ -6,9 +6,7 @@ from ...util import process_function
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.thermostat import Thermostat, ThermostatPut
-from .base import BaseResourcesController
-
-KNOWN_PRESETS = {"comfort-breeze"}
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class ThermostatController(BaseResourcesController[Thermostat]):
@@ -20,6 +18,14 @@ class ThermostatController(BaseResourcesController[Thermostat]):
     ITEM_MAPPING = {
         "fan_mode": "fan-mode",
         "hvac_mode": "mode",
+    }
+    # Sensors map functionClass -> Unit
+    ITEM_SENSORS: dict[str, str] = {}
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {
+        "filter-replacement": "replacement-needed",
+        "max-temp-exceeded": "alerting",
+        "min-temp-exceeded": "alerting",
     }
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Thermostat:
@@ -36,6 +42,8 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         target_temperature_auto_cooling: features.TargetTemperatureFeature | None = None
         target_temperature_heating: features.TargetTemperatureFeature | None = None
         target_temperature_cooling: features.TargetTemperatureFeature | None = None
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -80,11 +88,18 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 hvac_action = state.value
             elif state.functionClass == "available":
                 available = state.value
+            elif sensor := await self.initialize_sensor(state, afero_device.id):
+                if isinstance(sensor, AferoBinarySensor):
+                    binary_sensors[sensor.id] = sensor
+                else:
+                    sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Thermostat(
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -167,6 +182,8 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
         return updated_keys
 
     async def set_fan_mode(self, device_id: str, fan_mode: str) -> None:

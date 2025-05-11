@@ -6,7 +6,7 @@ from ...util import ordered_list_item_to_percentage
 from ..models import features
 from ..models.fan import Fan, FanPut
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 KNOWN_PRESETS = {"comfort-breeze"}
 
@@ -55,6 +55,8 @@ class FanController(BaseResourcesController[Fan]):
         speed: features.SpeedFeature | None = None
         direction: features.DirectionFeature | None = None
         preset: features.PresetFeature | None = None
+        sensors: dict[str, AferoSensor] = {}
+        binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass == "power":
                 on = features.OnFeature(on=state.value == "on")
@@ -88,6 +90,8 @@ class FanController(BaseResourcesController[Fan]):
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            sensors=sensors,
+            binary_sensors=binary_sensors,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
