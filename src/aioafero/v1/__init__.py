@@ -39,7 +39,17 @@ from .controllers.switch import SwitchController
 from .controllers.thermostat import ThermostatController
 from .controllers.valve import ValveController
 
-type AferoModelResource = models.Device | models.Fan | models.Light | models.Lock | models.Switch | models.Valve | models.Thermostat | models.sensor.AferoBinarySensor | models.sensor.AferoSensor
+type AferoModelResource = (
+    models.Device
+    | models.Fan
+    | models.Light
+    | models.Lock
+    | models.Switch
+    | models.Valve
+    | models.Thermostat
+    | AferoBinarySensor
+    | AferoSensor
+)
 
 type AferoController = (
     DeviceController
