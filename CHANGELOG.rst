@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.0.1
+=============
+
+ * Fix an issue where thermostats would state invalid modes
+
 Version 3.0.0
 =============
 
