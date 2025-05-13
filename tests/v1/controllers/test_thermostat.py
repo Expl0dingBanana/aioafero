@@ -6,7 +6,11 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers.device import AferoBinarySensor
-from aioafero.v1.controllers.thermostat import ThermostatController, features
+from aioafero.v1.controllers.thermostat import (
+    ThermostatController,
+    features,
+    get_supported_modes,
+)
 
 from .. import utils
 
@@ -34,7 +38,10 @@ async def test_initialize(mocked_controller):
     assert dev.fan_running is False
     assert dev.hvac_action == "off"
     assert dev.hvac_mode == features.HVACModeFeature(
-        mode="heat", previous_mode="heat", modes={"off", "heat", "auto", "fan", "cool"}
+        mode="heat",
+        previous_mode="heat",
+        modes={"off", "heat", "auto", "fan", "cool"},
+        supported_modes={"off", "heat", "fan"},
     )
     assert dev.safety_max_temp == features.TargetTemperatureFeature(
         value=36, min=29.5, max=37, step=0.5, instance="safety-mode-max-temp"
@@ -687,3 +694,19 @@ async def test_set_temperature_range(mocked_controller):
     for call in expected_calls:
         assert call in post["values"]
     assert len(post["values"]) == 2
+
+
+standard = {"heat", "cool", "off", "fan", "auto"}
+
+
+@pytest.mark.parametrize(
+    "system_type, modes, expected",
+    [
+        ("cool-beans", {"heat", "cool", "beans"}, {"beans"}),
+        ("1-compressor-heat-pump-1-aux-on-cool-boiler-aux", standard, standard),
+        ("1-stage-cooling-conventional", standard, {"cool", "off", "fan"}),
+        ("1-stage-heating-conventional-boiler", standard, {"heat", "off", "fan"}),
+    ],
+)
+def test_get_supported_modes(system_type, modes, expected):
+    assert get_supported_modes(system_type, modes) == expected

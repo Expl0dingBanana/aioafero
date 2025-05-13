@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `thermostat`."""
 
+import copy
+
 from ... import device
 from ...device import AferoDevice, AferoState
 from ...util import process_function
@@ -44,6 +46,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         target_temperature_cooling: features.TargetTemperatureFeature | None = None
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
+        all_modes: set[str] | None = None
+        current_mode: str | None = None
+        system_type: str | None = None
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -79,13 +84,12 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                         func_def["values"][0], state
                     )
             elif state.functionClass == "mode":
-                hvac_mode = features.HVACModeFeature(
-                    mode=state.value,
-                    previous_mode=state.value,
-                    modes=set(process_function(afero_device.functions, "mode")),
-                )
+                all_modes = set(process_function(afero_device.functions, "mode"))
+                current_mode = state.value
             elif state.functionClass == "current-system-state":
                 hvac_action = state.value
+            elif state.functionClass == "system-type":
+                system_type = state.value
             elif state.functionClass == "available":
                 available = state.value
             elif sensor := await self.initialize_sensor(state, afero_device.id):
@@ -93,6 +97,15 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     binary_sensors[sensor.id] = sensor
                 else:
                     sensors[sensor.id] = sensor
+
+        # Determine supported modes
+        if current_mode and all_modes and system_type:
+            hvac_mode = features.HVACModeFeature(
+                mode=current_mode,
+                previous_mode=current_mode,
+                modes=all_modes,
+                supported_modes=get_supported_modes(system_type, all_modes),
+            )
 
         self._items[afero_device.id] = Thermostat(
             afero_device.functions,
@@ -245,6 +258,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     mode="fan",
                     modes=cur_item.hvac_mode.modes,
                     previous_mode=cur_item.hvac_mode.mode,
+                    supported_modes=cur_item.hvac_mode.supported_modes,
                 )
             else:
                 self._logger.debug(
@@ -258,6 +272,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     mode=hvac_mode,
                     modes=cur_item.hvac_mode.modes,
                     previous_mode=cur_item.hvac_mode.mode,
+                    supported_modes=cur_item.hvac_mode.supported_modes,
                 )
             else:
                 self._logger.debug(
@@ -330,3 +345,21 @@ def generate_target_temp(
         max=func_def["range"]["max"],
         instance=state.functionInstance,
     )
+
+
+def get_supported_modes(system_type: str, all_modes: set[str]) -> set:
+    """Determine the supported modes based on the system_type."""
+    supported_modes = copy.copy(all_modes)
+    if "heat-pump" in system_type:
+        supports_heating = True
+        supports_cooling = True
+    else:
+        supports_heating = "heating" in system_type
+        supports_cooling = "cooling" in system_type
+    if not supports_heating and "heat" in supported_modes:
+        supported_modes.remove("heat")
+    if not supports_cooling and "cool" in supported_modes:
+        supported_modes.remove("cool")
+    if (not supports_cooling or not supports_heating) and "auto" in supported_modes:
+        supported_modes.remove("auto")
+    return supported_modes

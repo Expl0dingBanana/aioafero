@@ -24,6 +24,7 @@ def populated_entity():
             mode="heat",
             previous_mode="heat",
             modes={"off", "heat", "auto", "fan", "cool"},
+            supported_modes={"off", "heat", "auto", "fan", "cool"},
         ),
         safety_max_temp=features.TargetTemperatureFeature(
             value=36, step=0.5, min=29.5, max=37, instance="safety-mode-max-temp"
