@@ -84,7 +84,10 @@ def test_EffectFeature():
 
 def test_HVACModeFeature():
     feat = features.HVACModeFeature(
-        mode="beans", previous_mode="not_beans", modes={"beans", "not_beans"}
+        mode="beans",
+        previous_mode="not_beans",
+        modes={"beans", "not_beans"},
+        supported_modes={"beans", "not_beans"},
     )
     assert feat.api_value == "beans"
 

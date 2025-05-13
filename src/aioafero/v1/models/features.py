@@ -147,6 +147,7 @@ class HVACModeFeature:
 
     mode: str | None
     previous_mode: str | None
+    supported_modes: set[str]
     modes: set[str]
 
     @property
