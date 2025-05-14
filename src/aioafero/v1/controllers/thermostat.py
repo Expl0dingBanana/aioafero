@@ -235,19 +235,6 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         """Set supported feature(s) to fan resource."""
         update_obj = ThermostatPut()
         cur_item = self.get_device(device_id)
-        # Setting the temp without a specific means we need to adjust the active
-        # mode.
-        if target_temperature:
-            mode_to_set = cur_item.get_mode_to_check()
-            if mode_to_set == "cool":
-                target_temperature_cooling = target_temperature
-            elif mode_to_set == "heat":
-                target_temperature_heating = target_temperature
-            else:
-                self._logger.debug(
-                    "Unable to set the target temperature due to the active mode: %s",
-                    cur_item.hvac_mode.mode,
-                )
         if fan_mode is not None:
             if fan_mode in cur_item.fan_mode.modes:
                 update_obj.fan_mode = features.ModeFeature(
@@ -267,7 +254,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     ", ".join(sorted(cur_item.fan_mode.modes)),
                 )
         if hvac_mode is not None and not update_obj.hvac_mode:
-            if hvac_mode in cur_item.hvac_mode.modes:
+            if hvac_mode in cur_item.hvac_mode.supported_modes:
                 update_obj.hvac_mode = features.HVACModeFeature(
                     mode=hvac_mode,
                     modes=cur_item.hvac_mode.modes,
@@ -279,6 +266,22 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     "Unknown hvac mode %s. Available modes: %s",
                     hvac_mode,
                     ", ".join(sorted(cur_item.hvac_mode.modes)),
+                )
+        # Setting the temp without a specific means we need to adjust the active
+        # mode.
+        if target_temperature:
+            if hvac_mode and hvac_mode in cur_item.hvac_mode.supported_modes:
+                mode_to_set = hvac_mode
+            else:
+                mode_to_set = cur_item.get_mode_to_check()
+            if mode_to_set == "cool":
+                target_temperature_cooling = target_temperature
+            elif mode_to_set == "heat":
+                target_temperature_heating = target_temperature
+            else:
+                self._logger.debug(
+                    "Unable to set the target temperature due to the active mode: %s",
+                    cur_item.hvac_mode.mode,
                 )
         if safety_min_temp is not None:
             update_obj.safety_min_temp = features.TargetTemperatureFeature(

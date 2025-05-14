@@ -364,6 +364,7 @@ async def test_update_elem_no_updates(mocked_controller):
 async def test_set_state(mocked_controller):
     await mocked_controller.initialize_elem(thermostat)
     mocked_controller._items[thermostat_id].hvac_mode.mode = "heat"
+    mocked_controller._items[thermostat_id].hvac_mode.supported_modes.add("cool")
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         thermostat_id,
@@ -470,6 +471,27 @@ async def test_set_state(mocked_controller):
             ],
             [],
         ),
+        # Testing changing mode
+        (
+            "heat",
+            "heat",
+            {"target_temperature": 24, "hvac_mode": "cool"},
+            [
+                {
+                    "functionClass": "temperature",
+                    "functionInstance": "cooling-target",
+                    "lastUpdateTime": 12345,
+                    "value": 24,
+                },
+                {
+                    "functionClass": "mode",
+                    "functionInstance": None,
+                    "lastUpdateTime": 12345,
+                    "value": "cool",
+                },
+            ],
+            [],
+        ),
         # Testing target_temp / debug message
         (
             "off",
@@ -508,6 +530,7 @@ async def test_set_state_hvac_generics(
     caplog.set_level(logging.DEBUG)
     await mocked_controller.initialize_elem(thermostat)
     mocked_controller._items[thermostat_id].hvac_mode.mode = current_mode
+    mocked_controller._items[thermostat_id].hvac_mode.supported_modes.add("cool")
     mocked_controller._items[thermostat_id].hvac_mode.previous_mode = prev_mode
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(thermostat_id, **params)
@@ -635,6 +658,7 @@ async def test_set_hvac_mode(mocked_controller):
     await mocked_controller.initialize_elem(thermostat)
     assert len(mocked_controller.items) == 1
     mocked_controller._items[thermostat_id].hvac_mode.mode = "heat"
+    mocked_controller._items[thermostat_id].hvac_mode.supported_modes.add("cool")
     await mocked_controller.set_hvac_mode(thermostat_id, "cool")
     post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
     assert post["metadeviceId"] == thermostat_id
