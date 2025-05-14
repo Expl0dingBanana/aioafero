@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 3.0.2
+=============
+
+ * Fix an issue where thermostats would set the incorrect target temperature
+   if the mode changed at the same time
+
 Version 3.0.1
 =============
 
