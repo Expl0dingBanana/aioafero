@@ -98,7 +98,7 @@ All examples assume you entered the shell with ``python -m asyncio``
     PASSWORD="" # Afero IOT password
     POLLING_INTERVAL=30 # Number of seconds between polling cycles
     # Create the bridge
-    bridge = v1.AferoBridgeV1(USERNAME, PASSWORD, polling_interval=POLLING_INTERVAL)
+    bridge = v1.AferoBridgeV1(USERNAME, PASSWORD, polling_interval=POLLING_INTERVAL, hide_secrets=False)
     # Query the API and populate the controllers
     await bridge.initialize()
     # Turn on the light that matches id="84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6"

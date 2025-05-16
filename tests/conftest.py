@@ -48,9 +48,11 @@ def mocked_bridge_req(mocker):
     mocker.patch.object(bridge, "fetch_data", side_effect=bridge.fetch_data)
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     bridge._auth._token_data = token_data(
-        "mock-token", expiration=datetime.datetime.now().timestamp() + 200
+        "mock-token",
+        None,
+        "mock-refresh-token",
+        expiration=datetime.datetime.now().timestamp() + 200,
     )
-    bridge._auth._refresh_token = "mock-refresh-token"
     # Force initialization so test elements are not overwritten
     for controller in bridge._controllers:
         controller._initialized = True
