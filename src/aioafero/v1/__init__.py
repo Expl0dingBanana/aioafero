@@ -76,13 +76,18 @@ class AferoBridgeV1:
         session: Optional[aiohttp.ClientSession] = None,
         polling_interval: int = 30,
         afero_client: Optional[str] = "hubspace",
+        hide_secrets: bool = True,
     ):
         self._close_session: bool = session is None
         self._web_session: aiohttp.ClientSession = session
         self._account_id: Optional[str] = None
         self._afero_client: str = afero_client
         self._auth = AferoAuth(
-            username, password, refresh_token=refresh_token, afero_client=afero_client
+            username,
+            password,
+            refresh_token=refresh_token,
+            afero_client=afero_client,
+            hide_secrets=hide_secrets,
         )
         self.logger = logging.getLogger(f"{__package__}[{username}]")
         self.logger.addHandler(logging.StreamHandler())

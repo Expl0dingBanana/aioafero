@@ -8,6 +8,7 @@ version = "3.0.2"
 dependencies = [
   "aiohttp",
   "beautifulsoup4",
+  "securelogging>=1.0.1"
 ]
 requires-python = ">=3.12"
 authors = [

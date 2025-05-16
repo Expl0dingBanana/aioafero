@@ -9,12 +9,14 @@ import logging
 import os
 import re
 from collections import namedtuple
+from contextlib import contextmanager
 from typing import Final, Optional
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 from aiohttp import ClientSession, ContentTypeError
 from bs4 import BeautifulSoup
+from securelogging import LogRedactorMessage, add_secret, remove_secret
 
 from ..errors import InvalidAuth, InvalidResponse
 from . import v1_const
@@ -25,8 +27,15 @@ TOKEN_TIMEOUT: Final[int] = 118
 STATUS_CODE: Final[str] = "Status Code: %s"
 
 auth_challenge = namedtuple("AuthChallenge", ["challenge", "verifier"])
-token_data = namedtuple("TokenData", ["token", "expiration"])
+token_data = namedtuple(
+    "TokenData", ["token", "access_token", "refresh_token", "expiration"]
+)
 auth_sess_data = namedtuple("AuthSessionData", ["session_code", "execution", "tab_id"])
+
+
+@contextmanager
+def passthrough():
+    yield
 
 
 class AferoAuth:
@@ -40,14 +49,24 @@ class AferoAuth:
         self,
         username,
         password,
+        hide_secrets: bool = True,
         refresh_token: Optional[str] = None,
         afero_client: Optional[str] = "hubspace",
     ):
+        if hide_secrets:
+            self.secret_logger = LogRedactorMessage
+        else:
+            self.secret_logger = passthrough
+        self._hide_secrets: bool = hide_secrets
         self._async_lock: asyncio.Lock = asyncio.Lock()
         self._username: str = username
         self._password: str = password
-        self._refresh_token: Optional[str] = refresh_token
         self._token_data: Optional[token_data] = None
+        if refresh_token:
+            add_secret(refresh_token)
+            self._token_data = token_data(
+                None, None, refresh_token, datetime.datetime.now().timestamp()
+            )
         self._afero_client: str = afero_client
         self._token_headers: dict[str, str] = {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -66,7 +85,7 @@ class AferoAuth:
 
     @property
     def refresh_token(self) -> Optional[str]:
-        return self._refresh_token
+        return self._token_data.refresh_token
 
     async def webapp_login(
         self, challenge: auth_challenge, client: ClientSession
@@ -206,28 +225,44 @@ class AferoAuth:
         return code
 
     async def generate_refresh_token(
-        self, code: str, challenge: auth_challenge, client: ClientSession
-    ) -> str:
-        """Generate the refresh token from the given code and challenge
+        self,
+        client: ClientSession,
+        challenge: auth_challenge | None = None,
+        code: str | None = None,
+    ) -> token_data:
+        """Generate a refresh token
 
+        If a challenge is provided, it will send the correct data. If no challenge is required,
+        it will use the existing token
+
+        :param client: async client for making request
         :param code: Code used for generating refresh token
         :param challenge: Challenge data for connection and approving
-        :param client: async client for making request
 
         :return: Refresh token to generate a new token
         """
         logger.debug("Generating refresh token")
-        data = {
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_REDIRECT_URI"
-            ],
-            "code_verifier": challenge.verifier,
-            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_CLIENT_ID"
-            ],
-        }
+        if challenge:
+            data = {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": v1_const.AFERO_CLIENTS[self._afero_client][
+                    "DEFAULT_REDIRECT_URI"
+                ],
+                "code_verifier": challenge.verifier,
+                "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
+                    "DEFAULT_CLIENT_ID"
+                ],
+            }
+        else:
+            data = {
+                "grant_type": "refresh_token",
+                "refresh_token": self._token_data.refresh_token,
+                "scope": "openid email offline_access profile",
+                "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
+                    "DEFAULT_CLIENT_ID"
+                ],
+            }
         logger.debug(
             "URL: %s\n\tdata: %s\n\theaders: %s",
             v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
@@ -240,98 +275,73 @@ class AferoAuth:
             data=data,
         ) as response:
             logger.debug(STATUS_CODE, response.status)
-            response.raise_for_status()
-            resp_json = await response.json()
+            with contextlib.suppress(ValueError, ContentTypeError):
+                resp_json = await response.json()
+            if response.status != 200:
+                if resp_json and resp_json.get("error") == "invalid_grant":
+                    raise InvalidAuth()
+                else:
+                    response.raise_for_status()
             try:
                 refresh_token = resp_json["refresh_token"]
+                access_token = resp_json["access_token"]
+                id_token = resp_json["id_token"]
             except KeyError:
                 raise InvalidResponse("Unable to extract refresh token")
-            logger.debug("JSON response: %s", resp_json)
-            return refresh_token
+            add_secret(refresh_token)
+            add_secret(access_token)
+            add_secret(id_token)
+            with self.secret_logger():
+                logger.debug("JSON response: %s", resp_json)
+            return token_data(
+                id_token,
+                access_token,
+                refresh_token,
+                datetime.datetime.now().timestamp() + TOKEN_TIMEOUT,
+            )
 
-    async def perform_initial_login(self, client: ClientSession) -> str:
+    async def perform_initial_login(self, client: ClientSession) -> token_data:
         """Login to generate a refresh token
 
         :param client: async client for making request
 
         :return: Refresh token for the auth
         """
-        logger.debug("Refresh token not present. Generating a new refresh token")
         challenge = await AferoAuth.generate_challenge_data()
         code: str = await self.webapp_login(challenge, client)
         logger.debug("Successfully generated an auth code")
-        refresh_token = await self.generate_refresh_token(code, challenge, client)
+        refresh_token = await self.generate_refresh_token(
+            client, code=code, challenge=challenge
+        )
         logger.debug("Successfully generated a refresh token")
         return refresh_token
 
     async def token(self, client: ClientSession, retry: bool = True) -> str:
         invalidate_refresh_token = False
         async with self._async_lock:
-            if not self._refresh_token:
-                self._refresh_token = await self.perform_initial_login(client)
+            if not self._token_data:
+                logger.debug(
+                    "Refresh token not present. Generating a new refresh token"
+                )
+                self._token_data = await self.perform_initial_login(client)
             if await self.is_expired:
                 logger.debug("Token has not been generated or is expired")
                 try:
-                    self._token_data = await self.generate_token(
-                        client, self._refresh_token
-                    )
+                    new_data = await self.generate_refresh_token(client)
+                    remove_secret(self._token_data.token)
+                    remove_secret(self._token_data.access_token)
+                    remove_secret(self._token_data.refresh_token)
+                    self._token_data = new_data
                 except InvalidAuth:
                     logger.debug("Provided refresh token is no longer valid.")
                     if not retry:
                         raise
-                    self._refresh_token = None
                     invalidate_refresh_token = True
                 else:
                     logger.debug("Token has been successfully generated")
         if invalidate_refresh_token:
-            self._refresh_token = None
             return await self.token(client, retry=False)
         return self._token_data.token
-
-    async def generate_token(
-        self, client: ClientSession, refresh_token: str
-    ) -> token_data:
-        """Generate a token from the refresh token
-
-        :param client: async client for making request
-        :param refresh_token: Refresh token for generating request tokens
-        """
-        logger.debug("Generating token")
-        data = {
-            "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
-            "scope": "openid email offline_access profile",
-            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_CLIENT_ID"
-            ],
-        }
-        logger.debug(
-            ("URL: %s" "\n\tdata: %s" "\n\theaders: %s"),
-            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
-            data,
-            self._token_headers,
-        )
-        async with client.post(
-            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
-            headers=self._token_headers,
-            data=data,
-        ) as response:
-            if response.status != 200:
-                with contextlib.suppress(ValueError, ContentTypeError):
-                    data = await response.json()
-                if data and data.get("error") == "invalid_grant":
-                    raise InvalidAuth()
-                else:
-                    response.raise_for_status()
-            resp_json = await response.json()
-            try:
-                auth_token = resp_json["id_token"]
-            except KeyError:
-                raise InvalidResponse("Unable to extract the token")
-            logger.debug("JSON response: %s", resp_json)
-            return token_data(
-                auth_token, datetime.datetime.now().timestamp() + TOKEN_TIMEOUT
-            )
 
 
 async def extract_login_data(page: str) -> auth_sess_data:

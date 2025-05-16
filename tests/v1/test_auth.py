@@ -1,7 +1,10 @@
+import datetime
 import json
+import logging
 import os
 import pathlib
 import time
+from contextlib import asynccontextmanager
 from urllib.parse import urlencode
 
 import aiohttp
@@ -41,7 +44,9 @@ async def build_url(base_url: str, qs: dict[str, str]) -> str:
 )
 async def test_is_expired(time_offset, is_expired, hs_auth):
     if time_offset:
-        hs_auth._token_data = auth.token_data("token", time.time() + time_offset)
+        hs_auth._token_data = auth.token_data(
+            "token", None, None, time.time() + time_offset
+        )
     assert await hs_auth.is_expired == is_expired
 
 
@@ -231,38 +236,95 @@ async def test_generate_code(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "code,response,expected,err",
+    "secure_mode,code,response,expected,expected_message, err",
     [
         # Invalid refresh token
-        ("code", {"status": 403}, None, aiohttp.ClientError),
+        (True, "code", {"status": 403}, None, None, aiohttp.ClientError),
         # Incorrect format
         (
+            True,
             "code",
             {"status": 200, "body": json.dumps({"refresh_token2": "cool_beans"})},
+            None,
             None,
             auth.InvalidResponse,
         ),
         # Valid refresh token
         (
+            True,
             "code",
-            {"status": 200, "body": json.dumps({"refresh_token": "cool_beans"})},
-            "cool_beans",
+            {
+                "status": 200,
+                "body": json.dumps(
+                    {
+                        "id_token": "cool_beans",
+                        "refresh_token": "refresh_beans",
+                        "access_token": "access_token_beans",
+                    }
+                ),
+            },
+            "refresh_beans",
+            (
+                "JSON response: {'id_token': 'co***ns', 'refresh_token': "
+                "'re***ns', 'access_token': 'ac***ns'}"
+            ),
+            None,
+        ),
+        # Valid refresh token - inseucre
+        (
+            False,
+            "code",
+            {
+                "status": 200,
+                "body": json.dumps(
+                    {
+                        "id_token": "cool_beans",
+                        "refresh_token": "refresh_beans",
+                        "access_token": "access_token_beans",
+                    }
+                ),
+            },
+            "refresh_beans",
+            (
+                "JSON response: {'id_token': 'cool_beans', 'refresh_token': "
+                "'refresh_beans', 'access_token': 'access_token_beans'}"
+            ),
             None,
         ),
     ],
 )
 async def test_generate_refresh_token(
-    code, response, expected, err, hs_auth, aioresponses, aio_sess
+    secure_mode,
+    code,
+    response,
+    expected,
+    expected_message,
+    err,
+    hs_auth,
+    aioresponses,
+    aio_sess,
+    caplog,
 ):
+    caplog.set_level(logging.DEBUG)
+    if not secure_mode:
+        hs_auth.secret_logger = auth.passthrough
+    hs_auth._token_data = None
     challenge = await hs_auth.generate_challenge_data()
     aioresponses.post(v1_const.AFERO_CLIENTS["hubspace"]["TOKEN_URL"], **response)
     if expected:
-        assert expected == await hs_auth.generate_refresh_token(
-            code, challenge, aio_sess
+        assert (
+            expected
+            == (
+                await hs_auth.generate_refresh_token(
+                    aio_sess, code=code, challenge=challenge
+                )
+            ).refresh_token
         )
     else:
         with pytest.raises(err):
-            await hs_auth.generate_refresh_token(code, challenge, aio_sess)
+            await hs_auth.generate_refresh_token(
+                aio_sess, code=code, challenge=challenge
+            )
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
     assert call_args.kwargs["headers"] == hs_auth._token_headers
@@ -273,46 +335,104 @@ async def test_generate_refresh_token(
         "code_verifier": challenge.verifier,
         "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
     }
+    if expected_message:
+        assert expected_message in caplog.text
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "refresh_token,response,expected,err",
+    "secure_mode,refresh_token,response,expected,expected_message,err",
     [
         # Refresh token invalidated due to password change
         (
+            True,
             "code",
             {"status": 400, "body": json.dumps({"error": "invalid_grant"})},
+            None,
             None,
             auth.InvalidAuth,
         ),
         # Invalid status
-        ("code", {"status": 403}, None, aiohttp.ClientError),
+        (True, "code", {"status": 403}, None, None, aiohttp.ClientError),
         # bad response
         (
+            True,
             "code",
             {"status": 200, "body": json.dumps({"id_token2": "cool_beans"})},
+            None,
             None,
             auth.InvalidResponse,
         ),
         # valid response
         (
+            True,
             "code",
-            {"status": 200, "body": json.dumps({"id_token": "cool_beans"})},
-            "cool_beans",
+            {
+                "status": 200,
+                "body": json.dumps(
+                    {
+                        "id_token": "cool_beans",
+                        "refresh_token": "refresh_beans",
+                        "access_token": "access_token_beans",
+                    }
+                ),
+            },
+            "refresh_beans",
+            (
+                "JSON response: {'id_token': 'co***ns', "
+                "'refresh_token': 're***ns', 'access_token': 'ac***ns'}"
+            ),
+            None,
+        ),
+        # valid response insecure
+        (
+            False,
+            "code",
+            {
+                "status": 200,
+                "body": json.dumps(
+                    {
+                        "id_token": "cool_beans",
+                        "refresh_token": "refresh_beans",
+                        "access_token": "access_token_beans",
+                    }
+                ),
+            },
+            "refresh_beans",
+            (
+                "JSON response: {'id_token': 'cool_beans', 'refresh_token': "
+                "'refresh_beans', 'access_token': 'access_token_beans'}"
+            ),
             None,
         ),
     ],
 )
-async def test_generate_token(
-    refresh_token, response, expected, err, hs_auth, aioresponses, aio_sess
+async def test_generate_refresh_token_from_refresh(
+    secure_mode,
+    refresh_token,
+    response,
+    expected,
+    expected_message,
+    err,
+    hs_auth,
+    aioresponses,
+    aio_sess,
+    caplog,
 ):
+    caplog.set_level(logging.DEBUG)
+    if not secure_mode:
+        hs_auth.secret_logger = auth.passthrough
+    hs_auth._token_data = auth.token_data(
+        None, None, refresh_token, datetime.datetime.now()
+    )
     aioresponses.post(v1_const.AFERO_CLIENTS["hubspace"]["TOKEN_URL"], **response)
     if expected:
-        assert expected == (await hs_auth.generate_token(aio_sess, refresh_token)).token
+        assert (
+            expected == (await hs_auth.generate_refresh_token(aio_sess)).refresh_token
+        )
     else:
         with pytest.raises(err):
-            await hs_auth.generate_token(aio_sess, refresh_token)
+            await hs_auth.generate_refresh_token(aio_sess)
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
     assert call_args.kwargs["headers"] == hs_auth._token_headers
@@ -322,6 +442,8 @@ async def test_generate_token(
         "scope": "openid email offline_access profile",
         "client_id": "hubspace_android",
     }
+    if expected_message:
+        assert expected_message in caplog.text
 
 
 @pytest.mark.asyncio
@@ -343,6 +465,152 @@ async def test_perform_initial_login(
     )
 
 
-# @TODO - Implement this test
-# async def test_token():
-#     pass
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "hide_secrets, refresh_token",
+    [
+        (True, None),
+        (False, "yes"),
+    ],
+)
+async def test_AferoAuth_init(hide_secrets, refresh_token, mocker):
+    test_auth = auth.AferoAuth(
+        "username", "password", hide_secrets=hide_secrets, refresh_token=refresh_token
+    )
+    if hide_secrets:
+        assert test_auth.secret_logger == auth.LogRedactorMessage
+    else:
+        assert test_auth.secret_logger == auth.passthrough
+    if refresh_token:
+        assert test_auth._token_data == auth.token_data(
+            None, None, refresh_token, mocker.ANY
+        )
+    else:
+        assert test_auth._token_data is None
+
+
+def bad_refresh_token(*args, **kwargs):
+    yield auth.InvalidAuth()
+    yield auth.token_data(
+        "token",
+        "access_token",
+        "refresh_token",
+        datetime.datetime.now().timestamp() + 120,
+    )
+
+def bad_refresh_token_invalid(*args, **kwargs):
+    yield auth.InvalidAuth()
+    yield auth.InvalidAuth()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "token_data, results_perform_initial_login, results_generate_refresh_token,expected,messages",
+    [
+        # Perform full login
+        (
+            None,
+            auth.token_data(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() + 120,
+            ),
+            None,
+            "token",
+            ["Refresh token not present. Generating a new refresh token"],
+        ),
+        # Previously logged in but expired
+        (
+            None,
+            auth.token_data(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() - 120,
+            ),
+            auth.token_data(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() + 120,
+            ),
+            "token",
+            [
+                "Token has not been generated or is expired",
+            ],
+        ),
+        # Invalid refresh token
+        (
+            None,
+            auth.token_data(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() - 120,
+            ),
+            bad_refresh_token,
+            "token",
+            [
+                "Token has not been generated or is expired",
+                "Provided refresh token is no longer valid.",
+                "Refresh token not present. Generating a new refresh token",
+            ],
+        ),
+        # Invalid refresh token and bad login
+        (
+            None,
+            auth.token_data(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() - 120,
+            ),
+            bad_refresh_token_invalid,
+            None,
+            [
+                "Token has not been generated or is expired",
+                "Provided refresh token is no longer valid.",
+                "Refresh token not present. Generating a new refresh token",
+            ],
+        ),
+    ],
+)
+async def test_token(
+    token_data,
+    results_perform_initial_login,
+    results_generate_refresh_token,
+    expected,
+    messages,
+    caplog,
+    mocker,
+):
+    caplog.set_level(logging.DEBUG)
+    test_auth = auth.AferoAuth("username", "password")
+    test_auth._token_data = token_data
+    sess = mocker.Mock()
+    mocker.patch.object(
+        test_auth,
+        "perform_initial_login",
+        mocker.AsyncMock(return_value=results_perform_initial_login),
+    )
+    if isinstance(results_generate_refresh_token, auth.token_data):
+        mocker.patch.object(
+            test_auth,
+            "generate_refresh_token",
+            mocker.AsyncMock(return_value=results_generate_refresh_token),
+        )
+    elif results_generate_refresh_token:
+        mocker.patch.object(
+            test_auth,
+            "generate_refresh_token",
+            side_effect=results_generate_refresh_token(),
+        )
+    if isinstance(expected, str):
+        assert await test_auth.token(sess) == expected
+        assert test_auth.refresh_token == "refresh_token"
+    else:
+        with pytest.raises(auth.InvalidAuth):
+            await test_auth.token(sess)
+    for message in messages:
+        assert message in caplog.text
