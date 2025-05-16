@@ -1,7 +1,10 @@
+import logging
+
 import pytest
 
 from aioafero import EventType, InvalidAuth
 from aioafero.errors import DeviceNotFound
+from aioafero.v1 import AferoBridgeV1, add_secret
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -168,3 +171,63 @@ async def test_create_request_err(mocked_bridge, mocker):
             pass
 
     emit.assert_called_once_with(EventType.INVALID_AUTH)
+
+
+@pytest.mark.parametrize(
+    "hide_secrets",
+    [True, False],
+)
+def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
+    caplog.set_level(logging.DEBUG)
+    bridge = AferoBridgeV1("username", "password", hide_secrets=hide_secrets)
+    secret = "this-is-super-secret-beans"
+    add_secret(secret)
+    with bridge.secret_logger():
+        bridge.logger.debug(secret)
+    if hide_secrets:
+        assert "th***ns" in caplog.text
+    else:
+        assert secret in caplog.text
+
+
+class DummyResponse:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    async def read(self):
+        return "cool-beans"
+
+
+def double_429(*args, **kwargs):
+    yield DummyResponse(status_code=429)
+    yield DummyResponse(status_code=429)
+    yield DummyResponse(status_code=200)
+
+
+# @pytest.mark.asyncio
+# @pytest.mark.parametrize(
+#     "max_retries, times_to_sleep, response_gen, exp_error", [
+#         # Out of retries
+#         (
+#             0, 0, None, ExceededMaximumRetries
+#         ),
+#         # Double retry
+#         (
+#             None, 2, double_429, None
+#         )
+#     ]
+# )
+# async def test_request(max_retries, times_to_sleep, response_gen, exp_error, mocker):
+#     bridge = AferoBridgeV1("username", "password")
+#     mock_sleep = mocker.patch("asyncio.sleep")
+#     if response_gen:
+#         mocker.patch.object(bridge, "create_request", side_effect=response_gen())
+#     if max_retries is not None:
+#         mocker.patch.object(v1_const, "MAX_RETRIES", max_retries)
+#     if exp_error:
+#         with pytest.raises(exp_error):
+#             await bridge.request("fff", "fff")
+#     if times_to_sleep:
+#         assert mock_sleep.call_count == times_to_sleep
+#

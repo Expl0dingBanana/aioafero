@@ -235,7 +235,7 @@ async def test_generate_code(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "secure_mode,code,response,expected,expected_message, err",
+    "secure_mode,code,response,expected,expected_messages, err",
     [
         # Invalid refresh token
         (True, "code", {"status": 403}, None, None, aiohttp.ClientError),
@@ -251,7 +251,7 @@ async def test_generate_code(
         # Valid refresh token
         (
             True,
-            "code",
+            "those-are-some-cool-beans",
             {
                 "status": 200,
                 "body": json.dumps(
@@ -263,16 +263,19 @@ async def test_generate_code(
                 ),
             },
             "refresh_beans",
-            (
-                "JSON response: {'id_token': 'co***ns', 'refresh_token': "
-                "'re***ns', 'access_token': 'ac***ns'}"
-            ),
+            [
+                "data: {'grant_type': 'authorization_code', 'code': 'th***ns'",
+                (
+                    "JSON response: {'id_token': 'co***ns', 'refresh_token': "
+                    "'re***ns', 'access_token': 'ac***ns'}"
+                ),
+            ],
             None,
         ),
         # Valid refresh token - inseucre
         (
             False,
-            "code",
+            "those-are-some-cool-beans",
             {
                 "status": 200,
                 "body": json.dumps(
@@ -284,10 +287,12 @@ async def test_generate_code(
                 ),
             },
             "refresh_beans",
-            (
-                "JSON response: {'id_token': 'cool_beans', 'refresh_token': "
-                "'refresh_beans', 'access_token': 'access_token_beans'}"
-            ),
+            [
+                (
+                    "JSON response: {'id_token': 'cool_beans', 'refresh_token': "
+                    "'refresh_beans', 'access_token': 'access_token_beans'}"
+                ),
+            ],
             None,
         ),
     ],
@@ -297,7 +302,7 @@ async def test_generate_refresh_token(
     code,
     response,
     expected,
-    expected_message,
+    expected_messages,
     err,
     hs_auth,
     aioresponses,
@@ -305,6 +310,7 @@ async def test_generate_refresh_token(
     caplog,
 ):
     caplog.set_level(logging.DEBUG)
+    auth.add_secret("those-are-some-cool-beans")
     if not secure_mode:
         hs_auth.secret_logger = auth.passthrough
     hs_auth._token_data = None
@@ -334,8 +340,9 @@ async def test_generate_refresh_token(
         "code_verifier": challenge.verifier,
         "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
     }
-    if expected_message:
-        assert expected_message in caplog.text
+    if expected_messages:
+        for expected_message in expected_messages:
+            assert expected_message in caplog.text
 
 
 @pytest.mark.asyncio
