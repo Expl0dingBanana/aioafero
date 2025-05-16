@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.1.1
+=============
+
+ * Add a secret that was missing
+
 Version 3.1.0
 =============
 
