@@ -24,11 +24,12 @@ from typing import Any, Callable, Generator, Optional
 
 import aiohttp
 from aiohttp import web_exceptions
+from securelogging import LogRedactorMessage, add_secret
 
 from ..device import AferoResource
 from ..errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
 from . import models, v1_const
-from .auth import AferoAuth
+from .auth import AferoAuth, passthrough
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
@@ -78,6 +79,10 @@ class AferoBridgeV1:
         afero_client: Optional[str] = "hubspace",
         hide_secrets: bool = True,
     ):
+        if hide_secrets:
+            self.secret_logger = LogRedactorMessage
+        else:
+            self.secret_logger = passthrough
         self._close_session: bool = session is None
         self._web_session: aiohttp.ClientSession = session
         self._account_id: Optional[str] = None
@@ -94,7 +99,7 @@ class AferoBridgeV1:
         self._known_devs: dict[str, BaseResourcesController] = {}
         # Data Updater
         self._events: EventStream = EventStream(self, polling_interval)
-        # Data Controllerse
+        # Data Controllers
         self._devices: DeviceController = DeviceController(
             self
         )  # Devices contain all sensors
@@ -238,11 +243,12 @@ class AferoBridgeV1:
         if not self._account_id:
             self.logger.debug("Querying API for account id")
             headers = {"host": v1_const.AFERO_CLIENTS[self._afero_client]["API_HOST"]}
-            self.logger.debug(
-                "GETURL: %s, Headers: %s",
-                v1_const.AFERO_CLIENTS[self._afero_client]["ACCOUNT_ID_URL"],
-                headers,
-            )
+            with self.secret_logger():
+                self.logger.debug(
+                    "GETURL: %s, Headers: %s",
+                    v1_const.AFERO_CLIENTS[self._afero_client]["ACCOUNT_ID_URL"],
+                    headers,
+                )
             res = await self.request(
                 "GET",
                 v1_const.AFERO_CLIENTS[self._afero_client]["ACCOUNT_ID_URL"],
@@ -254,6 +260,7 @@ class AferoBridgeV1:
                 .get("account")
                 .get("accountId")
             )
+            add_secret(self._account_id)
         return self._account_id
 
     async def initialize(self) -> None:
@@ -325,7 +332,8 @@ class AferoBridgeV1:
     async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
         """Make request on the api and return response data."""
         retries = 0
-        self.logger.info("Making request [%s] to %s with %s", method, url, kwargs)
+        with self.secret_logger():
+            self.logger.info("Making request [%s] to %s with %s", method, url, kwargs)
         while retries < v1_const.MAX_RETRIES:
             retries += 1
             if retries > 1:

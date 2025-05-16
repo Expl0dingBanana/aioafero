@@ -53,6 +53,7 @@ class AferoAuth:
         refresh_token: Optional[str] = None,
         afero_client: Optional[str] = "hubspace",
     ):
+        self.logger = logging.getLogger(f"{__package__}[{username}]")
         if hide_secrets:
             self.secret_logger = LogRedactorMessage
         else:
@@ -111,7 +112,7 @@ class AferoAuth:
             "code_challenge_method": "S256",
             "scope": "openid offline_access",
         }
-        logger.debug(
+        self.logger.debug(
             "URL: %s\n\tparams: %s",
             v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_URL"],
             code_params,
@@ -124,7 +125,7 @@ class AferoAuth:
             if response.status == 200:
                 contents = await response.text()
                 login_data = await extract_login_data(contents)
-                logger.debug(
+                self.logger.debug(
                     (
                         "WebApp Login:"
                         "\n\tSession Code: %s"
@@ -142,7 +143,7 @@ class AferoAuth:
                     client,
                 )
             elif response.status == 302:
-                logger.debug("Hubspace returned an active session")
+                self.logger.debug("Hubspace returned an active session")
                 return await AferoAuth.parse_code(response)
             else:
                 raise InvalidResponse("Unable to query login page")
@@ -170,7 +171,7 @@ class AferoAuth:
 
         :return: code for generating tokens
         """
-        logger.debug("Generating code")
+        self.logger.debug("Generating code")
         params = {
             "session_code": session_code,
             "execution": execution,
@@ -190,7 +191,7 @@ class AferoAuth:
             "password": self._password,
             "credentialId": "",
         }
-        logger.debug(
+        self.logger.debug(
             "URL: %s\n\tparams: %s\n\theaders: %s",
             v1_const.AFERO_CLIENTS[self._afero_client]["CODE_URL"],
             params,
@@ -203,7 +204,7 @@ class AferoAuth:
             headers=headers,
             allow_redirects=False,
         ) as response:
-            logger.debug(STATUS_CODE, response.status)
+            self.logger.debug(STATUS_CODE, response.status)
             if response.status != 302:
                 raise InvalidAuth(
                     "Unable to authenticate with the supplied username / password"
@@ -241,7 +242,7 @@ class AferoAuth:
 
         :return: Refresh token to generate a new token
         """
-        logger.debug("Generating refresh token")
+        self.logger.debug("Generating refresh token")
         if challenge:
             data = {
                 "grant_type": "authorization_code",
@@ -263,18 +264,19 @@ class AferoAuth:
                     "DEFAULT_CLIENT_ID"
                 ],
             }
-        logger.debug(
-            "URL: %s\n\tdata: %s\n\theaders: %s",
-            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
-            data,
-            self._token_headers,
-        )
+        with self.secret_logger():
+            self.logger.debug(
+                "URL: %s\n\tdata: %s\n\theaders: %s",
+                v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
+                data,
+                self._token_headers,
+            )
         async with client.post(
             v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
             headers=self._token_headers,
             data=data,
         ) as response:
-            logger.debug(STATUS_CODE, response.status)
+            self.logger.debug(STATUS_CODE, response.status)
             with contextlib.suppress(ValueError, ContentTypeError):
                 resp_json = await response.json()
             if response.status != 200:
@@ -292,7 +294,7 @@ class AferoAuth:
             add_secret(access_token)
             add_secret(id_token)
             with self.secret_logger():
-                logger.debug("JSON response: %s", resp_json)
+                self.logger.debug("JSON response: %s", resp_json)
             return token_data(
                 id_token,
                 access_token,
@@ -309,23 +311,23 @@ class AferoAuth:
         """
         challenge = await AferoAuth.generate_challenge_data()
         code: str = await self.webapp_login(challenge, client)
-        logger.debug("Successfully generated an auth code")
+        self.logger.debug("Successfully generated an auth code")
         refresh_token = await self.generate_refresh_token(
             client, code=code, challenge=challenge
         )
-        logger.debug("Successfully generated a refresh token")
+        self.logger.debug("Successfully generated a refresh token")
         return refresh_token
 
     async def token(self, client: ClientSession, retry: bool = True) -> str:
         invalidate_refresh_token = False
         async with self._async_lock:
             if not self._token_data:
-                logger.debug(
+                self.logger.debug(
                     "Refresh token not present. Generating a new refresh token"
                 )
                 self._token_data = await self.perform_initial_login(client)
             if await self.is_expired:
-                logger.debug("Token has not been generated or is expired")
+                self.logger.debug("Token has not been generated or is expired")
                 try:
                     new_data = await self.generate_refresh_token(client)
                     remove_secret(self._token_data.token)
@@ -333,12 +335,12 @@ class AferoAuth:
                     remove_secret(self._token_data.refresh_token)
                     self._token_data = new_data
                 except InvalidAuth:
-                    logger.debug("Provided refresh token is no longer valid.")
+                    self.logger.debug("Provided refresh token is no longer valid.")
                     if not retry:
                         raise
                     invalidate_refresh_token = True
                 else:
-                    logger.debug("Token has been successfully generated")
+                    self.logger.debug("Token has been successfully generated")
         if invalidate_refresh_token:
             return await self.token(client, retry=False)
         return self._token_data.token
