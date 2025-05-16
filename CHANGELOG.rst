@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.1.0
+=============
+
+ * Hide secrets in logs by default
+
 Version 3.0.2
 =============
 
