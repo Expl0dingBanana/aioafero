@@ -4,7 +4,6 @@ import logging
 import os
 import pathlib
 import time
-from contextlib import asynccontextmanager
 from urllib.parse import urlencode
 
 import aiohttp
@@ -497,6 +496,7 @@ def bad_refresh_token(*args, **kwargs):
         "refresh_token",
         datetime.datetime.now().timestamp() + 120,
     )
+
 
 def bad_refresh_token_invalid(*args, **kwargs):
     yield auth.InvalidAuth()
