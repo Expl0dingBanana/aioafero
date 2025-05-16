@@ -94,7 +94,7 @@ class AferoBridgeV1:
             afero_client=afero_client,
             hide_secrets=hide_secrets,
         )
-        self.logger = logging.getLogger(f"{__package__}[{username}]")
+        self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
         self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
         # Data Updater
@@ -202,11 +202,6 @@ class AferoBridgeV1:
     def afero_client(self) -> str:
         """Get identifier for Afero system"""
         return self._afero_client
-
-    @property
-    def refresh_token(self) -> Optional[str]:
-        """get the refresh token for the Afero IoT account"""
-        return self._auth.refresh_token
 
     def set_polling_interval(self, polling_interval: int) -> None:
         self._events.polling_interval = polling_interval
