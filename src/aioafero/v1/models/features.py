@@ -168,6 +168,22 @@ class ModeFeature:
 
 
 @dataclass
+class NumbersFeature:
+    """Represents a numeric value"""
+
+    value: float
+    min: float
+    max: float
+    step: float
+    name: str | None
+    unit: str | None
+
+    @property
+    def api_value(self):
+        return self.value
+
+
+@dataclass
 class OnFeature:
     """Represent `On` Feature object as used by various Afero resources."""
 
@@ -220,6 +236,19 @@ class PresetFeature:
             "functionInstance": self.func_instance,
             "value": "enabled" if self.enabled else "disabled",
         }
+
+
+@dataclass
+class SelectFeature:
+    """Represent available options and currently selected"""
+
+    selected: str
+    selects: set[str]
+    name: str
+
+    @property
+    def api_value(self):
+        return self.selected
 
 
 @dataclass

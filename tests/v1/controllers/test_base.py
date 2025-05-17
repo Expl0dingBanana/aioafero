@@ -9,6 +9,7 @@ from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, models, v1_const
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.base import BaseResourcesController, update_dataclass
+from aioafero.v1.models.features import SelectFeature
 from aioafero.v1.models.resource import DeviceInformation
 
 from .. import utils
@@ -52,6 +53,19 @@ class TestResourcePut:
     beans: TestFeatureInstance | None
 
 
+@dataclass
+class TestResourceDict:
+    id: str
+    available: bool
+    selects: dict[tuple[str, str | None], SelectFeature] | None
+    device_information: DeviceInformation = field(default_factory=DeviceInformation)
+
+
+@dataclass
+class TestResourceDictPut:
+    selects: dict[tuple[str, str | None], SelectFeature] | None
+
+
 test_res = TestResource(
     id="cool",
     available=True,
@@ -72,6 +86,108 @@ test_res_update = TestResource(
         "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
         "bean2": TestFeatureInstance(on=True, func_instance="bean2"),
     },
+)
+
+
+test_res_update_dict = TestResourceDict(
+    id="cool",
+    available=True,
+    selects={
+        ("b1", None): SelectFeature(
+            selected="False", selects={"True", "False"}, name="b1"
+        ),
+        ("b2", "one"): SelectFeature(
+            selected="cool", selects={"beans", "cool"}, name="b2-1"
+        ),
+        ("b2", "two"): SelectFeature(
+            selected="beans", selects={"beans", "cool"}, name="b2-2"
+        ),
+    },
+)
+
+test_device_dict = AferoDevice(
+    id="cool",
+    device_id="cool-parent",
+    model="bean",
+    device_class="jumping",
+    default_name="bean",
+    default_image="bean",
+    friendly_name="bean",
+    states=[
+        AferoState(
+            functionClass="on",
+            value="on",
+            lastUpdateTime=0,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="mapped_beans",
+            value="on",
+            lastUpdateTime=0,
+        ),
+        AferoState(
+            functionClass="b1",
+            value="True",
+            lastUpdateTime=0,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="b2",
+            value="beans",
+            lastUpdateTime=0,
+            functionInstance="one",
+        ),
+        AferoState(
+            functionClass="b2",
+            value="cool",
+            lastUpdateTime=0,
+            functionInstance="two",
+        ),
+    ],
+    functions=[
+        {
+            "id": "af2f7826-990d-44bd-a8a1-d890438c7f1a",
+            "functionClass": "b1",
+            "functionInstance": None,
+            "type": "category",
+            "values": [
+                {
+                    "name": "True",
+                },
+                {
+                    "name": "False",
+                },
+            ],
+        },
+        {
+            "id": "af2f7826-990d-44bd-a8a1-d890438c7f1a",
+            "functionClass": "b2",
+            "functionInstance": "one",
+            "type": "category",
+            "values": [
+                {
+                    "name": "cool",
+                },
+                {
+                    "name": "beans",
+                },
+            ],
+        },
+        {
+            "id": "af2f7826-990d-44bd-a8a1-d890438c7f1a",
+            "functionClass": "b2",
+            "functionInstance": "two",
+            "type": "category",
+            "values": [
+                {
+                    "name": "cool",
+                },
+                {
+                    "name": "beans",
+                },
+            ],
+        },
+    ],
 )
 
 
@@ -185,12 +301,56 @@ class Example1ResourceController(BaseResourcesController):
                 if cur_item.beans[state.functionInstance].on != new_val:
                     updated_keys.add("on")
                     cur_item.beans[state.functionInstance].on = state.value == "on"
+            elif update_key := await self.update_sensor(state, cur_item):
+                updated_keys.add(update_key)
+            elif update_key := await self.update_number(state, cur_item):
+                updated_keys.add(update_key)
+            elif update_key := await self.update_select(state, cur_item):
+                updated_keys.add(update_key)
+        return updated_keys
+
+
+class Example2ResourceController(BaseResourcesController):
+    ITEM_TYPE_ID: models.ResourceTypes = models.ResourceTypes.DEVICE
+    ITEM_TYPES: list[models.ResourceTypes] = [models.ResourceTypes.LIGHT]
+    ITEM_CLS = TestResource
+    ITEM_MAPPING: dict = {}
+    ITEM_SELECTS = {
+        ("b1", None): "b1",
+        ("b2", "one"): "b2-1",
+        ("b2", "two"): "b2-2",
+    }
+
+    async def initialize_elem(self, afero_device: AferoDevice) -> TestResourceDict:
+        """Initialize the element"""
+        self._logger.info("Initializing %s", afero_device.id)
+        selects: dict[tuple[str, str], SelectFeature] = {}
+        for state in afero_device.states:
+            if select := await self.initialize_select(afero_device.functions, state):
+                selects[select[0]] = select[1]
+        return TestResourceDict(
+            id=afero_device.id,
+            available=True,
+            selects=selects,
+        )
+
+    async def update_elem(self, afero_dev: AferoDevice) -> set:
+        updated_keys = set()
+        cur_item = self.get_device(afero_dev.id)
+        for state in afero_dev.states:
+            if update_key := await self.update_select(state, cur_item):
+                updated_keys.add(update_key)
         return updated_keys
 
 
 @pytest.fixture
 def ex1_rc(mocked_bridge_req):
     yield Example1ResourceController(mocked_bridge_req)
+
+
+@pytest.fixture
+def ex2_rc(mocked_bridge_req):
+    yield Example2ResourceController(mocked_bridge_req)
 
 
 def test_init(ex1_rc):
@@ -737,18 +897,81 @@ async def test_update_dev_not_found(ex1_rc, caplog):
 async def test_update(
     obj_in, states, expected_states, expected_item, successful, ex1_rc, mocker
 ):
+
     mocker.patch("time.time", return_value=12345)
-    ex1_rc._items[test_res.id] = await ex1_rc.initialize_elem(test_device)
-    ex1_rc._bridge.add_device(test_res.id, ex1_rc)
+    ex1_rc._items[test_device.id] = await ex1_rc.initialize_elem(test_device)
+    ex1_rc._bridge.add_device(test_device.id, ex1_rc)
     update_afero_api = mocker.patch.object(
         ex1_rc, "update_afero_api", return_value=successful
     )
-    await ex1_rc.update(test_res.id, obj_in=obj_in, states=states)
+    await ex1_rc.update(test_device.id, obj_in=obj_in, states=states)
     if not expected_states:
         update_afero_api.assert_not_called()
     else:
-        update_afero_api.assert_called_once_with(test_res.id, expected_states)
-    assert ex1_rc._items[test_res.id] == expected_item
+        update_afero_api.assert_called_once_with(test_device.id, expected_states)
+    assert ex1_rc._items[test_device.id] == expected_item
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "device, obj_in, states, expected_states, expected_item, successful",
+    [
+        (
+            test_device_dict,
+            TestResourceDictPut(
+                selects={
+                    ("b1", None): SelectFeature(
+                        selected="False", selects={"True", "False"}, name="b1"
+                    ),
+                    ("b2", "one"): SelectFeature(
+                        selected="cool", selects={"beans", "cool"}, name="b2-1"
+                    ),
+                    ("b2", "two"): SelectFeature(
+                        selected="beans", selects={"beans", "cool"}, name="b2-2"
+                    ),
+                },
+            ),
+            None,
+            [
+                {
+                    "functionClass": "b1",
+                    "functionInstance": None,
+                    "value": "False",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "one",
+                    "value": "cool",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "two",
+                    "value": "beans",
+                    "lastUpdateTime": 12345,
+                },
+            ],
+            test_res_update_dict,
+            True,
+        ),
+    ],
+)
+async def test_update_dict(
+    device, obj_in, states, expected_states, expected_item, successful, ex2_rc, mocker
+):
+    mocker.patch("time.time", return_value=12345)
+    ex2_rc._items[device.id] = await ex2_rc.initialize_elem(device)
+    ex2_rc._bridge.add_device(device.id, ex2_rc)
+    update_afero_api = mocker.patch.object(
+        ex2_rc, "update_afero_api", return_value=successful
+    )
+    await ex2_rc.update(device.id, obj_in=obj_in, states=states)
+    if not expected_states:
+        update_afero_api.assert_not_called()
+    else:
+        update_afero_api.assert_called_once_with(device.id, expected_states)
+    assert ex2_rc._items[device.id] == expected_item
 
 
 @pytest.mark.asyncio

@@ -33,6 +33,7 @@ from .auth import AferoAuth, passthrough
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
+from .controllers.exhaust_fan import ExhaustFanController
 from .controllers.fan import FanController
 from .controllers.light import LightController
 from .controllers.lock import LockController
@@ -50,6 +51,7 @@ type AferoModelResource = (
     | models.Thermostat
     | AferoBinarySensor
     | AferoSensor
+    | models.ExhaustFan
 )
 
 type AferoController = (
@@ -61,6 +63,7 @@ type AferoController = (
     | SwitchController
     | ThermostatController
     | ValveController
+    | ExhaustFanController
 )
 
 
@@ -103,6 +106,7 @@ class AferoBridgeV1:
         self._devices: DeviceController = DeviceController(
             self
         )  # Devices contain all sensors
+        self._exhaust_fans: ExhaustFanController = ExhaustFanController(self)
         self._fans: FanController = FanController(self)
         self._lights: LightController = LightController(self)
         self._locks: LockController = LockController(self)
@@ -136,6 +140,10 @@ class AferoBridgeV1:
         return self._events
 
     @property
+    def exhaust_fans(self) -> ExhaustFanController:
+        return self._exhaust_fans
+
+    @property
     def fans(self) -> FanController:
         return self._fans
 
@@ -163,6 +171,7 @@ class AferoBridgeV1:
     def _controllers(self) -> list:
         dev_controllers = [
             self._devices,
+            self._exhaust_fans,
             self._fans,
             self._lights,
             self._locks,
