@@ -24,8 +24,6 @@ class ExhaustFan:
 
     def __init__(self, functions: list, **kwargs):
         for key, value in kwargs.items():
-            if key == "instances":
-                continue
             setattr(self, key, value)
         instances = {}
         for function in functions:
@@ -33,10 +31,6 @@ class ExhaustFan:
                 "functionInstance", None
             )
         self.instances = instances
-
-    def get_instance(self, elem):
-        """Lookup the instance associated with the elem"""
-        return self.instances.get(elem, None)
 
 
 @dataclass

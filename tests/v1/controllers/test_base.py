@@ -8,7 +8,15 @@ from aioafero.device import get_afero_device
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, models, v1_const
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.base import BaseResourcesController, update_dataclass
+from aioafero.v1.controllers.base import (
+    BaseResourcesController,
+    dataclass_to_afero,
+    get_afero_instance_for_state,
+    get_afero_state_from_feature,
+    get_afero_states_from_list,
+    get_afero_states_from_mapped,
+    update_dataclass,
+)
 from aioafero.v1.models.features import SelectFeature
 from aioafero.v1.models.resource import DeviceInformation
 
@@ -39,18 +47,87 @@ class TestFeatureInstance:
 
 
 @dataclass
+class ReturnsAListFeature:
+    useless_value: bool
+
+    @property
+    def api_value(self):
+        return [
+            {
+                "value": "cool",
+                "functionClass": "bean-type",
+                "functionInstance": "temperature",
+            },
+            {
+                "value": "bean",
+                "functionClass": "bean-type",
+                "functionInstance": "warmth",
+            },
+        ]
+
+
+@dataclass
 class TestResource:
     id: str
     available: bool
     on: TestFeatureBool
     beans: dict[str | None, TestFeatureInstance]
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
+    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+
+
+@dataclass
+class TestResourceWithFunctions:
+    id: str
+    available: bool
+    on: TestFeatureBool
+    beans: dict[str | None, TestFeatureInstance]
+    device_information: DeviceInformation = field(default_factory=DeviceInformation)
+    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+
+    def __init__(self, functions: list, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        instances = {}
+        for function in functions:
+            instances[function["functionClass"]] = function.get(
+                "functionInstance", None
+            )
+        self.instances = instances
+
+    def get_instance(self, elem):
+        """Lookup the instance associated with the elem"""
+        return self.instances.get(elem, None)
+
+
+test_res_funcs = TestResourceWithFunctions(
+    [{"functionClass": "on", "functionInstance": "super-beans"}],
+    id="cool",
+    available=True,
+    on=TestFeatureBool(on=True),
+    beans={
+        None: TestFeatureInstance(on=True, func_instance=None),
+        "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
+        "bean2": TestFeatureInstance(on=False, func_instance="bean2"),
+    },
+    device_information=DeviceInformation(),
+)
 
 
 @dataclass
 class TestResourcePut:
     on: TestFeatureBool | None
     beans: TestFeatureInstance | None
+
+
+@dataclass
+class TestResourceList:
+    the_beans: ReturnsAListFeature | None
+
+
+@dataclass
+class TestResourceListPut:
+    the_beans: ReturnsAListFeature | None = None
 
 
 @dataclass
@@ -85,6 +162,34 @@ test_res_update = TestResource(
         None: TestFeatureInstance(on=True, func_instance=None),
         "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
         "bean2": TestFeatureInstance(on=True, func_instance="bean2"),
+    },
+)
+
+test_res_update_multiple = TestResource(
+    id="cool",
+    available=True,
+    on=TestFeatureBool(on=False),
+    beans={
+        None: TestFeatureInstance(on=True, func_instance=None),
+        "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
+        "bean2": TestFeatureInstance(on=True, func_instance="bean2"),
+    },
+)
+
+
+test_res_default_dict = TestResourceDict(
+    id="cool",
+    available=True,
+    selects={
+        ("b1", None): SelectFeature(
+            selected="True", selects={"True", "False"}, name="b1"
+        ),
+        ("b2", "one"): SelectFeature(
+            selected="beans", selects={"beans", "cool"}, name="b2-1"
+        ),
+        ("b2", "two"): SelectFeature(
+            selected="cool", selects={"beans", "cool"}, name="b2-2"
+        ),
     },
 )
 
@@ -1020,5 +1125,258 @@ def test_update_dataclass(resource, update, expected):
     assert resource == expected
 
 
-def test_dataclass_to_hs():
-    pass
+@pytest.mark.parametrize(
+    "elem, update_obj, mapping, expected",
+    [
+        # Empty
+        (
+            replace(test_res_default_dict),
+            TestResourceDictPut(selects={}),
+            {},
+            [],
+        ),
+        # Dont match each other - test continue
+        (
+            replace(test_res_default_dict),
+            TestResourcePut(on=None, beans=None),
+            {},
+            [],
+        ),
+        # No updates
+        (
+            replace(test_res_default_dict),
+            TestResourceDictPut(
+                selects={
+                    ("b2", "two"): SelectFeature(
+                        selected="cool", selects={"beans", "cool"}, name="b2-2"
+                    ),
+                }
+            ),
+            {},
+            [],
+        ),
+        # Test dict mapping
+        (
+            replace(test_res_default_dict),
+            TestResourceDictPut(
+                selects={
+                    ("b1", None): SelectFeature(
+                        selected="False", selects={"True", "False"}, name="b1"
+                    ),
+                    ("b2", "one"): SelectFeature(
+                        selected="cool", selects={"beans", "cool"}, name="b2-1"
+                    ),
+                    ("b2", "two"): SelectFeature(
+                        selected="beans", selects={"beans", "cool"}, name="b2-2"
+                    ),
+                },
+            ),
+            {},
+            [
+                {
+                    "functionClass": "b1",
+                    "functionInstance": None,
+                    "value": "False",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "one",
+                    "value": "cool",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "two",
+                    "value": "beans",
+                    "lastUpdateTime": 12345,
+                },
+            ],
+        ),
+        # Test non-dict mapping
+        (
+            replace(test_res),
+            TestResourcePut(
+                on=False, beans=TestFeatureInstance(on=True, func_instance="bean2")
+            ),
+            {"on": "power"},
+            [
+                {
+                    "functionClass": "power",
+                    "functionInstance": None,
+                    "lastUpdateTime": 12345,
+                    "value": False,
+                },
+                {
+                    "value": "on",
+                    "functionClass": "beans",
+                    "functionInstance": "bean2",
+                    "lastUpdateTime": 12345,
+                },
+            ],
+        ),
+        # Testing a list
+        (
+            TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
+            TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=False)),
+            {},
+            [
+                {
+                    "value": "cool",
+                    "functionClass": "bean-type",
+                    "functionInstance": "temperature",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "value": "bean",
+                    "functionClass": "bean-type",
+                    "functionInstance": "warmth",
+                    "lastUpdateTime": 12345,
+                },
+            ],
+        ),
+        # Testing when a value doesnt change
+        (
+            TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
+            TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),
+            {},
+            [],
+        ),
+    ],
+)
+def test_dataclass_to_afero(elem, update_obj, mapping, expected, mocker):
+    mocker.patch("time.time", return_value=12345)
+    assert dataclass_to_afero(elem, update_obj, mapping) == expected
+
+
+@pytest.mark.parametrize(
+    "element, field_name, update_vals, expected",
+    [
+        (
+            replace(test_res_default_dict),
+            "selects",
+            {
+                ("b1", None): SelectFeature(
+                    selected="False", selects={"True", "False"}, name="b1"
+                ),
+                ("b2", "one"): SelectFeature(
+                    selected="beans", selects={"beans", "cool"}, name="b2-1"
+                ),
+                ("b2", "two"): SelectFeature(
+                    selected="beans", selects={"beans", "cool"}, name="b2-2"
+                ),
+            },
+            [
+                {
+                    "functionClass": "b1",
+                    "functionInstance": None,
+                    "value": "False",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "two",
+                    "value": "beans",
+                    "lastUpdateTime": 12345,
+                },
+            ],
+        )
+    ],
+)
+def test_get_afero_states_from_mapped(
+    element, field_name, update_vals, expected, mocker
+):
+    mocker.patch("time.time", return_value=12345)
+    assert get_afero_states_from_mapped(element, field_name, update_vals) == expected
+
+
+@pytest.mark.parametrize(
+    "elem, feat, mapped_afero_key, expected",
+    [
+        # Utilize func_instance
+        (test_res, TestFeatureInstance(on=True, func_instance="bean1"), None, "bean1"),
+        # Utilize instances
+        (test_res_funcs, TestFeatureBool(on=True), "on", "super-beans"),
+        # None fallback
+        (test_res_funcs, TestFeatureBool(on=True), None, None),
+    ],
+)
+def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected, mocker):
+    mocker.patch("time.time", return_value=12345)
+    assert get_afero_instance_for_state(elem, feat, mapped_afero_key) == expected
+
+
+@pytest.mark.parametrize(
+    "func_class, func_instance, current_val, expected",
+    [
+        # Non-dict val
+        (
+            "cool",
+            "beans",
+            "super-beans",
+            {
+                "functionClass": "cool",
+                "functionInstance": "beans",
+                "lastUpdateTime": 12345,
+                "value": "super-beans",
+            },
+        ),
+        # dict val
+        (
+            "cool",
+            "beans",
+            {"functionClass": "beans", "functionInstance": "cool", "value": 12},
+            {
+                "functionClass": "beans",
+                "functionInstance": "cool",
+                "lastUpdateTime": 12345,
+                "value": 12,
+            },
+        ),
+    ],
+)
+def test_get_afero_state_from_feature(
+    func_class, func_instance, current_val, expected, mocker
+):
+    mocker.patch("time.time", return_value=12345)
+    assert (
+        get_afero_state_from_feature(func_class, func_instance, current_val) == expected
+    )
+
+
+@pytest.mark.parametrize(
+    "states, expected",
+    [
+        (
+            [
+                {
+                    "functionClass": "beans",
+                    "functionInstance": "cool",
+                    "value": 12,
+                },
+                {
+                    "functionClass": "beans",
+                    "functionInstance": "cool2",
+                    "value": 12,
+                },
+            ],
+            [
+                {
+                    "functionClass": "beans",
+                    "functionInstance": "cool",
+                    "lastUpdateTime": 12345,
+                    "value": 12,
+                },
+                {
+                    "functionClass": "beans",
+                    "functionInstance": "cool2",
+                    "lastUpdateTime": 12345,
+                    "value": 12,
+                },
+            ],
+        )
+    ],
+)
+def test_get_afero_states_from_list(states, expected, mocker):
+    mocker.patch("time.time", return_value=12345)
+    assert get_afero_states_from_list(states) == expected

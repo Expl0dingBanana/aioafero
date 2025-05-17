@@ -496,43 +496,99 @@ def dataclass_to_afero(
     """Convert the current state to be consumed by Afero IoT"""
     states = []
     for f in fields(cls):
-        cur_val = getattr(cls, f.name, None)
-        if cur_val is None:
-            continue
-        if cur_val == getattr(elem, f.name, None):
+        current_feature = getattr(cls, f.name, None)
+        if current_feature is None:
             continue
         api_key = mapping.get(f.name, f.name)
         # There is probably a better way to approach this
-        if not str(f.type).startswith("dict"):
-            new_val = cur_val.api_value
-            if not isinstance(new_val, list):
-                new_val = [new_val]
-            for val in new_val:
-                if hasattr(f, "func_instance"):
-                    instance = getattr(cur_val, "func_instance", None)
-                elif hasattr(elem, "get_instance"):
-                    instance = elem.get_instance(api_key)
-                else:
-                    instance = None
-                new_state = {
-                    "functionClass": api_key,
-                    "functionInstance": instance,
-                    "lastUpdateTime": int(time.time()),
-                    "value": None,
-                }
-                if isinstance(val, dict):
-                    new_state.update(val)
-                else:
-                    new_state["value"] = val
-                states.append(new_state)
+        field_is_dict = str(f.type).startswith("dict")
+        is_tuple_key = False
+        if field_is_dict and current_feature and current_feature.keys():
+            is_tuple_key = isinstance(list(current_feature.keys())[0], tuple)
+        # Tuple keys signify (func_class / func_instance).
+        if field_is_dict and is_tuple_key:
+            states.extend(get_afero_states_from_mapped(elem, f.name, current_feature))
+        elif field_is_dict and not current_feature:
+            continue
         else:
-            for key, val in cur_val.items():
-                states.append(
-                    {
-                        "functionClass": key[0],
-                        "functionInstance": key[1],
-                        "lastUpdateTime": int(time.time()),
-                        "value": val.api_value,
-                    }
+            # We need to determine funcClass / funcInstance when we dump our data
+            if current_feature == getattr(elem, f.name, None):
+                continue
+            current_feature_value = current_feature
+            if hasattr(current_feature, "api_value"):
+                current_feature_value = current_feature.api_value
+            if not isinstance(current_feature_value, list):
+                func_instance = get_afero_instance_for_state(
+                    elem, current_feature, api_key
                 )
+                states.append(
+                    get_afero_state_from_feature(
+                        api_key, func_instance, current_feature_value
+                    )
+                )
+            else:
+                states.extend(get_afero_states_from_list(current_feature_value))
+    return states
+
+
+def get_afero_states_from_mapped(
+    element: AferoResource, field_name: str, update_vals: dict
+) -> list[dict]:
+    states = []
+    current_elems = getattr(element, field_name, None)
+    for key, val in update_vals.items():
+        if val == current_elems.get(key, None):
+            continue
+        states.append(
+            {
+                "functionClass": key[0],
+                "functionInstance": key[1],
+                "lastUpdateTime": int(time.time()),
+                "value": val.api_value,
+            }
+        )
+    return states
+
+
+def get_afero_instance_for_state(
+    elem: AferoResource, feature, mapped_afero_key: str | None
+) -> str | None:
+    """Determine the function instance based on the field data or device"""
+    if hasattr(feature, "func_instance") and getattr(feature, "func_instance", None):
+        instance = getattr(feature, "func_instance", None)
+    elif (
+        mapped_afero_key
+        and hasattr(elem, "get_instance")
+        and elem.get_instance(mapped_afero_key)
+    ):
+        instance = elem.get_instance(mapped_afero_key)
+    else:
+        instance = None
+    return instance
+
+
+def get_afero_state_from_feature(
+    func_class: str, func_instance: str | None, current_val: Any
+) -> dict:
+    """Generate a single state from the current data"""
+    new_state = {
+        "functionClass": func_class,
+        "functionInstance": func_instance,
+        "lastUpdateTime": int(time.time()),
+        "value": None,
+    }
+    if isinstance(current_val, dict):
+        new_state.update(current_val)
+    else:
+        new_state["value"] = current_val
+    return new_state
+
+
+def get_afero_states_from_list(states: list[dict]) -> list[dict]:
+    """Add timestamp to the states
+
+    Assume the state already has functionClass, functionState, and value
+    """
+    for state in states:
+        state["lastUpdateTime"] = int(time.time())
     return states

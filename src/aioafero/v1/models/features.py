@@ -280,3 +280,24 @@ class TargetTemperatureFeature:
             "functionInstance": self.instance,
             "value": self.value,
         }
+
+
+AferoFeatures: list = [
+    ColorModeFeature,
+    ColorFeature,
+    ColorTemperatureFeature,
+    CurrentPositionEnum,
+    CurrentPositionFeature,
+    DimmingFeature,
+    DirectionFeature,
+    EffectFeature,
+    HVACModeFeature,
+    ModeFeature,
+    NumbersFeature,
+    OnFeature,
+    OpenFeature,
+    PresetFeature,
+    SelectFeature,
+    SpeedFeature,
+    TargetTemperatureFeature,
+]
