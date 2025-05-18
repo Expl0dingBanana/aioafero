@@ -20,6 +20,8 @@ class SwitchController(BaseResourcesController[Switch]):
         ResourceTypes.SWITCH,
         ResourceTypes.POWER_OUTLET,
         ResourceTypes.LANDSCAPE_TRANSFORMER,
+        # Exhaust-Fans have On / Off toggles
+        ResourceTypes.EXHAUST_FAN,
     ]
     ITEM_CLS = Switch
     ITEM_MAPPING = {}
@@ -42,8 +44,11 @@ class SwitchController(BaseResourcesController[Switch]):
         on: dict[str, features.OnFeature] = {}
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
+        toggle_states = ["power", "toggle"]
+        if afero_device.device_class == ResourceTypes.EXHAUST_FAN.value:
+            toggle_states.remove("power")
         for state in afero_device.states:
-            if state.functionClass in ["power", "toggle"]:
+            if state.functionClass in toggle_states:
                 on[state.functionInstance] = features.OnFeature(
                     on=state.value == "on",
                     func_class=state.functionClass,
@@ -79,8 +84,11 @@ class SwitchController(BaseResourcesController[Switch]):
     async def update_elem(self, afero_device: AferoDevice) -> set:
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
+        toggle_states = ["power", "toggle"]
+        if afero_device.device_class == ResourceTypes.EXHAUST_FAN.value:
+            toggle_states.remove("power")
         for state in afero_device.states:
-            if state.functionClass in ["power", "toggle"]:
+            if state.functionClass in toggle_states:
                 new_val = state.value == "on"
                 if cur_item.on[state.functionInstance].on != new_val:
                     updated_keys.add("on")

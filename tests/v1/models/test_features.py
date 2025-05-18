@@ -97,6 +97,18 @@ def test_ModeFeature():
     assert feat.api_value == "color"
 
 
+def test_NumbersFeature():
+    feat = features.NumbersFeature(
+        value=12,
+        min=0,
+        max=20,
+        step=1,
+        name="Cool Beans",
+        unit="bean count",
+    )
+    assert feat.api_value == 12
+
+
 def test_OnFeature():
     feat = features.OnFeature(on=True)
     assert feat.api_value == {"value": "on", "functionClass": "power"}
@@ -134,6 +146,13 @@ def test_PresetFeature():
         "functionClass": "cool",
         "functionInstance": "beans",
     }
+
+
+def test_SelectFeature():
+    feat = features.SelectFeature(
+        selected="beans", selects={"cool", "beans"}, name="Those beans"
+    )
+    assert feat.api_value == "beans"
 
 
 def test_SpeedFeature():

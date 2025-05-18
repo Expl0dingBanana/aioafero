@@ -168,6 +168,22 @@ class ModeFeature:
 
 
 @dataclass
+class NumbersFeature:
+    """Represents a numeric value"""
+
+    value: float
+    min: float
+    max: float
+    step: float
+    name: str | None
+    unit: str | None
+
+    @property
+    def api_value(self):
+        return self.value
+
+
+@dataclass
 class OnFeature:
     """Represent `On` Feature object as used by various Afero resources."""
 
@@ -223,6 +239,19 @@ class PresetFeature:
 
 
 @dataclass
+class SelectFeature:
+    """Represent available options and currently selected"""
+
+    selected: str
+    selects: set[str]
+    name: str
+
+    @property
+    def api_value(self):
+        return self.selected
+
+
+@dataclass
 class SpeedFeature:
     """Represent Current Fan speed Feature"""
 
@@ -251,3 +280,24 @@ class TargetTemperatureFeature:
             "functionInstance": self.instance,
             "value": self.value,
         }
+
+
+AferoFeatures: list = [
+    ColorModeFeature,
+    ColorFeature,
+    ColorTemperatureFeature,
+    CurrentPositionEnum,
+    CurrentPositionFeature,
+    DimmingFeature,
+    DirectionFeature,
+    EffectFeature,
+    HVACModeFeature,
+    ModeFeature,
+    NumbersFeature,
+    OnFeature,
+    OpenFeature,
+    PresetFeature,
+    SelectFeature,
+    SpeedFeature,
+    TargetTemperatureFeature,
+]
