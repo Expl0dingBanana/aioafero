@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator
 
 from ...device import AferoDevice, AferoResource, AferoState, get_afero_device
 from ...errors import DeviceNotFound, ExceededMaximumRetries
+from ...util import process_function
 from .. import v1_const
+from ..models.features import NumbersFeature, SelectFeature
 from ..models.resource import ResourceTypes
 from ..models.sensor import AferoBinarySensor, AferoSensor
 from .event import AferoEvent, EventCallBackType, EventType
@@ -40,6 +42,10 @@ class BaseResourcesController(Generic[AferoResource]):
     ITEM_SENSORS: dict[str, str] = {}
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {}
+    # Elements that map to numbers. func class / func instance to unit
+    ITEM_NUMBERS: dict[tuple[str, str | None], str] = {}
+    # Elements that map to selects func class / func instance to name
+    ITEM_SELECTS: dict[tuple[str, str | None], str] = {}
 
     def __init__(self, bridge: "AferoBridgeV1") -> None:
         """Initialize instance."""
@@ -191,6 +197,38 @@ class BaseResourcesController(Generic[AferoResource]):
             )
         self._initialized = True
 
+    async def initialize_number(
+        self, func_def: dict, state: AferoState
+    ) -> tuple[tuple[str, str | None], NumbersFeature] | None:
+        key = (state.functionClass, state.functionInstance)
+        if key in self.ITEM_NUMBERS.keys():
+            working_def = func_def["values"][0]
+            return key, NumbersFeature(
+                value=state.value,
+                min=working_def["range"]["min"],
+                max=working_def["range"]["max"],
+                step=working_def["range"]["step"],
+                name=working_def.get("name"),
+                unit=self.ITEM_NUMBERS[key],
+            )
+        return None
+
+    async def initialize_select(
+        self, functions: list[dict], state: AferoState
+    ) -> tuple[tuple[str, str | None], SelectFeature] | None:
+        key = (state.functionClass, state.functionInstance)
+        if key in self.ITEM_SELECTS.keys():
+            return key, SelectFeature(
+                selected=state.value,
+                selects=set(
+                    process_function(
+                        functions, state.functionClass, state.functionInstance
+                    )
+                ),
+                name=self.ITEM_SELECTS[key],
+            )
+        return None
+
     async def initialize_sensor(
         self, state: AferoState, child_id: str
     ) -> AferoSensor | AferoBinarySensor | None:
@@ -217,6 +255,38 @@ class BaseResourcesController(Generic[AferoResource]):
                 _value=value,
                 _error=self.ITEM_BINARY_SENSORS[state.functionClass],
             )
+        return None
+
+    async def update_number(
+        self, state: AferoState, cur_item: AferoResource
+    ) -> str | None:
+        """Update the number if its tracked and a change has been detected
+
+        :param state: State to update
+        :param cur_item: Current item to update
+        :return: Identifier of the number that was updated or None
+        """
+        key = (state.functionClass, state.functionInstance)
+        if key in self.ITEM_NUMBERS.keys():
+            if cur_item.numbers[key].value != state.value:
+                cur_item.numbers[key].value = state.value
+                return f"number-{key}"
+        return None
+
+    async def update_select(
+        self, state: AferoState, cur_item: AferoResource
+    ) -> str | None:
+        """Update the select if its tracked and a change has been detected
+
+        :param state: State to update
+        :param cur_item: Current item to update
+        :return: Identifier of the select that was updated or None
+        """
+        key = (state.functionClass, state.functionInstance)
+        if key in self.ITEM_SELECTS.keys():
+            if cur_item.selects[key].selected != state.value:
+                cur_item.selects[key].selected = state.value
+                return f"select-{key}"
         return None
 
     async def update_sensor(
@@ -408,12 +478,16 @@ def update_dataclass(elem: AferoResource, update_vals: dataclass):
         elem_val = getattr(elem, f.name)
         if cur_val is None:
             continue
-        # Special processing for dicts
-        if isinstance(elem_val, dict):
-            cur_val = {getattr(cur_val, "func_instance", None): cur_val}
-            getattr(elem, f.name).update(cur_val)
+        # There is probably a better way to approach this
+        if not str(f.type).startswith("dict"):
+            # Special processing for dicts
+            if isinstance(elem_val, dict):
+                cur_val = {getattr(cur_val, "func_instance", None): cur_val}
+                getattr(elem, f.name).update(cur_val)
+            else:
+                setattr(elem, f.name, cur_val)
         else:
-            setattr(elem, f.name, cur_val)
+            elem_val.update(cur_val)
 
 
 def dataclass_to_afero(
@@ -422,31 +496,99 @@ def dataclass_to_afero(
     """Convert the current state to be consumed by Afero IoT"""
     states = []
     for f in fields(cls):
-        cur_val = getattr(cls, f.name, None)
-        if cur_val is None:
-            continue
-        if cur_val == getattr(elem, f.name, None):
+        current_feature = getattr(cls, f.name, None)
+        if current_feature is None:
             continue
         api_key = mapping.get(f.name, f.name)
-        new_val = cur_val.api_value
-        if not isinstance(new_val, list):
-            new_val = [new_val]
-        for val in new_val:
-            if hasattr(f, "func_instance"):
-                instance = getattr(cur_val, "func_instance", None)
-            elif hasattr(elem, "get_instance"):
-                instance = elem.get_instance(api_key)
+        # There is probably a better way to approach this
+        field_is_dict = str(f.type).startswith("dict")
+        is_tuple_key = False
+        if field_is_dict and current_feature and current_feature.keys():
+            is_tuple_key = isinstance(list(current_feature.keys())[0], tuple)
+        # Tuple keys signify (func_class / func_instance).
+        if field_is_dict and is_tuple_key:
+            states.extend(get_afero_states_from_mapped(elem, f.name, current_feature))
+        elif field_is_dict and not current_feature:
+            continue
+        else:
+            # We need to determine funcClass / funcInstance when we dump our data
+            if current_feature == getattr(elem, f.name, None):
+                continue
+            current_feature_value = current_feature
+            if hasattr(current_feature, "api_value"):
+                current_feature_value = current_feature.api_value
+            if not isinstance(current_feature_value, list):
+                func_instance = get_afero_instance_for_state(
+                    elem, current_feature, api_key
+                )
+                states.append(
+                    get_afero_state_from_feature(
+                        api_key, func_instance, current_feature_value
+                    )
+                )
             else:
-                instance = None
-            new_state = {
-                "functionClass": api_key,
-                "functionInstance": instance,
+                states.extend(get_afero_states_from_list(current_feature_value))
+    return states
+
+
+def get_afero_states_from_mapped(
+    element: AferoResource, field_name: str, update_vals: dict
+) -> list[dict]:
+    states = []
+    current_elems = getattr(element, field_name, None)
+    for key, val in update_vals.items():
+        if val == current_elems.get(key, None):
+            continue
+        states.append(
+            {
+                "functionClass": key[0],
+                "functionInstance": key[1],
                 "lastUpdateTime": int(time.time()),
-                "value": None,
+                "value": val.api_value,
             }
-            if isinstance(val, dict):
-                new_state.update(val)
-            else:
-                new_state["value"] = val
-            states.append(new_state)
+        )
+    return states
+
+
+def get_afero_instance_for_state(
+    elem: AferoResource, feature, mapped_afero_key: str | None
+) -> str | None:
+    """Determine the function instance based on the field data or device"""
+    if hasattr(feature, "func_instance") and getattr(feature, "func_instance", None):
+        instance = getattr(feature, "func_instance", None)
+    elif (
+        mapped_afero_key
+        and hasattr(elem, "get_instance")
+        and elem.get_instance(mapped_afero_key)
+    ):
+        instance = elem.get_instance(mapped_afero_key)
+    else:
+        instance = None
+    return instance
+
+
+def get_afero_state_from_feature(
+    func_class: str, func_instance: str | None, current_val: Any
+) -> dict:
+    """Generate a single state from the current data"""
+    new_state = {
+        "functionClass": func_class,
+        "functionInstance": func_instance,
+        "lastUpdateTime": int(time.time()),
+        "value": None,
+    }
+    if isinstance(current_val, dict):
+        new_state.update(current_val)
+    else:
+        new_state["value"] = current_val
+    return new_state
+
+
+def get_afero_states_from_list(states: list[dict]) -> list[dict]:
+    """Add timestamp to the states
+
+    Assume the state already has functionClass, functionState, and value
+    """
+    for state in states:
+        state["lastUpdateTime"] = int(time.time())
     return states

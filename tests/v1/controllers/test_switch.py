@@ -14,6 +14,7 @@ from .. import utils
 switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 transformer = utils.create_devices_from_data("transformer.json")[0]
 glass_door = utils.create_devices_from_data("glass-door.json")[0]
+exhaust_fan = utils.create_devices_from_data("exhaust-fan.json")[0]
 
 
 @pytest.fixture
@@ -81,6 +82,33 @@ async def test_initialize_glass_door(mocked_controller):
     assert dev.id == "89d12e53-2c38-46b3-af2a-ced1ccc04c39"
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None),
+    }
+
+
+@pytest.mark.asyncio
+async def test_initialize_exhaust_fan(mocked_controller):
+    await mocked_controller.initialize_elem(exhaust_fan)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == "44620d02-8b62-49ce-afe8-1ea8f15e0ec5"
+    assert dev.on == {
+        "humidity-detection-enabled": features.OnFeature(
+            on=False, func_class="toggle", func_instance="humidity-detection-enabled"
+        ),
+        "humidity-sensor-led": features.OnFeature(
+            on=False, func_class="toggle", func_instance="humidity-sensor-led"
+        ),
+        "motion-sensor-led": features.OnFeature(
+            on=True, func_class="toggle", func_instance="motion-sensor-led"
+        ),
+        "speaker-power": features.OnFeature(
+            on=True, func_class="toggle", func_instance="speaker-power"
+        ),
+        "motion-detection-enabled-exhaust-fan": features.OnFeature(
+            on=True,
+            func_class="toggle",
+            func_instance="motion-detection-enabled-exhaust-fan",
+        ),
     }
 
 

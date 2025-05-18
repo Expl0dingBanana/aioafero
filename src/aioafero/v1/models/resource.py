@@ -13,6 +13,7 @@ class ResourceTypes(Enum):
     DEVICE = "metadevice.device"
     HOME = "metadata.home"
     ROOM = "metadata.room"
+    EXHAUST_FAN = "exhaust-fan"
     FAN = "fan"
     LANDSCAPE_TRANSFORMER = "landscape-transformer"
     LIGHT = "light"

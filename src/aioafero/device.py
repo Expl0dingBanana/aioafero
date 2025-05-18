@@ -2,6 +2,7 @@ __all__ = [
     "AferoDevice",
     "AferoState",
     "get_afero_device",
+    "get_function_from_device",
 ]
 import logging
 from dataclasses import dataclass, field

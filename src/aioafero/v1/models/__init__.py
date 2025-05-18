@@ -9,10 +9,12 @@ __all__ = [
     "Fan",
     "ResourceTypes",
     "Thermostat",
+    "ExhaustFan",
 ]
 
 
 from .device import Device
+from .exhaust_fan import ExhaustFan
 from .fan import Fan
 from .light import Light
 from .lock import Lock
