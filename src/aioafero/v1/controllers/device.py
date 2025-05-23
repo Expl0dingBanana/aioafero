@@ -5,12 +5,6 @@ from ..models.device import Device
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
-# Generic sensors that should be applied to all devices
-SENSOR_TO_UNIT: dict[str, str] = {
-    "battery-level": "%",
-    "wifi-rssi": "dB",
-}
-
 
 class DeviceController(BaseResourcesController[Device]):
     """Controller that identifies top-level components."""
@@ -19,7 +13,10 @@ class DeviceController(BaseResourcesController[Device]):
     ITEM_TYPES = []
     ITEM_CLS = Device
     # Sensors map functionClass -> Unit
-    ITEM_SENSORS: dict[str, str] = {"wifi-rssi": "dB"}
+    ITEM_SENSORS: dict[str, str] = {
+        "battery-level": "%",
+        "wifi-rssi": "dB",
+    }
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {
         "error": "alerting",

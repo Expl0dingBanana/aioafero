@@ -13,6 +13,7 @@ from .. import utils
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 freezer = utils.create_devices_from_data("freezer.json")[0]
+door_lock = utils.create_devices_from_data("door-lock-TBD.json")[0]
 
 
 @pytest.fixture
@@ -48,6 +49,36 @@ async def test_initialize_a21(mocked_controller):
             instance=None,
             unit="dB",
         )
+    }
+    assert dev.binary_sensors == {}
+
+
+@pytest.mark.asyncio
+async def test_initialize_door_lock(mocked_controller):
+    await mocked_controller.initialize_elem(door_lock)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == door_lock.id
+    assert dev.available is True
+    assert dev.device_information == DeviceInformation(
+        device_class=door_lock.device_class,
+        default_image=door_lock.default_image,
+        default_name=door_lock.default_name,
+        manufacturer=door_lock.manufacturerName,
+        model=door_lock.model,
+        name=door_lock.friendly_name,
+        parent_id=door_lock.device_id,
+        wifi_mac="6f6882f2-b35f-451f-bab1-4feafe33dbb3",
+        ble_mac="1392f7cb-e23a-470e-b803-6be2e48ce5c0",
+    )
+    assert dev.sensors == {
+        "battery-level": AferoSensor(
+            id="battery-level",
+            owner="698e8a63-e8cb-4335-ba6b-83ca69d378f2",
+            _value=80,
+            unit="%",
+            instance=None,
+        ),
     }
     assert dev.binary_sensors == {}
 
