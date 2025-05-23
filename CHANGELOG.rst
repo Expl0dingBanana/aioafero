@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.2.1
+=============
+
+ * Fix a regression around battery sensor not showing
+
 Version 3.2.0
 =============
 
