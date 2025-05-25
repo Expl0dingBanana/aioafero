@@ -19,6 +19,7 @@ class ResourceTypes(Enum):
     LIGHT = "light"
     LOCK = "door-lock"
     PARENT_DEVICE = "parent-device"
+    PORTABLE_AC = "portable-air-conditioner"
     POWER_OUTLET = "power-outlet"
     SWITCH = "switch"
     THERMOSTAT = "thermostat"
