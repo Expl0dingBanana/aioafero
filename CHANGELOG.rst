@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 3.2.2
+=============
+
+ * Solidify bridge API so Home Assistant tests do not
+   call any private methods
+
 Version 3.2.1
 =============
 
