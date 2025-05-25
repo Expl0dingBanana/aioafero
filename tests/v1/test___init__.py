@@ -4,7 +4,7 @@ import pytest
 
 from aioafero import EventType, InvalidAuth
 from aioafero.errors import DeviceNotFound
-from aioafero.v1 import AferoBridgeV1, add_secret
+from aioafero.v1 import AferoBridgeV1, add_secret, token_data
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -200,12 +200,24 @@ class DummyResponse:
         return "cool-beans"
 
 
-def double_429(*args, **kwargs):
-    yield DummyResponse(status_code=429)
-    yield DummyResponse(status_code=429)
-    yield DummyResponse(status_code=200)
+def test_set_token_data(mocked_bridge):
+    data = token_data(
+        "token",
+        "access_token",
+        "refresh_token",
+        12345,
+    )
+    mocked_bridge.set_token_data(data)
+    assert mocked_bridge.refresh_token == "refresh_token"
 
 
+# @TODO - Implement these tests
+# def double_429(*args, **kwargs):
+#     yield DummyResponse(status_code=429)
+#     yield DummyResponse(status_code=429)
+#     yield DummyResponse(status_code=200)
+#
+#
 # @pytest.mark.asyncio
 # @pytest.mark.parametrize(
 #     "max_retries, times_to_sleep, response_gen, exp_error", [

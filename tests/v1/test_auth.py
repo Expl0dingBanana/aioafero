@@ -621,3 +621,14 @@ async def test_token(
             await test_auth.token(sess)
     for message in messages:
         assert message in caplog.text
+
+
+def test_set_token_data(hs_auth):
+    data = auth.token_data(
+        "token",
+        "access_token",
+        "refresh_token",
+        datetime.datetime.now().timestamp() + 120,
+    )
+    hs_auth.set_token_data(data)
+    assert hs_auth._token_data == data

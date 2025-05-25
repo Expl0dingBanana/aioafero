@@ -1,4 +1,4 @@
-__all__ = ["AferoAuth"]
+__all__ = ["AferoAuth", "passthrough", "token_data"]
 
 import asyncio
 import base64
@@ -85,8 +85,11 @@ class AferoAuth:
         return datetime.datetime.now().timestamp() >= self._token_data.expiration
 
     @property
-    def refresh_token(self) -> Optional[str]:
+    def refresh_token(self) -> str | None:
         return self._token_data.refresh_token
+
+    def set_token_data(self, data: token_data) -> None:
+        self._token_data = data
 
     async def webapp_login(
         self, challenge: auth_challenge, client: ClientSession

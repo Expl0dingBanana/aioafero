@@ -13,6 +13,7 @@ __all__ = [
     "SwitchController",
     "ThermostatController",
     "ValveController",
+    "token_data",
 ]
 
 import asyncio
@@ -29,7 +30,7 @@ from securelogging import LogRedactorMessage, add_secret
 from ..device import AferoResource
 from ..errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
 from . import models, v1_const
-from .auth import AferoAuth, passthrough
+from .auth import AferoAuth, passthrough, token_data
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
@@ -132,6 +133,11 @@ class AferoBridgeV1:
         return exc_type
 
     @property
+    def refresh_token(self) -> str | None:
+        """Get the current sessions refresh token"""
+        return self._auth.refresh_token
+
+    @property
     def devices(self) -> DeviceController:
         return self._devices
 
@@ -211,6 +217,9 @@ class AferoBridgeV1:
     def afero_client(self) -> str:
         """Get identifier for Afero system"""
         return self._afero_client
+
+    def set_token_data(self, data: token_data) -> None:
+        self._auth.set_token_data(data)
 
     def set_polling_interval(self, polling_interval: int) -> None:
         self._events.polling_interval = polling_interval

@@ -9,6 +9,7 @@ from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, models, v1_const
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.base import (
+    ID_FILTER_ALL,
     BaseResourcesController,
     dataclass_to_afero,
     get_afero_instance_for_state,
@@ -465,6 +466,7 @@ def test_init(ex1_rc):
     assert not ex1_rc.initialized
     ex1_rc._initialized = True
     assert ex1_rc.initialized
+    assert ex1_rc.subscribers == {ID_FILTER_ALL: []}
 
 
 def test_basic(ex1_rc):
