@@ -52,7 +52,7 @@ class BaseResourcesController(Generic[AferoResource]):
         self._bridge = bridge
         self._items: dict[str, AferoResource] = {}
         self._logger = bridge.logger.getChild(self.ITEM_CLS.__name__)
-        self._subscribers: dict[str, EventSubscriptionType] = {ID_FILTER_ALL: []}
+        self._subscribers: dict[str, list[EventSubscriptionType]] = {ID_FILTER_ALL: []}
         self._initialized: bool = False
         self._item_values = [x.value for x in self.ITEM_TYPES]
 
@@ -76,6 +76,10 @@ class BaseResourcesController(Generic[AferoResource]):
     @property
     def initialized(self) -> bool:
         return self._initialized
+
+    @property
+    def subscribers(self) -> dict[str, list[EventSubscriptionType]]:
+        return self._subscribers
 
     async def _handle_event(
         self, evt_type: EventType, evt_data: AferoEvent | None
