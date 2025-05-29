@@ -57,6 +57,7 @@ def test_controllers(mocked_bridge):
     mocked_bridge.fans._initialized = False
     mocked_bridge.lights._initialized = False
     mocked_bridge.locks._initialized = True
+    mocked_bridge.portable_acs._initialized = False
     mocked_bridge.switches._initialized = False
     mocked_bridge.thermostats._initialized = False
     mocked_bridge.valves._initialized = True

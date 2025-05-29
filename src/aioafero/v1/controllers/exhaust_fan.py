@@ -32,6 +32,7 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
     ITEM_NUMBERS: dict[tuple[str, str | None], str] = {
         ("auto-off-timer", "auto-off"): "seconds",
     }
+    # Elements that map to selects. func class / func instance to name
     ITEM_SELECTS = {
         ("motion-action", "exhaust-fan"): "Motion Action",
         ("sensitivity", "humidity-sensitivity"): "Humidity Sensitivity",

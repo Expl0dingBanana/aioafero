@@ -207,12 +207,15 @@ class BaseResourcesController(Generic[AferoResource]):
         key = (state.functionClass, state.functionInstance)
         if key in self.ITEM_NUMBERS.keys():
             working_def = func_def["values"][0]
+            fallback_name = f"{state.functionClass}"
+            if state.functionInstance:
+                fallback_name += f"-{state.functionInstance}"
             return key, NumbersFeature(
                 value=state.value,
                 min=working_def["range"]["min"],
                 max=working_def["range"]["max"],
                 step=working_def["range"]["step"],
-                name=working_def.get("name"),
+                name=working_def.get("name", fallback_name),
                 unit=self.ITEM_NUMBERS[key],
             )
         return None
