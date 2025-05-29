@@ -128,11 +128,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 updated_keys.add(update_key)
         return updated_keys
 
-    async def set_state(
-        self,
-        device_id: str,
-        **kwargs
-    ) -> None:
+    async def set_state(self, device_id: str, **kwargs) -> None:
         """Set supported feature(s) to fan resource."""
         update_obj = PortableACPut()
         hvac_mode: str | None = kwargs.get("hvac_mode")
