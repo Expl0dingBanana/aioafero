@@ -6,7 +6,7 @@ from ...errors import DeviceNotFound
 from ...util import process_function
 from ..models import features
 from ..models.portable_ac import PortableAC, PortableACPut
-from ..models.resource import ResourceTypes
+from ..models.resource import DeviceInformation, ResourceTypes
 from .base import BaseResourcesController
 
 
@@ -81,6 +81,17 @@ class PortableACController(BaseResourcesController[PortableAC]):
             target_temperature_cooling=target_temperature_cooling,
             numbers=numbers,
             selects=selects,
+            binary_sensors={},
+            sensors={},
+            device_information=DeviceInformation(
+                device_class=afero_device.device_class,
+                default_image=afero_device.default_image,
+                default_name=afero_device.default_name,
+                manufacturer=afero_device.manufacturerName,
+                model=afero_device.model,
+                name=afero_device.friendly_name,
+                parent_id=afero_device.device_id,
+            ),
         )
         return self._items[afero_device.id]
 
@@ -120,13 +131,14 @@ class PortableACController(BaseResourcesController[PortableAC]):
     async def set_state(
         self,
         device_id: str,
-        hvac_mode: str | None = None,
-        target_temperature: float | None = None,
-        numbers: dict[tuple[str, str | None], float] | None = None,
-        selects: dict[tuple[str, str | None], str] | None = None,
+        **kwargs
     ) -> None:
         """Set supported feature(s) to fan resource."""
         update_obj = PortableACPut()
+        hvac_mode: str | None = kwargs.get("hvac_mode")
+        target_temperature: float | None = kwargs.get("target_temperature")
+        numbers: dict[tuple[str, str | None], float] | None = kwargs.get("numbers")
+        selects: dict[tuple[str, str | None], str] | None = kwargs.get("selects")
         try:
             cur_item = self.get_device(device_id)
         except DeviceNotFound:
