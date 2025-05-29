@@ -62,6 +62,12 @@ The following controllers are implemented:
    * lock
    * unlock
 
+
+* ``bridge.portable_acs``: Any device that matches a portable-ac. Can perform the following
+  actions:
+
+   * Everything is done through set_state
+
 * ``bridge.switches``: Any device that matches a switch. Can perform the following
   actions:
 
