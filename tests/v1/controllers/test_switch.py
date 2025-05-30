@@ -15,6 +15,7 @@ switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 transformer = utils.create_devices_from_data("transformer.json")[0]
 glass_door = utils.create_devices_from_data("glass-door.json")[0]
 exhaust_fan = utils.create_devices_from_data("exhaust-fan.json")[0]
+portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 
 
 @pytest.fixture
@@ -109,6 +110,17 @@ async def test_initialize_exhaust_fan(mocked_controller):
             func_class="toggle",
             func_instance="motion-detection-enabled-exhaust-fan",
         ),
+    }
+
+
+@pytest.mark.asyncio
+async def test_initialize_portable_ac(mocked_controller):
+    await mocked_controller.initialize_elem(portable_ac)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
+    assert dev.on == {
+        None: features.OnFeature(on=False, func_class="power", func_instance=None),
     }
 
 

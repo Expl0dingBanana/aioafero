@@ -22,6 +22,8 @@ class SwitchController(BaseResourcesController[Switch]):
         ResourceTypes.LANDSCAPE_TRANSFORMER,
         # Exhaust-Fans have On / Off toggles
         ResourceTypes.EXHAUST_FAN,
+        # Portable ACs have On / Off toggle
+        ResourceTypes.PORTABLE_AC,
     ]
     ITEM_CLS = Switch
     ITEM_MAPPING = {}
