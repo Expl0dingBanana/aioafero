@@ -14,7 +14,7 @@ class PortableAC:
     available: bool
 
     display_celsius: bool | None
-    current_temperature: float | None
+    current_temperature: features.CurrentTemperatureFeature | None
     hvac_mode: features.HVACModeFeature | None
     target_temperature_cooling: features.TargetTemperatureFeature | None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None
@@ -76,6 +76,13 @@ class PortableAC:
     def supports_temperature_range(self) -> bool:
         return False
 
+    @property
+    def temperature(self) -> float | None:
+        if self.display_celsius:
+            return self.current_temperature.temperature
+        else:
+            return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
+
     def get_instance(self, elem):
         """Lookup the instance associated with the elem"""
         return self.instances.get(elem, None)
@@ -85,6 +92,9 @@ class PortableAC:
 class PortableACPut:
     """States that can be updated for a Thermostat"""
 
+    # This feels wrong but based on data dumps, setting timer increases the
+    # current temperature by 1 to turn it on
+    current_temperature: features.CurrentTemperatureFeature | None = None
     hvac_mode: features.HVACModeFeature | None = None
     target_temperature_cooling: features.TargetTemperatureFeature | None = None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(

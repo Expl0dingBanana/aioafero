@@ -77,6 +77,23 @@ class CurrentPositionFeature:
 
 
 @dataclass
+class CurrentTemperatureFeature:
+    """Represents the current temperature"""
+
+    temperature: float
+    function_class: str
+    function_instance: str | None
+
+    @property
+    def api_value(self):
+        return {
+            "functionClass": self.function_class,
+            "functionInstance": self.function_instance,
+            "value": self.temperature,
+        }
+
+
+@dataclass
 class DimmingFeature:
     """Represent Current temperature Feature"""
 

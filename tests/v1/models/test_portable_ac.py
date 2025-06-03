@@ -33,7 +33,11 @@ def populated_entity():
         ],
         id="entity-1",
         available=True,
-        current_temperature=35,
+        current_temperature=features.CurrentTemperatureFeature(
+            temperature=35,
+            function_class="temperature",
+            function_instance="current-temp",
+        ),
         hvac_mode=features.HVACModeFeature(
             mode="auto-cool",
             previous_mode="fan",
@@ -54,7 +58,9 @@ def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
     assert populated_entity.instances == {"preset": "preset-1"}
-    assert populated_entity.current_temperature == 35
+    assert populated_entity.temperature == 35
+    assert populated_entity.current_temperature.function_class == "temperature"
+    assert populated_entity.current_temperature.function_instance == "current-temp"
     assert populated_entity.hvac_mode.mode == "auto-cool"
     assert populated_entity.target_temperature_cooling.value == 26
     assert populated_entity.target_temperature_cooling.step == 0.5
@@ -69,6 +75,7 @@ def test_init(populated_entity):
     assert populated_entity.supports_temperature_range is False
     # Test in F
     populated_entity.display_celsius = False
+    assert populated_entity.temperature == 95
     assert populated_entity.target_temperature == 79
     assert populated_entity.target_temperature_max == 99
     assert populated_entity.target_temperature_min == 50

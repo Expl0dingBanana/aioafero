@@ -38,7 +38,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
         available: bool = False
         # Afero reports in Celsius by default
         display_celsius: bool = True
-        current_temperature: float | None = None
+        current_temperature: features.CurrentTemperatureFeature | None = None
         hvac_mode: features.HVACModeFeature | None = None
         target_temperature_cooling: features.TargetTemperatureFeature | None = None
         numbers: dict[tuple[str, str], features.NumbersFeature] = {}
@@ -51,7 +51,12 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 state.functionClass == "temperature"
                 and state.functionInstance == "current-temp"
             ):
-                current_temperature = round(state.value, 2)
+
+                current_temperature = features.CurrentTemperatureFeature(
+                    temperature=state.value,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
             elif (
                 state.functionClass == "temperature"
                 and state.functionInstance == "cooling-target"
@@ -113,8 +118,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 state.functionClass == "temperature"
                 and state.functionInstance == "current-temp"
             ):
-                if cur_item.current_temperature != round(state.value, 2):
-                    cur_item.current_temperature = round(state.value, 2)
+                if cur_item.current_temperature.temperature != round(state.value, 2):
+                    cur_item.current_temperature.temperature = round(state.value, 2)
                     updated_keys.add(f"temperature-{state.functionInstance}")
             elif (
                 state.functionClass == "temperature"
@@ -186,6 +191,12 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     step=cur_item.numbers[key].step,
                     name=cur_item.numbers[key].name,
                     unit=cur_item.numbers[key].unit,
+                )
+                # Currently only ("timer", None) exists
+                update_obj.current_temperature = features.CurrentTemperatureFeature(
+                    temperature=cur_item.current_temperature.temperature + 1,
+                    function_class=cur_item.current_temperature.function_class,
+                    function_instance=cur_item.current_temperature.function_instance,
                 )
         if selects:
             for key, val in selects.items():
