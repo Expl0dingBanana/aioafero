@@ -97,3 +97,23 @@ def process_function(
                 results.append(value["name"])
         break
     return results
+
+
+def calculate_hubspace_fahrenheit(temperature: float) -> float:
+    """Calculate the temperature in F based on Hubspace rounding
+
+    :param temperature: Temperature in C
+    :return: Temperature in F
+    """
+    fahrenheit = (temperature * 9 / 5) + 32
+    return round(fahrenheit, 0)
+
+
+def calculate_hubspace_celsius(temperature: float) -> float:
+    """Calculate the temperature in C based on Hubspace rounding
+
+    :param temperature: Temperature in F
+    :return: Temperature in C
+    """
+    celsius = (temperature - 32) * 5 / 9
+    return round(celsius * 2) / 2

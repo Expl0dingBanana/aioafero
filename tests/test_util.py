@@ -88,3 +88,29 @@ def test_process_function(functions, func_class, func_instance, expected):
         util.process_function(functions, func_class, func_instance=func_instance)
         == expected
     )
+
+
+@pytest.mark.parametrize(
+    "celsius, fahrenheit",
+    [
+        (22, 72),
+        (23, 73),
+        (24, 75),
+        (24.5, 76),
+    ],
+)
+def test_calculate_hubspace_fahrenheit(celsius, fahrenheit):
+    assert util.calculate_hubspace_fahrenheit(celsius) == fahrenheit
+
+
+@pytest.mark.parametrize(
+    "celsius, fahrenheit",
+    [
+        (22, 72),
+        (23, 73),
+        (24, 75),
+        (24.5, 76),
+    ],
+)
+def test_calculate_hubspace_celsius(celsius, fahrenheit):
+    assert util.calculate_hubspace_celsius(fahrenheit) == celsius

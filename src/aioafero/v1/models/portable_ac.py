@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from ...util import calculate_hubspace_fahrenheit
 from ..models import features
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
@@ -12,6 +13,7 @@ class PortableAC:
     id: str  # ID used when interacting with Afero
     available: bool
 
+    display_celsius: bool | None
     current_temperature: float | None
     hvac_mode: features.HVACModeFeature | None
     target_temperature_cooling: features.TargetTemperatureFeature | None
@@ -40,19 +42,31 @@ class PortableAC:
 
     @property
     def target_temperature(self) -> float | None:
-        return self.target_temperature_cooling.value
+        if self.display_celsius:
+            return self.target_temperature_cooling.value
+        else:
+            return calculate_hubspace_fahrenheit(self.target_temperature_cooling.value)
 
     @property
     def target_temperature_step(self) -> float:
-        return self.target_temperature_cooling.step
+        if self.display_celsius:
+            return self.target_temperature_cooling.step
+        else:
+            return 1
 
     @property
     def target_temperature_max(self) -> float:
-        return self.target_temperature_cooling.max
+        if self.display_celsius:
+            return self.target_temperature_cooling.max
+        else:
+            return calculate_hubspace_fahrenheit(self.target_temperature_cooling.max)
 
     @property
     def target_temperature_min(self) -> float | None:
-        return self.target_temperature_cooling.min
+        if self.display_celsius:
+            return self.target_temperature_cooling.min
+        else:
+            return calculate_hubspace_fahrenheit(self.target_temperature_cooling.min)
 
     @property
     def supports_fan_mode(self) -> bool:
