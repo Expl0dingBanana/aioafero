@@ -31,7 +31,7 @@ async def test_initialize(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.id == thermostat_id
-    assert dev.current_temperature == 18.3
+    assert dev.current_temperature.temperature == 18.3
     assert dev.fan_mode == features.ModeFeature(
         mode="auto", modes={"on", "auto", "intermittent"}
     )
@@ -85,6 +85,7 @@ async def test_initialize(mocked_controller):
             instance=None,
         ),
     }
+    assert dev.display_celsius is True
 
 
 @pytest.mark.asyncio
@@ -195,7 +196,7 @@ async def test_update_elem(mocked_controller):
         utils.modify_state(dev_update, state)
     updates = await mocked_controller.update_elem(dev_update)
     dev = mocked_controller.items[0]
-    assert dev.current_temperature == 19
+    assert dev.current_temperature.temperature == 19
     assert dev.fan_running is True
     assert dev.fan_mode.mode == "on"
     assert dev.hvac_action == "cooling"
@@ -240,6 +241,14 @@ async def test_update_elem_no_prev_mode_change(mocked_controller):
                 "functionInstance": None,
             }
         ),
+        AferoState(
+            **{
+                "functionClass": "temperature-units",
+                "value": "fahrenheit",
+                "lastUpdateTime": 0,
+                "functionInstance": None,
+            }
+        ),
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
@@ -247,7 +256,7 @@ async def test_update_elem_no_prev_mode_change(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "heat"
-    assert updates == {"mode"}
+    assert updates == {"mode", "temperature-units"}
 
 
 @pytest.mark.asyncio
@@ -412,6 +421,84 @@ async def test_set_state(mocked_controller):
             "functionInstance": "auto-cooling-target",
             "lastUpdateTime": 12345,
             "value": 22.5,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "auto-heating-target",
+            "lastUpdateTime": 12345,
+            "value": 22,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "heating-target",
+            "lastUpdateTime": 12345,
+            "value": 17,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "cooling-target",
+            "lastUpdateTime": 12345,
+            "value": 18,
+        },
+    ]
+    for call in expected_calls:
+        assert call in post["values"]
+    assert len(expected_calls) == len(post["values"])
+
+
+@pytest.mark.asyncio
+async def test_set_state_in_f(mocked_controller):
+    await mocked_controller.initialize_elem(thermostat)
+    assert len(mocked_controller.items) == 1
+    mocked_controller[thermostat_id].hvac_mode.mode = "heat"
+    mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
+    mocked_controller[thermostat_id].display_celsius = False
+    await mocked_controller.set_state(
+        thermostat_id,
+        hvac_mode="cool",
+        safety_max_temp=95,
+        safety_min_temp=46,
+        target_temperature_auto_heating=72,
+        target_temperature_auto_cooling=73,
+        target_temperature_heating=63,
+        target_temperature_cooling=64,
+    )
+    dev = mocked_controller.items[0]
+    assert dev.fan_mode.mode == "auto"
+    assert dev.fan_running is False
+    assert dev.hvac_mode.mode == "cool"
+    assert dev.safety_max_temp.value == 35
+    assert dev.safety_min_temp.value == 8
+    assert dev.target_temperature_auto_heating.value == 22
+    assert dev.target_temperature_auto_cooling.value == 23
+    assert dev.target_temperature_heating.value == 17
+    assert dev.target_temperature_cooling.value == 18
+    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
+    assert post["metadeviceId"] == thermostat_id
+    expected_calls = [
+        {
+            "functionClass": "mode",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "cool",
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "safety-mode-min-temp",
+            "lastUpdateTime": 12345,
+            "value": 8,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "safety-mode-max-temp",
+            "lastUpdateTime": 12345,
+            "value": 35,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "auto-cooling-target",
+            "lastUpdateTime": 12345,
+            "value": 23,
         },
         {
             "functionClass": "temperature",

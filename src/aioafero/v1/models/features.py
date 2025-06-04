@@ -89,7 +89,7 @@ class CurrentTemperatureFeature:
         return {
             "functionClass": self.function_class,
             "functionInstance": self.function_instance,
-            "value": self.temperature,
+            "value": round(self.temperature, 1),
         }
 
 

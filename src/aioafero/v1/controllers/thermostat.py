@@ -4,7 +4,7 @@ import copy
 
 from ... import device
 from ...device import AferoDevice, AferoState
-from ...util import process_function
+from ...util import calculate_hubspace_celsius, process_function
 from ..models import features
 from ..models.resource import DeviceInformation, ResourceTypes
 from ..models.thermostat import Thermostat, ThermostatPut
@@ -33,7 +33,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
     async def initialize_elem(self, afero_device: AferoDevice) -> Thermostat:
         """Initialize the element"""
         available: bool = False
-        current_temperature: float | None = None
+        # Afero reports in Celsius by default
+        display_celsius: bool = True
+        current_temperature: features.CurrentTemperatureFeature | None = None
         fan_running: bool | None = None
         fan_mode: features.ModeFeature | None = None
         hvac_action: str | None = None
@@ -62,7 +64,11 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 fan_running = state.value == "on"
             elif state.functionClass == "temperature":
                 if state.functionInstance == "current-temp":
-                    current_temperature = round(state.value, 2)
+                    current_temperature = features.CurrentTemperatureFeature(
+                        temperature=round(state.value, 1),
+                        function_class=state.functionClass,
+                        function_instance=state.functionInstance,
+                    )
                 elif state.functionInstance == "safety-mode-max-temp":
                     safety_max_temp = generate_target_temp(func_def["values"][0], state)
                 elif state.functionInstance == "safety-mode-min-temp":
@@ -97,6 +103,8 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     binary_sensors[sensor.id] = sensor
                 else:
                     sensors[sensor.id] = sensor
+            elif state.functionClass == "temperature-units":
+                display_celsius = state.value == "celsius"
 
         # Determine supported modes
         if current_mode and all_modes and system_type:
@@ -113,6 +121,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
+            display_celsius=display_celsius,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -147,9 +156,6 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             "safety-mode-max-temp": "safety_max_temp",
             "safety-mode-min-temp": "safety_min_temp",
         }
-        temp_mapping_raw = {
-            "current-temp": "current_temperature",
-        }
         for state in afero_device.states:
             if state.functionClass == "current-fan-state":
                 temp_val = state.value == "on"
@@ -168,24 +174,18 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     cur_item.hvac_mode.mode = state.value
                     updated_keys.add(state.functionClass)
             elif state.functionClass == "temperature":
-                rounded_value = round(state.value, 2)
-                if state.functionInstance in temp_mapping_raw.keys():
-                    temp_value = getattr(
-                        cur_item, temp_mapping_raw.get(state.functionInstance), None
-                    )
-                    if temp_value != rounded_value:
-                        setattr(
-                            cur_item,
-                            temp_mapping_raw.get(state.functionInstance),
-                            rounded_value,
-                        )
+                if state.functionInstance == "current-temp":
+                    temp_value = cur_item.current_temperature.temperature
+                    rounded_val = round(state.value, 1)
+                    if temp_value != rounded_val:
+                        cur_item.current_temperature.temperature = rounded_val
                         updated_keys.add(f"temperature-{state.functionInstance}")
                 elif state.functionInstance in temperature_mapping.keys():
                     temp_item = getattr(
                         cur_item, temperature_mapping.get(state.functionInstance), None
                     )
-                    if temp_item.value != rounded_value:
-                        temp_item.value = rounded_value
+                    if temp_item.value != state.value:
+                        temp_item.value = state.value
                         updated_keys.add(f"temperature-{state.functionInstance}")
             elif state.functionClass == "current-system-state":
                 if cur_item.hvac_action != state.value:
@@ -197,6 +197,11 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     updated_keys.add("available")
             elif update_key := await self.update_sensor(state, cur_item):
                 updated_keys.add(update_key)
+            elif state.functionClass == "temperature-units":
+                new_val: bool = state.value == "celsius"
+                if cur_item.display_celsius != new_val:
+                    cur_item.display_celsius = new_val
+                    updated_keys.add(state.functionClass)
         return updated_keys
 
     async def set_fan_mode(self, device_id: str, fan_mode: str) -> None:
@@ -284,6 +289,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     cur_item.hvac_mode.mode,
                 )
         if safety_min_temp is not None:
+            safety_min_temp = await self.get_hubspace_temp(cur_item, safety_min_temp)
             update_obj.safety_min_temp = features.TargetTemperatureFeature(
                 value=safety_min_temp,
                 min=cur_item.safety_min_temp.min,
@@ -292,6 +298,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 instance=cur_item.safety_min_temp.instance,
             )
         if safety_max_temp is not None:
+            safety_max_temp = await self.get_hubspace_temp(cur_item, safety_max_temp)
             update_obj.safety_max_temp = features.TargetTemperatureFeature(
                 value=safety_max_temp,
                 min=cur_item.safety_max_temp.min,
@@ -300,6 +307,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 instance=cur_item.safety_max_temp.instance,
             )
         if target_temperature_auto_heating is not None:
+            target_temperature_auto_heating = await self.get_hubspace_temp(
+                cur_item, target_temperature_auto_heating
+            )
             update_obj.target_temperature_auto_heating = (
                 features.TargetTemperatureFeature(
                     value=target_temperature_auto_heating,
@@ -310,6 +320,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 )
             )
         if target_temperature_auto_cooling is not None:
+            target_temperature_auto_cooling = await self.get_hubspace_temp(
+                cur_item, target_temperature_auto_cooling
+            )
             update_obj.target_temperature_auto_cooling = (
                 features.TargetTemperatureFeature(
                     value=target_temperature_auto_cooling,
@@ -320,6 +333,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 )
             )
         if target_temperature_heating is not None:
+            target_temperature_heating = await self.get_hubspace_temp(
+                cur_item, target_temperature_heating
+            )
             update_obj.target_temperature_heating = features.TargetTemperatureFeature(
                 value=target_temperature_heating,
                 min=cur_item.target_temperature_heating.min,
@@ -328,6 +344,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 instance=cur_item.target_temperature_heating.instance,
             )
         if target_temperature_cooling is not None:
+            target_temperature_cooling = await self.get_hubspace_temp(
+                cur_item, target_temperature_cooling
+            )
             update_obj.target_temperature_cooling = features.TargetTemperatureFeature(
                 value=target_temperature_cooling,
                 min=cur_item.target_temperature_cooling.min,
@@ -336,6 +355,14 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 instance=cur_item.target_temperature_cooling.instance,
             )
         await self.update(device_id, obj_in=update_obj)
+
+    async def get_hubspace_temp(
+        self, resource: Thermostat, temperature: float
+    ) -> float:
+        if resource.display_celsius:
+            return temperature
+        else:
+            return calculate_hubspace_celsius(temperature)
 
 
 def generate_target_temp(

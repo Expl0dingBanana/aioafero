@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from ...util import calculate_hubspace_fahrenheit
 from ..models import features
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
@@ -12,7 +13,8 @@ class Thermostat:
     id: str  # ID used when interacting with Afero
     available: bool
 
-    current_temperature: float | None
+    display_celsius: bool | None
+    current_temperature: features.CurrentTemperatureFeature | None
     fan_running: bool | None
     fan_mode: features.ModeFeature | None
     hvac_action: str | None
@@ -77,38 +79,60 @@ class Thermostat:
 
     @property
     def target_temperature_range(self) -> tuple[float, float]:
-        return (
-            self.target_temperature_auto_heating.value,
-            self.target_temperature_auto_cooling.value,
-        )
+        if self.display_celsius:
+            return (
+                self.target_temperature_auto_heating.value,
+                self.target_temperature_auto_cooling.value,
+            )
+        else:
+            return (
+                calculate_hubspace_fahrenheit(
+                    self.target_temperature_auto_heating.value
+                ),
+                calculate_hubspace_fahrenheit(
+                    self.target_temperature_auto_cooling.value
+                ),
+            )
 
     @property
     def target_temperature_step(self) -> float:
         set_mode = self.get_mode_to_check()
         if not set_mode:
-            return 0.5  # Default from Hubspace
+            val = 0.5  # Default from Hubspace
         else:
-            return getattr(
+            val = getattr(
                 self._get_target_feature(self.get_mode_to_check()), "step", None
             )
+        if self.display_celsius:
+            return val
+        else:
+            return 1
 
     @property
     def target_temperature_max(self) -> float:
         set_mode = self.get_mode_to_check()
         if not set_mode or self.hvac_mode.mode == "auto":
-            return self.target_temperature_auto_cooling.max
+            val = self.target_temperature_auto_cooling.max
         else:
-            return getattr(self._get_target_feature(set_mode), "max", None)
+            val = getattr(self._get_target_feature(set_mode), "max", None)
+        if self.display_celsius:
+            return val
+        else:
+            return calculate_hubspace_fahrenheit(val)
 
     @property
-    def target_temperature_min(self) -> float | None:
+    def target_temperature_min(self) -> float:
         set_mode = self.get_mode_to_check()
         if not set_mode or self.hvac_mode.mode == "auto":
-            return self.target_temperature_auto_heating.min
+            val = self.target_temperature_auto_heating.min
         else:
-            return getattr(
+            val = getattr(
                 self._get_target_feature(self.get_mode_to_check()), "min", None
             )
+        if self.display_celsius:
+            return val
+        else:
+            return calculate_hubspace_fahrenheit(val)
 
     @property
     def supports_fan_mode(self) -> bool:
@@ -120,6 +144,13 @@ class Thermostat:
             self.target_temperature_auto_cooling is not None
             and self.target_temperature_auto_heating is not None
         )
+
+    @property
+    def temperature(self) -> float | None:
+        if self.display_celsius:
+            return self.current_temperature.temperature
+        else:
+            return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
 
     def get_instance(self, elem):
         """Lookup the instance associated with the elem"""

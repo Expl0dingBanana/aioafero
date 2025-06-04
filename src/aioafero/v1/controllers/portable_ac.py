@@ -51,9 +51,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 state.functionClass == "temperature"
                 and state.functionInstance == "current-temp"
             ):
-
                 current_temperature = features.CurrentTemperatureFeature(
-                    temperature=state.value,
+                    temperature=round(state.value, 1),
                     function_class=state.functionClass,
                     function_instance=state.functionInstance,
                 )
@@ -118,8 +117,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 state.functionClass == "temperature"
                 and state.functionInstance == "current-temp"
             ):
-                if cur_item.current_temperature.temperature != round(state.value, 2):
-                    cur_item.current_temperature.temperature = round(state.value, 2)
+                if cur_item.current_temperature.temperature != round(state.value, 1):
+                    cur_item.current_temperature.temperature = round(state.value, 1)
                     updated_keys.add(f"temperature-{state.functionInstance}")
             elif (
                 state.functionClass == "temperature"
