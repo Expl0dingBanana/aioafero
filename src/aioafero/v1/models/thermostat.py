@@ -55,9 +55,13 @@ class Thermostat:
             "off",
         ]:
             return None
-        return getattr(
+        celsius: float = getattr(
             self._get_target_feature(self.get_mode_to_check()), "value", None
         )
+        if self.display_celsius:
+            return celsius
+        else:
+            return calculate_hubspace_fahrenheit(celsius)
 
     def get_mode_to_check(self) -> str | None:
         if not self.hvac_mode:
