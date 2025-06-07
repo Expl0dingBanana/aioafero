@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.3.3
+=============
+
+ * Fix an issue in thermostats where the target_temperature could cause a UHE
+
 Version 3.3.2
 =============
 
