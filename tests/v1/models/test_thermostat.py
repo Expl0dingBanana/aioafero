@@ -169,6 +169,8 @@ def test_init(populated_entity):
     assert populated_entity.target_temperature_max == 90
     assert populated_entity.target_temperature_min == 39
     assert populated_entity.temperature == 54
+    populated_entity.hvac_mode.mode = "cool"
+    assert populated_entity.target_temperature == 79
 
 
 def test_init_empty(empty_entity):
