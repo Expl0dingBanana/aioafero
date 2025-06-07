@@ -58,7 +58,9 @@ class Thermostat:
         celsius: float = getattr(
             self._get_target_feature(self.get_mode_to_check()), "value", None
         )
-        if self.display_celsius:
+        if celsius is None:
+            return None
+        elif self.display_celsius:
             return celsius
         else:
             return calculate_hubspace_fahrenheit(celsius)
