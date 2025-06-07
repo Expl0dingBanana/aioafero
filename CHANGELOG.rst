@@ -2,6 +2,18 @@
 Changelog
 =========
 
+Version 3.3.1
+=============
+
+ * Enable switch for Portable AC
+ * Fix an issue where setting temps did not follow the step
+ * Fix an issue where portable AC's timer did not turn it on
+
+Version 3.3.0
+=============
+
+ * Add Portable AC device class
+
 Version 3.2.2
 =============
 
