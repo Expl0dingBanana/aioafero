@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 3.3.2
+=============
+
+ * Fix an issue in thermostats where the target_temperature always
+   returned celsius
+
 Version 3.3.1
 =============
 
