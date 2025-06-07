@@ -250,6 +250,49 @@ async def test_set_state_in_f(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_set_state_in_f_force_c(mocked_controller):
+    await mocked_controller.initialize_elem(portable_ac)
+    assert len(mocked_controller.items) == 1
+    await mocked_controller.set_state(
+        portable_ac_id,
+        hvac_mode="cool",
+        target_temperature=24.5,
+        selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
+        is_celsius=True,
+    )
+    dev = mocked_controller.items[0]
+    assert dev.target_temperature_cooling.value == 24.5
+    assert dev.hvac_mode.mode == "cool"
+    assert dev.hvac_mode.previous_mode == "auto-cool"
+    assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
+    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
+    assert post["metadeviceId"] == portable_ac_id
+    expected_calls = [
+        {
+            "functionClass": "mode",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "cool",
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "cooling-target",
+            "lastUpdateTime": 12345,
+            "value": 24.5,
+        },
+        {
+            "functionClass": "fan-speed",
+            "functionInstance": "ac-fan-speed",
+            "lastUpdateTime": 12345,
+            "value": "fan-speed-2-100",
+        },
+    ]
+    for call in expected_calls:
+        assert call in post["values"]
+    assert len(expected_calls) == len(post["values"])
+
+
+@pytest.mark.asyncio
 async def test_set_state_invalid_dev(mocked_controller):
     await mocked_controller.initialize_elem(portable_ac)
     assert len(mocked_controller.items) == 1

@@ -170,7 +170,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     ", ".join(sorted(cur_item.hvac_mode.modes)),
                 )
         if target_temperature is not None:
-            if not cur_item.display_celsius:
+            if not cur_item.display_celsius and not kwargs.get("is_celsius", False):
                 target_temperature = calculate_hubspace_celsius(target_temperature)
             update_obj.target_temperature_cooling = features.TargetTemperatureFeature(
                 value=target_temperature,

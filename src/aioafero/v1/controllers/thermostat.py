@@ -236,6 +236,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         target_temperature_heating: float | None = None,
         target_temperature_cooling: float | None = None,
         target_temperature: float | None = None,
+        is_celsius: bool = None,
     ) -> None:
         """Set supported feature(s) to fan resource."""
         update_obj = ThermostatPut()
@@ -289,7 +290,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     cur_item.hvac_mode.mode,
                 )
         if safety_min_temp is not None:
-            safety_min_temp = await self.get_hubspace_temp(cur_item, safety_min_temp)
+            safety_min_temp = await self.get_hubspace_temp(
+                cur_item, safety_min_temp, is_celsius
+            )
             update_obj.safety_min_temp = features.TargetTemperatureFeature(
                 value=safety_min_temp,
                 min=cur_item.safety_min_temp.min,
@@ -298,7 +301,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 instance=cur_item.safety_min_temp.instance,
             )
         if safety_max_temp is not None:
-            safety_max_temp = await self.get_hubspace_temp(cur_item, safety_max_temp)
+            safety_max_temp = await self.get_hubspace_temp(
+                cur_item, safety_max_temp, is_celsius
+            )
             update_obj.safety_max_temp = features.TargetTemperatureFeature(
                 value=safety_max_temp,
                 min=cur_item.safety_max_temp.min,
@@ -308,7 +313,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             )
         if target_temperature_auto_heating is not None:
             target_temperature_auto_heating = await self.get_hubspace_temp(
-                cur_item, target_temperature_auto_heating
+                cur_item, target_temperature_auto_heating, is_celsius
             )
             update_obj.target_temperature_auto_heating = (
                 features.TargetTemperatureFeature(
@@ -321,7 +326,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             )
         if target_temperature_auto_cooling is not None:
             target_temperature_auto_cooling = await self.get_hubspace_temp(
-                cur_item, target_temperature_auto_cooling
+                cur_item, target_temperature_auto_cooling, is_celsius
             )
             update_obj.target_temperature_auto_cooling = (
                 features.TargetTemperatureFeature(
@@ -334,7 +339,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             )
         if target_temperature_heating is not None:
             target_temperature_heating = await self.get_hubspace_temp(
-                cur_item, target_temperature_heating
+                cur_item, target_temperature_heating, is_celsius
             )
             update_obj.target_temperature_heating = features.TargetTemperatureFeature(
                 value=target_temperature_heating,
@@ -345,7 +350,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             )
         if target_temperature_cooling is not None:
             target_temperature_cooling = await self.get_hubspace_temp(
-                cur_item, target_temperature_cooling
+                cur_item, target_temperature_cooling, is_celsius
             )
             update_obj.target_temperature_cooling = features.TargetTemperatureFeature(
                 value=target_temperature_cooling,
@@ -357,9 +362,9 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         await self.update(device_id, obj_in=update_obj)
 
     async def get_hubspace_temp(
-        self, resource: Thermostat, temperature: float
+        self, resource: Thermostat, temperature: float, is_celsius: bool
     ) -> float:
-        if resource.display_celsius:
+        if resource.display_celsius or is_celsius:
             return temperature
         else:
             return calculate_hubspace_celsius(temperature)

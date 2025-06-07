@@ -525,6 +525,85 @@ async def test_set_state_in_f(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_set_state_in_f_force_c(mocked_controller):
+    await mocked_controller.initialize_elem(thermostat)
+    assert len(mocked_controller.items) == 1
+    mocked_controller[thermostat_id].hvac_mode.mode = "heat"
+    mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
+    mocked_controller[thermostat_id].display_celsius = False
+    await mocked_controller.set_state(
+        thermostat_id,
+        hvac_mode="cool",
+        safety_max_temp=35,
+        safety_min_temp=8,
+        target_temperature_auto_heating=22,
+        target_temperature_auto_cooling=22.5,
+        target_temperature_heating=17,
+        target_temperature_cooling=18,
+        is_celsius=True,
+    )
+    dev = mocked_controller.items[0]
+    assert dev.fan_mode.mode == "auto"
+    assert dev.fan_running is False
+    assert dev.hvac_mode.mode == "cool"
+    assert dev.safety_max_temp.value == 35
+    assert dev.safety_min_temp.value == 8
+    assert dev.target_temperature_auto_heating.value == 22
+    assert dev.target_temperature_auto_cooling.value == 22.5
+    assert dev.target_temperature_heating.value == 17
+    assert dev.target_temperature_cooling.value == 18
+    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
+    assert post["metadeviceId"] == thermostat_id
+    expected_calls = [
+        {
+            "functionClass": "mode",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "cool",
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "safety-mode-min-temp",
+            "lastUpdateTime": 12345,
+            "value": 8,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "safety-mode-max-temp",
+            "lastUpdateTime": 12345,
+            "value": 35,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "auto-cooling-target",
+            "lastUpdateTime": 12345,
+            "value": 22.5,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "auto-heating-target",
+            "lastUpdateTime": 12345,
+            "value": 22,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "heating-target",
+            "lastUpdateTime": 12345,
+            "value": 17,
+        },
+        {
+            "functionClass": "temperature",
+            "functionInstance": "cooling-target",
+            "lastUpdateTime": 12345,
+            "value": 18,
+        },
+    ]
+    for call in expected_calls:
+        assert call in post["values"]
+    assert len(expected_calls) == len(post["values"])
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "current_mode, prev_mode, params, expected_calls, expected_messages",
     [
