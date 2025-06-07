@@ -17,7 +17,13 @@ def populated_entity():
         ],
         id="entity-1",
         available=True,
-        current_temperature=12,
+        display_celsius=True,
+        current_temperature=features.CurrentTemperatureFeature(
+            temperature=12,
+            function_class="temperature",
+            function_instance="current-temp",
+        ),
+        fan_running=False,
         fan_mode=features.ModeFeature(mode="off", modes={"on", "off"}),
         hvac_action="off",
         hvac_mode=features.HVACModeFeature(
@@ -54,6 +60,7 @@ def empty_entity():
         [],
         id="entity-1",
         available=True,
+        display_celsius=None,
         current_temperature=None,
         fan_mode=None,
         hvac_action=None,
@@ -99,7 +106,11 @@ def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
     assert populated_entity.instances == {"preset": "preset-1"}
-    assert populated_entity.current_temperature == 12
+    assert populated_entity.current_temperature == features.CurrentTemperatureFeature(
+        temperature=12,
+        function_class="temperature",
+        function_instance="current-temp",
+    )
     assert populated_entity.fan_mode.mode == "off"
     assert populated_entity.hvac_action == "off"
     assert populated_entity.hvac_mode.mode == "heat"
@@ -120,6 +131,7 @@ def test_init(populated_entity):
     assert populated_entity.target_temperature_max == 32
     assert populated_entity.target_temperature_min == 4
     assert populated_entity.target_temperature_step == 0.5
+    assert populated_entity.temperature == 12
     populated_entity.hvac_mode.mode = "auto"
     assert populated_entity.target_temperature is None
     assert populated_entity.target_temperature_max == 32
@@ -146,6 +158,17 @@ def test_init(populated_entity):
     assert populated_entity.target_temperature == 19
     populated_entity.hvac_mode.previous_mode = "i-dont-exist"
     assert populated_entity.target_temperature is None
+    # Test F
+    populated_entity.display_celsius = False
+    populated_entity.hvac_mode.mode = "auto"
+    assert populated_entity.target_temperature_range == (
+        64,
+        80,
+    )
+    assert populated_entity.target_temperature_step == 1
+    assert populated_entity.target_temperature_max == 90
+    assert populated_entity.target_temperature_min == 39
+    assert populated_entity.temperature == 54
 
 
 def test_init_empty(empty_entity):

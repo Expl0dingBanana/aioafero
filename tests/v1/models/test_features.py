@@ -38,6 +38,17 @@ def test_CurrentPositionFeature():
     assert feat.api_value == "locked"
 
 
+def test_CurrentTemperatureFeature():
+    feat = features.CurrentTemperatureFeature(
+        temperature=1, function_class="temperature", function_instance="current-temp"
+    )
+    assert feat.api_value == {
+        "functionClass": "temperature",
+        "functionInstance": "current-temp",
+        "value": 1,
+    }
+
+
 def test_DimmingFeature():
     feat = features.DimmingFeature(
         brightness=30, supported=[10, 20, 30, 40, 50, 60, 70, 80, 90, 100]

@@ -3,7 +3,7 @@
 from ... import device
 from ...device import AferoDevice, AferoState
 from ...errors import DeviceNotFound
-from ...util import process_function
+from ...util import calculate_hubspace_celsius, process_function
 from ..models import features
 from ..models.portable_ac import PortableAC, PortableACPut
 from ..models.resource import DeviceInformation, ResourceTypes
@@ -36,7 +36,9 @@ class PortableACController(BaseResourcesController[PortableAC]):
     async def initialize_elem(self, afero_device: AferoDevice) -> PortableAC:
         """Initialize the element"""
         available: bool = False
-        current_temperature: float | None = None
+        # Afero reports in Celsius by default
+        display_celsius: bool = True
+        current_temperature: features.CurrentTemperatureFeature | None = None
         hvac_mode: features.HVACModeFeature | None = None
         target_temperature_cooling: features.TargetTemperatureFeature | None = None
         numbers: dict[tuple[str, str], features.NumbersFeature] = {}
@@ -49,7 +51,11 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 state.functionClass == "temperature"
                 and state.functionInstance == "current-temp"
             ):
-                current_temperature = round(state.value, 2)
+                current_temperature = features.CurrentTemperatureFeature(
+                    temperature=round(state.value, 1),
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
             elif (
                 state.functionClass == "temperature"
                 and state.functionInstance == "cooling-target"
@@ -57,6 +63,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 target_temperature_cooling = generate_target_temp(
                     func_def["values"][0], state
                 )
+
             elif state.functionClass == "mode":
                 all_modes = set(process_function(afero_device.functions, "mode"))
                 hvac_mode = features.HVACModeFeature(
@@ -71,6 +78,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 numbers[number[0]] = number[1]
             elif select := await self.initialize_select(afero_device.functions, state):
                 selects[select[0]] = select[1]
+            elif state.functionClass == "temperature-units":
+                display_celsius = state.value == "celsius"
 
         self._items[afero_device.id] = PortableAC(
             afero_device.functions,
@@ -83,6 +92,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
             selects=selects,
             binary_sensors={},
             sensors={},
+            display_celsius=display_celsius,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -107,8 +117,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 state.functionClass == "temperature"
                 and state.functionInstance == "current-temp"
             ):
-                if cur_item.current_temperature != round(state.value, 2):
-                    cur_item.current_temperature = round(state.value, 2)
+                if cur_item.current_temperature.temperature != round(state.value, 1):
+                    cur_item.current_temperature.temperature = round(state.value, 1)
                     updated_keys.add(f"temperature-{state.functionInstance}")
             elif (
                 state.functionClass == "temperature"
@@ -126,6 +136,11 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 updated_keys.add(update_key)
             elif update_key := await self.update_select(state, cur_item):
                 updated_keys.add(update_key)
+            elif state.functionClass == "temperature-units":
+                new_val: bool = state.value == "celsius"
+                if cur_item.display_celsius != new_val:
+                    cur_item.display_celsius = new_val
+                    updated_keys.add(state.functionClass)
         return updated_keys
 
     async def set_state(self, device_id: str, **kwargs) -> None:
@@ -155,6 +170,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     ", ".join(sorted(cur_item.hvac_mode.modes)),
                 )
         if target_temperature is not None:
+            if not cur_item.display_celsius and not kwargs.get("is_celsius", False):
+                target_temperature = calculate_hubspace_celsius(target_temperature)
             update_obj.target_temperature_cooling = features.TargetTemperatureFeature(
                 value=target_temperature,
                 min=cur_item.target_temperature_cooling.min,
@@ -173,6 +190,12 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     step=cur_item.numbers[key].step,
                     name=cur_item.numbers[key].name,
                     unit=cur_item.numbers[key].unit,
+                )
+                # Currently only ("timer", None) exists
+                update_obj.current_temperature = features.CurrentTemperatureFeature(
+                    temperature=cur_item.current_temperature.temperature + 1,
+                    function_class=cur_item.current_temperature.function_class,
+                    function_instance=cur_item.current_temperature.function_instance,
                 )
         if selects:
             for key, val in selects.items():

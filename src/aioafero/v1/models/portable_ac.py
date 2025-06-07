@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from ...util import calculate_hubspace_fahrenheit
 from ..models import features
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
@@ -12,7 +13,8 @@ class PortableAC:
     id: str  # ID used when interacting with Afero
     available: bool
 
-    current_temperature: float | None
+    display_celsius: bool | None
+    current_temperature: features.CurrentTemperatureFeature | None
     hvac_mode: features.HVACModeFeature | None
     target_temperature_cooling: features.TargetTemperatureFeature | None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None
@@ -40,19 +42,31 @@ class PortableAC:
 
     @property
     def target_temperature(self) -> float | None:
-        return self.target_temperature_cooling.value
+        if self.display_celsius:
+            return self.target_temperature_cooling.value
+        else:
+            return calculate_hubspace_fahrenheit(self.target_temperature_cooling.value)
 
     @property
     def target_temperature_step(self) -> float:
-        return self.target_temperature_cooling.step
+        if self.display_celsius:
+            return self.target_temperature_cooling.step
+        else:
+            return 1
 
     @property
     def target_temperature_max(self) -> float:
-        return self.target_temperature_cooling.max
+        if self.display_celsius:
+            return self.target_temperature_cooling.max
+        else:
+            return calculate_hubspace_fahrenheit(self.target_temperature_cooling.max)
 
     @property
     def target_temperature_min(self) -> float | None:
-        return self.target_temperature_cooling.min
+        if self.display_celsius:
+            return self.target_temperature_cooling.min
+        else:
+            return calculate_hubspace_fahrenheit(self.target_temperature_cooling.min)
 
     @property
     def supports_fan_mode(self) -> bool:
@@ -61,6 +75,13 @@ class PortableAC:
     @property
     def supports_temperature_range(self) -> bool:
         return False
+
+    @property
+    def temperature(self) -> float | None:
+        if self.display_celsius:
+            return self.current_temperature.temperature
+        else:
+            return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
 
     def get_instance(self, elem):
         """Lookup the instance associated with the elem"""
@@ -71,6 +92,9 @@ class PortableAC:
 class PortableACPut:
     """States that can be updated for a Thermostat"""
 
+    # This feels wrong but based on data dumps, setting timer increases the
+    # current temperature by 1 to turn it on
+    current_temperature: features.CurrentTemperatureFeature | None = None
     hvac_mode: features.HVACModeFeature | None = None
     target_temperature_cooling: features.TargetTemperatureFeature | None = None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
