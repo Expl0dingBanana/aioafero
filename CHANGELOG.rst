@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.3.4
+=============
+
+ * Fix an issue in thermostats where they incorrectly stated support for auto
+
 Version 3.3.3
 =============
 
