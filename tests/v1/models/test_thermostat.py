@@ -175,6 +175,9 @@ def test_init(populated_entity):
     populated_entity.hvac_mode.mode = "off"
     populated_entity.hvac_mode.previous_mode = "off"
     assert populated_entity.target_temperature is None
+    # Test does not support range
+    populated_entity.hvac_mode.supported_modes.remove("auto")
+    assert not populated_entity.supports_temperature_range
 
 
 def test_init_empty(empty_entity):
