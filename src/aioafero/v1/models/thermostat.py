@@ -146,6 +146,8 @@ class Thermostat:
 
     @property
     def supports_temperature_range(self) -> bool:
+        if not self.hvac_mode or "auto" not in self.hvac_mode.supported_modes:
+            return False
         return (
             self.target_temperature_auto_cooling is not None
             and self.target_temperature_auto_heating is not None
