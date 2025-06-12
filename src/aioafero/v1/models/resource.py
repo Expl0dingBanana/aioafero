@@ -21,6 +21,7 @@ class ResourceTypes(Enum):
     PARENT_DEVICE = "parent-device"
     PORTABLE_AC = "portable-air-conditioner"
     POWER_OUTLET = "power-outlet"
+    SECURITY_SYSTEM = "security-system"
     SWITCH = "switch"
     THERMOSTAT = "thermostat"
     UNKNOWN = "unknown"
