@@ -24,9 +24,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {}
     # Elements that map to numbers. func class / func instance to unit
-    ITEM_NUMBERS: dict[tuple[str, str | None], str] = {
-        ("timer", None): "minutes",
-    }
+    ITEM_NUMBERS: dict[tuple[str, str | None], str] = {}
     # Elements that map to Select. func class / func instance to name
     ITEM_SELECTS = {
         ("fan-speed", "ac-fan-speed"): "Fan Speed",
