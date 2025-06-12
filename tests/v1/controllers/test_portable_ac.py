@@ -39,11 +39,7 @@ async def test_initialize(mocked_controller):
     assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
         value=22, step=0.5, min=16, max=30, instance="cooling-target"
     )
-    assert dev.numbers == {
-        ("timer", None): features.NumbersFeature(
-            value=0, min=0, max=1440, step=30, name="timer", unit="minutes"
-        )
-    }
+    assert dev.numbers == {}
     assert dev.selects == {
         ("fan-speed", "ac-fan-speed"): features.SelectFeature(
             selected="fan-speed-auto",
@@ -97,12 +93,6 @@ async def test_update_elem(mocked_controller):
             }
         ),
         AferoState(
-            functionClass="timer",
-            functionInstance=None,
-            lastUpdateTime=0,
-            value=60,
-        ),
-        AferoState(
             functionClass="fan-speed",
             functionInstance="ac-fan-speed",
             lastUpdateTime=0,
@@ -128,14 +118,12 @@ async def test_update_elem(mocked_controller):
     assert dev.target_temperature_cooling.value == 18
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
-    assert dev.numbers[("timer", None)].value == 60
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
     assert updates == {
         "available",
         "temperature-cooling-target",
         "temperature-current-temp",
         "mode",
-        "number-('timer', None)",
         "select-('fan-speed', 'ac-fan-speed')",
         "temperature-units",
     }
@@ -159,14 +147,12 @@ async def test_set_state(mocked_controller):
         portable_ac_id,
         hvac_mode="cool",
         target_temperature=22.5,
-        numbers={("timer", None): 60},
         selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
     dev = mocked_controller.items[0]
     assert dev.target_temperature_cooling.value == 22.5
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
-    assert dev.numbers[("timer", None)].value == 60
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
     post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
     assert post["metadeviceId"] == portable_ac_id
@@ -184,22 +170,10 @@ async def test_set_state(mocked_controller):
             "value": 22.5,
         },
         {
-            "functionClass": "timer",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": 60,
-        },
-        {
             "functionClass": "fan-speed",
             "functionInstance": "ac-fan-speed",
             "lastUpdateTime": 12345,
             "value": "fan-speed-2-100",
-        },
-        {
-            "functionClass": "temperature",
-            "functionInstance": "current-temp",
-            "lastUpdateTime": 12345,
-            "value": 36,
         },
     ]
     for call in expected_calls:
@@ -300,7 +274,6 @@ async def test_set_state_invalid_dev(mocked_controller):
         "nope",
         hvac_mode="cool",
         target_temperature=22.5,
-        numbers={("timer", None): 60},
         selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
     mocked_controller._bridge.request.assert_not_called()
@@ -323,28 +296,15 @@ async def test_set_state_invalid_updates(mocked_controller):
     await mocked_controller.set_state(
         portable_ac_id,
         hvac_mode="i dont exist",
-        numbers={(None, None): 7, ("timer", None): 60},
         selects={(None, None): 7, ("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
     mocked_controller._bridge.request.assert_called_once()
     expected_calls = [
         {
-            "functionClass": "timer",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": 60,
-        },
-        {
             "functionClass": "fan-speed",
             "functionInstance": "ac-fan-speed",
             "lastUpdateTime": 12345,
             "value": "fan-speed-2-100",
-        },
-        {
-            "functionClass": "temperature",
-            "functionInstance": "current-temp",
-            "lastUpdateTime": 12345,
-            "value": 36,
         },
     ]
     post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
