@@ -15,6 +15,7 @@ __all__ = [
     "ValveController",
     "token_data",
     "PortableACController",
+    "SecuritySystemController",
 ]
 
 import asyncio
@@ -40,6 +41,7 @@ from .controllers.fan import FanController
 from .controllers.light import LightController
 from .controllers.lock import LockController
 from .controllers.portable_ac import PortableACController
+from .controllers.security_system import SecuritySystemController
 from .controllers.switch import SwitchController
 from .controllers.thermostat import ThermostatController
 from .controllers.valve import ValveController
@@ -56,6 +58,7 @@ type AferoModelResource = (
     | AferoSensor
     | models.ExhaustFan
     | models.PortableAC
+    | models.SecuritySystem
 )
 
 type AferoController = (
@@ -69,6 +72,7 @@ type AferoController = (
     | ValveController
     | ExhaustFanController
     | PortableACController
+    | SecuritySystemController
 )
 
 
@@ -120,6 +124,7 @@ class AferoBridgeV1:
         self._lights: LightController = LightController(self)
         self._locks: LockController = LockController(self)
         self._portable_acs: PortableACController = PortableACController(self)
+        self._security_system: SecuritySystemController = SecuritySystemController(self)
         self._switches: SwitchController = SwitchController(self)
         self._thermostats: ThermostatController = ThermostatController(self)
         self._valves: ValveController = ValveController(self)
@@ -175,6 +180,10 @@ class AferoBridgeV1:
         return self._portable_acs
 
     @property
+    def security_systems(self) -> SecuritySystemController:
+        return self._security_system
+
+    @property
     def switches(self) -> SwitchController:
         return self._switches
 
@@ -195,6 +204,7 @@ class AferoBridgeV1:
             self._lights,
             self._locks,
             self._portable_acs,
+            self.security_systems,
             self._switches,
             self._thermostats,
             self._valves,

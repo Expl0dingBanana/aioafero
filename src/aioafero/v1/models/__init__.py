@@ -20,6 +20,8 @@ __all__ = [
     "ValvePut",
     "PortableAC",
     "PortableACPut",
+    "SecuritySystem",
+    "SecuritySystemPut",
 ]
 
 
@@ -30,6 +32,7 @@ from .light import Light, LightPut
 from .lock import Lock, LockPut
 from .portable_ac import PortableAC, PortableACPut
 from .resource import ResourceTypes
+from .security_system import SecuritySystem, SecuritySystemPut
 from .sensor import AferoBinarySensor, AferoSensor
 from .switch import Switch, SwitchPut
 from .thermostat import Thermostat, ThermostatPut
