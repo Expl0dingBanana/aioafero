@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 3.3.5
+=============
+
+ * Fix an issue where auth could produce a UHE
+
 Version 3.3.4
 =============
 
