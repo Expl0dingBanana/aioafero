@@ -248,6 +248,15 @@ async def test_generate_code(
             None,
             auth.InvalidResponse,
         ),
+        # Weird stuff returned
+        (
+            True,
+            "code",
+            {"status": 400, "body": "{"},
+            None,
+            None,
+            auth.InvalidResponse,
+        ),
         # Valid refresh token
         (
             True,
