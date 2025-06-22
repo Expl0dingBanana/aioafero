@@ -2,7 +2,6 @@ __all__ = ["AferoAuth", "passthrough", "token_data"]
 
 import asyncio
 import base64
-import contextlib
 import datetime
 import hashlib
 import logging
@@ -280,13 +279,14 @@ class AferoAuth:
             data=data,
         ) as response:
             self.logger.debug(STATUS_CODE, response.status)
-            with contextlib.suppress(ValueError, ContentTypeError):
+            try:
                 resp_json = await response.json()
+            except (ValueError, ContentTypeError):
+                raise InvalidResponse("Unexpected data returned during token refresh")
             if response.status != 200:
                 if resp_json and resp_json.get("error") == "invalid_grant":
                     raise InvalidAuth()
-                else:
-                    response.raise_for_status()
+                response.raise_for_status()
             try:
                 refresh_token = resp_json["refresh_token"]
                 access_token = resp_json["access_token"]
