@@ -1,7 +1,5 @@
 """Test SecuritySystemController"""
 
-import asyncio
-
 import pytest
 
 from aioafero.device import AferoState

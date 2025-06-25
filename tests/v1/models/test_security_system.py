@@ -1,7 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features
-from aioafero.v1.models import SecuritySystem
+from aioafero.v1.models import SecuritySystem, features
 
 
 @pytest.fixture
@@ -18,18 +17,28 @@ def populated_entity():
         id="entity-1",
         available=True,
         alarm_state=features.ModeFeature(
-            mode="arm-away",
-            modes={"arm-away", "disarmed", "arm-stay", "alarming-sos"}
+            mode="arm-away", modes={"arm-away", "disarmed", "arm-stay", "alarming-sos"}
         ),
         numbers={
             ("arm-exit-delay", "away"): features.NumbersFeature(
-                value=0, min=0, max=300, step=1, name="Exit Delay - Away", unit="seconds"
+                value=0,
+                min=0,
+                max=300,
+                step=1,
+                name="Exit Delay - Away",
+                unit="seconds",
             ),
         },
         selects={
             ("volume ", "siren "): features.SelectFeature(
                 selected="volume-04",
-                selects={"volume-00", "volume-01", "volume-02", "volume-03", "volume-04"},
+                selects={
+                    "volume-00",
+                    "volume-01",
+                    "volume-02",
+                    "volume-03",
+                    "volume-04",
+                },
                 name="Siren Volume",
             ),
         },

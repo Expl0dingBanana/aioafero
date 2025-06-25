@@ -22,6 +22,7 @@ class ResourceTypes(Enum):
     PORTABLE_AC = "portable-air-conditioner"
     POWER_OUTLET = "power-outlet"
     SECURITY_SYSTEM = "security-system"
+    SECURITY_SYSTEM_SENSOR = "security-system-sensor"  # Create from device splits
     SWITCH = "switch"
     THERMOSTAT = "thermostat"
     UNKNOWN = "unknown"

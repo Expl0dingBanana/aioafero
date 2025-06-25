@@ -1,12 +1,64 @@
 """Controller holding and managing Afero IoT resources of type `security-system`."""
 
+import copy
+
 from ...device import AferoDevice, get_function_from_device
-from ..models import features
-from ..models import SecuritySystemPut, SecuritySystem
-from ..models.resource import DeviceInformation, ResourceTypes
-from ...util import process_function
 from ...errors import DeviceNotFound
+from ...util import process_function
+from ..models import SecuritySystem, SecuritySystemPut, features
+from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
+
+
+def get_sensor_ids(device) -> set[int]:
+    """Determine available sensors from the states"""
+    sensor_ids = set()
+    for state in device.states:
+        if state.functionInstance is None:
+            continue
+        if state.functionInstance.startswith("sensor-") and state.value is not None:
+            sensor_id = int(state.functionInstance.split("-", 1)[1])
+            sensor_ids.add(sensor_id)
+    return sensor_ids
+
+
+def generate_sensor_name(afero_device, sensor_id: int) -> str:
+    return f"{afero_device.id}-sensor-{sensor_id}"
+
+
+def get_valid_states(afero_states: list, sensor_id: int) -> list:
+    """Find states associated with the specific sensor"""
+    valid_states: list = []
+    for state in afero_states:
+        if (
+            state.functionClass not in ["sensor-state", "sensor-config"]
+            or state.value is None
+        ):
+            continue
+        state_sensor_split = state.functionInstance.rsplit("-", 1)
+        state_sensor_id = int(state_sensor_split[1])
+        if state_sensor_id != sensor_id:
+            continue
+        valid_states.append(state)
+    return valid_states
+
+
+def security_system_callback(devices: list[AferoDevice]) -> list[AferoDevice]:
+    multi_devs: list[AferoDevice] = []
+    for afero_device in devices:
+        if afero_device.device_class == "security-system":
+            for sensor_id in get_sensor_ids(afero_device):
+                cloned = copy.deepcopy(afero_device)
+                cloned.device_id = generate_sensor_name(afero_device, sensor_id)
+                cloned.id = generate_sensor_name(afero_device, sensor_id)
+                cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
+                cloned.friendly_name = (
+                    f"{afero_device.friendly_name} - Sensor {sensor_id}"
+                )
+                cloned.states = get_valid_states(afero_device.states, sensor_id)
+                cloned.is_multi = True
+                multi_devs.append(cloned)
+    return multi_devs
 
 
 class SecuritySystemController(BaseResourcesController[SecuritySystem]):
@@ -28,11 +80,21 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
     }
     # Elements that map to numbers. func class / func instance to NumbersName
     ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
-        ("arm-exit-delay", "away"): NumbersName(unit="seconds", display_name="Arm Exit Delay Away"),
-        ("arm-exit-delay", "stay"): NumbersName(unit="seconds", display_name="Arm Exit Delay Home"),
-        ("temporary-bypass-time", None): NumbersName(unit="seconds", display_name="Bypass Time"),
-        ("disarm-entry-delay", None): NumbersName(unit="seconds", display_name="Disarm Entry Delay"),
-        ("siren-alarm-timeout", None): NumbersName(unit="seconds", display_name="Siren Timeout"),
+        ("arm-exit-delay", "away"): NumbersName(
+            unit="seconds", display_name="Arm Exit Delay Away"
+        ),
+        ("arm-exit-delay", "stay"): NumbersName(
+            unit="seconds", display_name="Arm Exit Delay Home"
+        ),
+        ("temporary-bypass-time", None): NumbersName(
+            unit="seconds", display_name="Bypass Time"
+        ),
+        ("disarm-entry-delay", None): NumbersName(
+            unit="seconds", display_name="Disarm Entry Delay"
+        ),
+        ("siren-alarm-timeout", None): NumbersName(
+            unit="seconds", display_name="Siren Timeout"
+        ),
     }
     # Elements that map to Select. func class / func instance to name
     ITEM_SELECTS = {
@@ -47,30 +109,26 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         # ("dark-mode", None): "KeyPad Dark Mode",
         # ("song-id", "beep"): "KeyPad Noise",
     }
+    # Split sensors from the primary payload
+    DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
+        ResourceTypes.SECURITY_SYSTEM_SENSOR.value: security_system_callback
+    }
 
     async def disarm(self, device_id: str) -> None:
         """Disarm the system"""
-        await self.set_state(
-            device_id, mode="disarmed"
-        )
+        await self.set_state(device_id, mode="disarmed")
 
     async def arm_home(self, device_id: str) -> None:
         """Arms the system while someone is home"""
-        await self.set_state(
-            device_id, mode="arm-started-stay"
-        )
+        await self.set_state(device_id, mode="arm-started-stay")
 
     async def arm_away(self, device_id: str) -> None:
         """Arms the system while no one is home"""
-        await self.set_state(
-            device_id, mode="arm-started-away"
-        )
+        await self.set_state(device_id, mode="arm-started-away")
 
     async def alarm_trigger(self, device_id: str) -> None:
         """Manually trigger the alarm"""
-        await self.set_state(
-            device_id, mode="alarming-sos"
-        )
+        await self.set_state(device_id, mode="alarming-sos")
 
     async def initialize_elem(self, afero_device: AferoDevice) -> SecuritySystem:
         """Initialize the element"""
@@ -89,7 +147,9 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
             elif state.functionClass == "alarm-state":
                 alarm_state = features.ModeFeature(
                     mode=state.value,
-                    modes=set(process_function(afero_device.functions, state.functionClass)),
+                    modes=set(
+                        process_function(afero_device.functions, state.functionClass)
+                    ),
                 )
             elif sensor := await self.initialize_sensor(state, afero_device.device_id):
                 if isinstance(sensor, AferoBinarySensor):
