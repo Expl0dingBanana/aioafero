@@ -1,7 +1,5 @@
 """Test LockController"""
 
-import asyncio
-
 import pytest
 
 from aioafero.device import AferoState
@@ -134,8 +132,7 @@ async def test_lock_emitting(bridge):
     }
     # Simulate a poll
     bridge.events.emit(event.EventType.RESOURCE_ADDED, add_event)
-    # Bad way to check, but just wait a second so it can get processed
-    await asyncio.sleep(1)
+    await bridge.events.async_block_until_done()
     assert len(bridge.locks._items) == 1
     # Simulate an update
     utils.modify_state(
@@ -152,7 +149,6 @@ async def test_lock_emitting(bridge):
         "device": dev_update,
     }
     bridge.events.emit(event.EventType.RESOURCE_UPDATED, update_event)
-    # Bad way to check, but just wait a second so it can get processed
-    await asyncio.sleep(1)
+    await bridge.events.async_block_until_done()
     assert len(bridge.locks._items) == 1
     assert not bridge.locks._items[dev_update.id].available

@@ -1,7 +1,5 @@
 """Test SwitchController"""
 
-import asyncio
-
 import pytest
 
 from aioafero.device import AferoState
@@ -335,8 +333,7 @@ async def test_switch_emit_update(bridge):
     }
     # Simulate a poll
     bridge.events.emit(event.EventType.RESOURCE_ADDED, add_event)
-    # Bad way to check, but just wait a second so it can get processed
-    await asyncio.sleep(1)
+    await bridge.events.async_block_until_done()
     assert len(bridge.switches._items) == 1
     bridge.switches._items[transformer.id].sensors["watts"]._value = 0
     # Simulate an update
@@ -363,8 +360,7 @@ async def test_switch_emit_update(bridge):
         "device": transformer_update,
     }
     bridge.events.emit(event.EventType.RESOURCE_UPDATED, update_event)
-    # Bad way to check, but just wait a second so it can get processed
-    await asyncio.sleep(1)
+    await bridge.events.async_block_until_done()
     assert len(bridge.switches._items) == 1
     assert not bridge.switches._items[transformer.id].on["zone-2"].on
     assert bridge.switches._items[transformer.id].sensors["watts"].value == 1

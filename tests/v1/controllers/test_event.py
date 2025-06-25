@@ -20,7 +20,7 @@ switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 @pytest.mark.asyncio
 async def test_properties(bridge):
     stream = bridge.events
-    assert len(stream._bg_tasks) == 2
+    assert len(stream._scheduled_tasks) == 2
     stream._status = event.EventStreamStatus.CONNECTING
     assert stream.connected is False
     assert stream.status == event.EventStreamStatus.CONNECTING
@@ -35,14 +35,14 @@ async def test_properties(bridge):
 @pytest.mark.asyncio
 async def test_initialize(bridge):
     stream = bridge.events
-    assert len(stream._bg_tasks) == 2
+    assert len(stream._scheduled_tasks) == 2
 
 
 @pytest.mark.asyncio
 async def test_stop(bridge):
     stream = bridge.events
     await stream.stop()
-    assert len(stream._bg_tasks) == 0
+    assert len(stream._scheduled_tasks) == 0
 
 
 @pytest.mark.asyncio
@@ -84,11 +84,9 @@ async def test_event_reader_dev_add(bridge, mocker):
     stream._subscribers = []
     await stream.stop()
 
-    def afero_dev(dev):
-        return dev
+    light_raw = utils.get_raw_dump("light-a21-raw.json")
 
-    mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=[a21_light]))
-    mocker.patch.object(event, "get_afero_device", side_effect=afero_dev)
+    mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=light_raw))
     await stream.initialize_reader()
     max_retry = 10
     retry = 0
