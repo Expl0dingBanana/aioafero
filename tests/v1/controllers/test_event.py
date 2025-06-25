@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import dataclasses
 import logging
 from unittest.mock import AsyncMock
@@ -28,6 +29,7 @@ async def test_properties(bridge):
     stream.polling_interval = 1
     assert stream._polling_interval == 1
     assert stream.polling_interval == 1
+    assert stream.registered_multiple_devices == {}
 
 
 @pytest.mark.asyncio
@@ -283,6 +285,84 @@ async def test_generate_events_from_data(bridge, mocker):
         "type": event.EventType.RESOURCE_DELETED,
         "device_id": "doesnt_exist_list",
     }
+
+
+def get_sensor_ids(device) -> set[int]:
+    """Determine available sensors from the states"""
+    sensor_ids = set()
+    for state in device.states:
+        if state.functionInstance is None:
+            continue
+        if state.functionInstance.startswith("sensor-") and state.value is not None:
+            sensor_id = int(state.functionInstance.split("-", 1)[1])
+            sensor_ids.add(sensor_id)
+    return sensor_ids
+
+
+def generate_sensor_name(afero_device, sensor_id: int) -> str:
+    return f"{afero_device.id}-sensor-{sensor_id}"
+
+
+def get_valid_states(afero_states: list, sensor_id: int) -> list:
+    valid_states: list = []
+    for state in afero_states:
+        if (
+            state.functionClass not in ["sensor-state", "sensor-config"]
+            or state.value is None
+        ):
+            continue
+        state_sensor_split = state.functionInstance.rsplit("-", 1)
+        state_sensor_id = int(state_sensor_split[1])
+        if state_sensor_id != sensor_id:
+            continue
+        valid_states.append(state)
+    return valid_states
+
+
+def security_system_callback(devices):
+    multi_devs = []
+    for afero_device in devices:
+        if afero_device.device_class == "security-system":
+            for sensor_id in get_sensor_ids(afero_device):
+                cloned = copy.deepcopy(afero_device)
+                cloned.device_id = generate_sensor_name(afero_device, sensor_id)
+                cloned.id = generate_sensor_name(afero_device, sensor_id)
+                cloned.device_class = "security-system-sensor"
+                cloned.friendly_name = (
+                    f"{afero_device.friendly_name} - Sensor {sensor_id}"
+                )
+                cloned.states = get_valid_states(afero_device.states, sensor_id)
+                cloned.is_multi = True
+                multi_devs.append(cloned)
+    return multi_devs
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_data_multi(bridge):
+    stream = bridge.events
+    await stream.stop()
+    afero_data = utils.get_raw_dump("security-system-raw.json")
+    stream.register_multi_device("security-system-sensor", security_system_callback)
+    await stream.generate_events_from_data(afero_data)
+    assert stream._event_queue.qsize() == 5
+    security_keypad_event = await stream._event_queue.get()
+    assert security_keypad_event["type"] == event.EventType.RESOURCE_ADDED
+    assert security_keypad_event["device_id"] == "1f31be19-b9b9-4ca8-8a22-20d0015ec2dd"
+    security_system_event = await stream._event_queue.get()
+    assert security_system_event["type"] == event.EventType.RESOURCE_ADDED
+    assert security_system_event["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    sensor_one = await stream._event_queue.get()
+    assert sensor_one["type"] == event.EventType.RESOURCE_ADDED
+    assert sensor_one["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-1"
+    assert len(sensor_one["device"].states) == 2
+    sensor_two = await stream._event_queue.get()
+    assert sensor_two["type"] == event.EventType.RESOURCE_ADDED
+    assert sensor_two["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
+    assert len(sensor_two["device"].states) == 2
+    sensor_four = await stream._event_queue.get()
+    assert sensor_four["type"] == event.EventType.RESOURCE_ADDED
+    assert sensor_four["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-4"
+    assert len(sensor_four["device"].states) == 2
 
 
 @pytest.mark.asyncio
