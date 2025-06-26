@@ -59,7 +59,6 @@ class EventStream:
         self._event_queue = asyncio.Queue()
         self._status = EventStreamStatus.DISCONNECTED
         self._scheduled_tasks: list[asyncio.Task] = []
-        self._adhoc_tasks: list[asyncio.Task] = []
         self._subscribers: list[EventSubscriptionType] = []
         self._logger = bridge.logger.getChild("events")
         self._polling_interval: int = polling_interval
@@ -87,11 +86,6 @@ class EventStream:
     def polling_interval(self, polling_interval: int) -> None:
         self._polling_interval = polling_interval
 
-    async def async_block_until_done(self):
-        # This is a dirty way to handle it but it works for what we need
-        await asyncio.gather(*self._adhoc_tasks)
-        self._adhoc_tasks = []
-
     async def initialize(self) -> None:
         """Start the polling processes"""
         assert len(self._scheduled_tasks) == 0
@@ -103,6 +97,9 @@ class EventStream:
 
     async def initialize_processor(self) -> None:
         self._scheduled_tasks.append(asyncio.create_task(self.__event_processor()))
+
+    async def task_cleanup(self) -> None:
+        self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
 
     def register_multi_device(self, name: str, generate_devices: callable):
         """Register a callable to find multi-devices within the payload
@@ -171,7 +168,7 @@ class EventStream:
                 ):
                     continue
                 if iscoroutinefunction(callback):
-                    self._adhoc_tasks.append(
+                    self._bridge.add_job(
                         asyncio.create_task(callback(event_type, data))
                     )
                 else:

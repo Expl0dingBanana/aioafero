@@ -189,7 +189,7 @@ async def test_exhaust_fan_emitting(bridge):
     }
     # Simulate a poll
     bridge.events.emit(event.EventType.RESOURCE_ADDED, add_event)
-    await bridge.events.async_block_until_done()
+    await bridge.async_block_until_done()
     assert len(bridge.exhaust_fans._items) == 1
     # Simulate an update
     utils.modify_state(
@@ -206,7 +206,7 @@ async def test_exhaust_fan_emitting(bridge):
         "device": dev_update,
     }
     bridge.events.emit(event.EventType.RESOURCE_UPDATED, update_event)
-    await bridge.events.async_block_until_done()
+    await bridge.async_block_until_done()
     assert len(bridge.exhaust_fans._items) == 1
     assert not bridge.exhaust_fans._items[dev_update.id].available
 

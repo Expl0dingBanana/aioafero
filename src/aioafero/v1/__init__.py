@@ -105,6 +105,9 @@ class AferoBridgeV1:
         self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
         self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
+        # Known running tasks
+        self._scheduled_tasks: list[asyncio.Task] = []
+        self._adhoc_tasks: list[asyncio.Task] = []
         # Data Updater
         self._events: EventStream = EventStream(self, polling_interval)
         # Data Controllers
@@ -236,6 +239,9 @@ class AferoBridgeV1:
 
     async def close(self) -> None:
         """Close connection and cleanup."""
+        for task in self._scheduled_tasks:
+            task.cancel()
+        self._scheduled_tasks = []
         await self.events.stop()
         if self._close_session and self._web_session:
             await self._web_session.close()
@@ -288,8 +294,10 @@ class AferoBridgeV1:
 
     async def initialize(self) -> None:
         """Query Afero API for all data"""
-        await self.get_account_id()
+        assert len(self._scheduled_tasks) == 0
+        await self.initialize_cleanup()
         data = await self.fetch_data()
+        await self.get_account_id()
         await asyncio.gather(
             *[
                 controller.initialize(data)
@@ -394,3 +402,22 @@ class AferoBridgeV1:
         }
         headers.update(kwargs)
         return headers
+
+    # Task management enables us to block until finished
+    def add_job(self, task: asyncio.Task) -> None:
+        self._adhoc_tasks.append(task)
+
+    async def async_block_until_done(self):
+        await asyncio.gather(*self._adhoc_tasks)
+        self._adhoc_tasks = []
+
+    async def initialize_cleanup(self) -> None:
+        self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
+
+    async def __cleanup_processor(self) -> None:
+        """Removes finished tasks"""
+        while True:
+            for task in self._adhoc_tasks[:]:
+                if task.done():
+                    self._adhoc_tasks.remove(task)
+            await asyncio.sleep(1)
