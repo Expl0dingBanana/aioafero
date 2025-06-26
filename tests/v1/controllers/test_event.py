@@ -98,7 +98,10 @@ async def test_event_reader_dev_add(bridge, mocker):
             await asyncio.sleep(0.1)
         else:
             break
+    await stream.async_block_until_done()
     assert stream._event_queue.qsize() != 0
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_ADDED,
@@ -266,7 +269,10 @@ async def test_generate_events_from_data(bridge, mocker):
     bad_switch.device_class = ""
     mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
     await stream.generate_events_from_data([a21_light, switch, bad_switch])
-    assert stream._event_queue.qsize() == 3
+    await stream.async_block_until_done()
+    assert stream._event_queue.qsize() == 4
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     assert await stream._event_queue.get() == {
         "type": event.EventType.RESOURCE_ADDED,
         "device_id": a21_light.id,
@@ -342,7 +348,9 @@ async def test_generate_events_from_data_multi(bridge):
     afero_data = utils.get_raw_dump("security-system-raw.json")
     stream.register_multi_device("security-system-sensor", security_system_callback)
     await stream.generate_events_from_data(afero_data)
-    assert stream._event_queue.qsize() == 5
+    assert stream._event_queue.qsize() == 6
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     security_keypad_event = await stream._event_queue.get()
     assert security_keypad_event["type"] == event.EventType.RESOURCE_ADDED
     assert security_keypad_event["device_id"] == "1f31be19-b9b9-4ca8-8a22-20d0015ec2dd"
@@ -372,11 +380,16 @@ async def test_generate_events_from_data_multi(bridge):
     [
         # Happy path
         (
-            [a21_light, switch],
+            utils.get_raw_dump("test_event_polled.json"),
+            None,
             None,
             [],
-            [],
             [
+                {
+                    "type": event.EventType.POLLED_DATA,
+                    "polled_data": None,
+                    "force_forward": False,
+                },
                 {
                     "type": event.EventType.RESOURCE_ADDED,
                     "device_id": a21_light.id,
@@ -430,14 +443,15 @@ async def test_perform_poll(
         "doesnt_exist_list": bridge.lights,
     }
     emit_calls = mocker.patch.object(stream, "emit")
-    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
-
     await stream.perform_poll()
+    await stream.async_block_until_done()
     assert emit_calls.call_count == len(expected_emits)
     for index, emit in enumerate(expected_emits):
         assert emit_calls.call_args_list[index][0][0] == emit, f"Issue at index {index}"
     assert stream._event_queue.qsize() == len(expected_queue)
     for index, event_to_process in enumerate(expected_queue):
+        if event_to_process["type"] == event.EventType.POLLED_DATA:
+            event_to_process["polled_data"] = mocker.ANY
         assert (
             await stream._event_queue.get() == event_to_process
         ), f"Issue at index {index}"
@@ -464,7 +478,10 @@ async def test_event_reader_dev_update(bridge, mocker):
             await asyncio.sleep(0.1)
         else:
             break
+    await stream.async_block_until_done()
     assert stream._event_queue.qsize() != 0
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_UPDATED,
@@ -498,7 +515,10 @@ async def test_event_reader_dev_delete(bridge, mocker):
             await asyncio.sleep(0.1)
         else:
             break
+    await stream.async_block_until_done()
     assert stream._event_queue.qsize() != 0
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_DELETED,

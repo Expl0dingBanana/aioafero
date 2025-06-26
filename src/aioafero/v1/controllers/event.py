@@ -38,6 +38,7 @@ class AferoEvent(TypedDict):
     type: EventType  # = EventType (add, update, delete)
     device_id: NotRequired[str]  # ID for interacting with the device
     device: NotRequired[AferoDevice]  # Afero Device
+    polled_data: NotRequired[Any]  # All data polled from the API
     force_forward: NotRequired[bool]
 
 
@@ -243,6 +244,13 @@ class EventStream:
             multi_devs = multi_dev_callable(devices)
             if multi_devs:
                 devices.extend(multi_devs)
+        self._event_queue.put_nowait(
+            AferoEvent(
+                type=EventType.POLLED_DATA,
+                polled_data=data,
+                force_forward=False,
+            )
+        )
         for device in devices:
             if not device.device_class:
                 continue
