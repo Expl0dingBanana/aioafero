@@ -103,7 +103,8 @@ class AferoBridgeV1:
             hide_secrets=hide_secrets,
         )
         self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
-        self.logger.addHandler(logging.StreamHandler())
+        if len(self.logger.handlers) == 0:
+            self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
         # Known running tasks
         self._scheduled_tasks: list[asyncio.Task] = []
@@ -241,6 +242,7 @@ class AferoBridgeV1:
         """Close connection and cleanup."""
         for task in self._scheduled_tasks:
             task.cancel()
+            await task
         self._scheduled_tasks = []
         await self.events.stop()
         if self._close_session and self._web_session:
@@ -408,15 +410,16 @@ class AferoBridgeV1:
 
     async def async_block_until_done(self):
         await asyncio.gather(*self._adhoc_tasks)
-        self._adhoc_tasks = []
+        self.logger.warning("Devs: %s", len(self.devices._items))
 
     async def initialize_cleanup(self) -> None:
         self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
 
     async def __cleanup_processor(self) -> None:
         """Removes finished tasks"""
-        while True:
-            for task in self._adhoc_tasks[:]:
-                if task.done():
-                    self._adhoc_tasks.remove(task)
-            await asyncio.sleep(1)
+        with contextlib.suppress(asyncio.CancelledError):
+            while True:
+                for task in self._adhoc_tasks[:]:
+                    if task.done():
+                        self._adhoc_tasks.remove(task)
+                await asyncio.sleep(0.1)

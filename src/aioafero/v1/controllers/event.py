@@ -1,6 +1,7 @@
 """Handle connecting to Afero IoT and distribute events."""
 
 import asyncio
+import contextlib
 from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable
 from enum import Enum
@@ -107,10 +108,11 @@ class EventStream:
 
     async def stop(self) -> None:
         """Stop listening for events."""
-        for task in self._scheduled_tasks:
-            task.cancel()
-        self._status = EventStreamStatus.DISCONNECTED
-        self._scheduled_tasks = []
+        with contextlib.suppress(asyncio.CancelledError):
+            for task in self._scheduled_tasks:
+                task.cancel()
+            self._status = EventStreamStatus.DISCONNECTED
+            self._scheduled_tasks = []
 
     def subscribe(
         self,
@@ -238,6 +240,7 @@ class EventStream:
             multi_devs = multi_dev_callable(devices)
             if multi_devs:
                 devices.extend(multi_devs)
+        self._logger.debug("Number of devices found: %s", len(devices))
         self._event_queue.put_nowait(
             AferoEvent(
                 type=EventType.POLLED_DATA,
