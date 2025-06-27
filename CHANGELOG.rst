@@ -2,6 +2,18 @@
 Changelog
 =========
 
+Version 4.0.0
+=============
+
+ * API BREAK: Update DeviceController to receive raw polled data so it can accurately
+    determine parent devices with split devices
+ * Implement the ability for a device to split into multiple devices
+    for easier control
+ * Implement the ability to have a callback when setting states so
+    split devices can properly update
+ * Implement the ability for numbers to have a custom display name rather than
+    the aggregate name
+
 Version 3.3.5
 =============
 
