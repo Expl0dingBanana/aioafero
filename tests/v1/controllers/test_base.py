@@ -11,6 +11,8 @@ from aioafero.v1.controllers import event
 from aioafero.v1.controllers.base import (
     ID_FILTER_ALL,
     BaseResourcesController,
+    NumbersFeature,
+    NumbersName,
     dataclass_to_afero,
     get_afero_instance_for_state,
     get_afero_state_from_feature,
@@ -378,6 +380,11 @@ class Example1ResourceController(BaseResourcesController):
     ITEM_CLS = TestResource
     ITEM_MAPPING: dict = {"beans": "mapped_beans"}
     DEVICE_SPLIT_CALLBACKS = {"nada": callback}
+    ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
+        ("yup", None): NumbersName(unit="unit", display_name="disp"),
+        ("nope", None): NumbersName(unit="unit", display_name=None),
+        ("nope", "nope"): NumbersName(unit="unit", display_name=None),
+    }
 
     async def initialize_elem(self, afero_dev: AferoDevice) -> TestResource:
         """Initialize the element"""
@@ -731,6 +738,56 @@ async def test_initialize(item_types, ex1_rc, mocker):
     await ex1_rc.initialize()
     assert ex1_rc._bridge.events._subscribers == [(handle_event, None, ("light",))]
     assert ex1_rc._bridge.events.registered_multiple_devices == {"nada": callback}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    (
+        "state",
+        "expected_name",
+        "expected_unit",
+    ),
+    [
+        (
+            AferoState(
+                functionClass="yup",
+                functionInstance=None,
+                value=60,
+            ),
+            "disp",
+            "unit",
+        ),
+        (
+            AferoState(
+                functionClass="nope",
+                functionInstance=None,
+                value=60,
+            ),
+            "nope",
+            "unit",
+        ),
+        (
+            AferoState(
+                functionClass="nope",
+                functionInstance="nope",
+                value=60,
+            ),
+            "nope-nope",
+            "unit",
+        ),
+    ],
+)
+async def test_initialize_number(state, expected_name, expected_unit, ex1_rc):
+    func_def = {"values": [{"range": {"min": 60, "max": 1800, "step": 60}}]}
+    _, number = await ex1_rc.initialize_number(func_def, state)
+    assert number == NumbersFeature(
+        value=state.value,
+        min=60,
+        max=1800,
+        step=60,
+        name=expected_name,
+        unit=expected_unit,
+    )
 
 
 @pytest.mark.parametrize(

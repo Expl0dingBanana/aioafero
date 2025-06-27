@@ -208,7 +208,7 @@ class BaseResourcesController(Generic[AferoResource]):
             primary_name = self.ITEM_NUMBERS[key].display_name
             if primary_name is None:
                 fallback_name = f"{state.functionClass}"
-                if state.functionInstance:
+                if state.functionInstance is not None:
                     fallback_name += f"-{state.functionInstance}"
                 primary_name = working_def.get("name", fallback_name)
             return key, NumbersFeature(
