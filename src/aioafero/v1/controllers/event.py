@@ -98,9 +98,6 @@ class EventStream:
     async def initialize_processor(self) -> None:
         self._scheduled_tasks.append(asyncio.create_task(self.__event_processor()))
 
-    async def task_cleanup(self) -> None:
-        self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
-
     def register_multi_device(self, name: str, generate_devices: callable):
         """Register a callable to find multi-devices within the payload
 

@@ -268,6 +268,8 @@ async def test_generate_events_from_data(bridge, mocker):
     bad_switch = dataclasses.replace(switch)
     bad_switch.device_class = ""
     mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
+    # Show what happens when no multi-devs are found
+    stream.register_multi_device("security-system-sensor", security_system_callback)
     await stream.generate_events_from_data([a21_light, switch, bad_switch])
     await stream._bridge.async_block_until_done()
     assert stream._event_queue.qsize() == 4

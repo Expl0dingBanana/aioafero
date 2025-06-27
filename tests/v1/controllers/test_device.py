@@ -23,6 +23,7 @@ def mocked_controller(mocked_bridge, mocker):
 @pytest.mark.asyncio
 async def test_initialize_not_needed(mocked_controller):
     await mocked_controller.initialize()
+    await mocked_controller.initialize()
 
 
 @pytest.mark.asyncio

@@ -179,11 +179,10 @@ class BaseResourcesController(Generic[AferoResource]):
             return
         # subscribe to item updates
         res_filter = tuple(x.value for x in self.ITEM_TYPES)
-        if res_filter:
-            self._bridge.events.subscribe(
-                self._handle_event,
-                resource_filter=res_filter,
-            )
+        self._bridge.events.subscribe(
+            self._handle_event,
+            resource_filter=res_filter,
+        )
         self._initialized = True
 
     async def initialize_number(
