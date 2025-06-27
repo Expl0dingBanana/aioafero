@@ -6,7 +6,7 @@ from ..models import features
 from ..models.exhaust_fan import ExhaustFan, ExhaustFanPut
 from ..models.features import NumbersFeature, SelectFeature
 from ..models.resource import DeviceInformation, ResourceTypes
-from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
 
 
 class ExhaustFanController(BaseResourcesController[ExhaustFan]):
@@ -29,8 +29,8 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
         "humidity-threshold-met": "above-threshold",
     }
     # Elements that map to numbers. func class / func instance to unit
-    ITEM_NUMBERS: dict[tuple[str, str | None], str] = {
-        ("auto-off-timer", "auto-off"): "seconds",
+    ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
+        ("auto-off-timer", "auto-off"): NumbersName(unit="seconds"),
     }
     # Elements that map to selects. func class / func instance to name
     ITEM_SELECTS = {

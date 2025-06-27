@@ -5,7 +5,7 @@ import time
 from asyncio.coroutines import iscoroutinefunction
 from dataclasses import dataclass, fields
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, NamedTuple
 
 from ...device import AferoDevice, AferoResource, AferoState, get_afero_device
 from ...errors import DeviceNotFound, ExceededMaximumRetries
@@ -30,6 +30,11 @@ ID_FILTER_ALL = "*"
 unit_extractor = re.compile(r"(\d*)(\D*)")
 
 
+class NumbersName(NamedTuple):
+    unit: str
+    display_name: str | None = None
+
+
 class BaseResourcesController(Generic[AferoResource]):
     """Base Controller for Afero IoT Cloud devices"""
 
@@ -43,7 +48,7 @@ class BaseResourcesController(Generic[AferoResource]):
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {}
     # Elements that map to numbers. func class / func instance to unit
-    ITEM_NUMBERS: dict[tuple[str, str | None], str] = {}
+    ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {}
     # Elements that map to selects func class / func instance to name
     ITEM_SELECTS: dict[tuple[str, str | None], str] = {}
     # Device Split Callbacks
@@ -200,16 +205,19 @@ class BaseResourcesController(Generic[AferoResource]):
         key = (state.functionClass, state.functionInstance)
         if key in self.ITEM_NUMBERS.keys():
             working_def = func_def["values"][0]
-            fallback_name = f"{state.functionClass}"
-            if state.functionInstance:
-                fallback_name += f"-{state.functionInstance}"
+            primary_name = self.ITEM_NUMBERS[key].display_name
+            if primary_name is None:
+                fallback_name = f"{state.functionClass}"
+                if state.functionInstance is not None:
+                    fallback_name += f"-{state.functionInstance}"
+                primary_name = working_def.get("name", fallback_name)
             return key, NumbersFeature(
                 value=state.value,
                 min=working_def["range"]["min"],
                 max=working_def["range"]["max"],
                 step=working_def["range"]["step"],
-                name=working_def.get("name", fallback_name),
-                unit=self.ITEM_NUMBERS[key],
+                name=primary_name,
+                unit=self.ITEM_NUMBERS[key].unit,
             )
         return None
 
