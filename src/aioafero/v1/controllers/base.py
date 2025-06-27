@@ -112,7 +112,10 @@ class BaseResourcesController(Generic[AferoResource]):
         """
         if evt_type == EventType.RESOURCE_ADDED:
             self._logger.info(
-                "Initializing %s as a %s", evt_data["device"].id, self.ITEM_CLS.__name__
+                "Initializing %s [%s] as a %s",
+                evt_data["device"].friendly_name,
+                evt_data["device"].id,
+                self.ITEM_CLS.__name__,
             )
             cur_item = await self.initialize_elem(evt_data["device"])
             self._items[item_id] = cur_item
@@ -152,7 +155,7 @@ class BaseResourcesController(Generic[AferoResource]):
                 continue
             # dispatch the full resource object to the callback
             if iscoroutinefunction(callback):
-                asyncio.create_task(callback(evt_type, item))
+                self._bridge.add_job(asyncio.create_task(callback(evt_type, item)))
             else:
                 callback(evt_type, item)
 

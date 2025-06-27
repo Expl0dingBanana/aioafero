@@ -98,7 +98,7 @@ class DeviceController(BaseResourcesController[Device]):
             else:
                 evt["type"] = EventType.RESOURCE_UPDATED
             processed.add(parent_device.device_id)
-            await self._handle_event_type(evt["type"], evt["device_id"], evt)
+            await self._handle_event(evt["type"], evt)
         for known_id in list(self._known_parents):
             if known_id not in processed:
                 device_id = self._known_parents.pop(known_id)
@@ -107,7 +107,7 @@ class DeviceController(BaseResourcesController[Device]):
                     type=EventType.RESOURCE_DELETED,
                     device_id=device_id,
                 )
-                await self._handle_event_type(evt["type"], evt["device_id"], evt)
+                await self._handle_event(evt["type"], evt)
 
     def get_filtered_devices(self, devices: list[AferoDevice]) -> list[AferoDevice]:
         """Find parent devices"""

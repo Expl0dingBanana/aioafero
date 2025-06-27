@@ -229,7 +229,8 @@ async def test_update_lifecycle(bridge, caplog):
     await bridge.async_block_until_done()
     assert len(bridge.devices.items) == 1
     assert (
-        "Initializing eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7 as a Device" in caplog.text
+        "Initializing friendly-device-0 [eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7] as a Device"
+        in caplog.text
     )
     dev = bridge.devices["eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7"]
     assert dev.available
