@@ -368,11 +368,16 @@ test_device_update = AferoDevice(
 )
 
 
+def callback(polled_data: list[dict]):
+    return []
+
+
 class Example1ResourceController(BaseResourcesController):
     ITEM_TYPE_ID: models.ResourceTypes = models.ResourceTypes.DEVICE
     ITEM_TYPES: list[models.ResourceTypes] = [models.ResourceTypes.LIGHT]
     ITEM_CLS = TestResource
     ITEM_MAPPING: dict = {"beans": "mapped_beans"}
+    DEVICE_SPLIT_CALLBACKS = {"nada": callback}
 
     async def initialize_elem(self, afero_dev: AferoDevice) -> TestResource:
         """Initialize the element"""
@@ -725,6 +730,7 @@ async def test_initialize(item_types, ex1_rc, mocker):
     handle_event = mocker.patch.object(ex1_rc, "_handle_event")
     await ex1_rc.initialize()
     assert ex1_rc._bridge.events._subscribers == [(handle_event, None, ("light",))]
+    assert ex1_rc._bridge.events.registered_multiple_devices == {"nada": callback}
 
 
 @pytest.mark.parametrize(

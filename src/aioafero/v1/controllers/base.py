@@ -46,6 +46,8 @@ class BaseResourcesController(Generic[AferoResource]):
     ITEM_NUMBERS: dict[tuple[str, str | None], str] = {}
     # Elements that map to selects func class / func instance to name
     ITEM_SELECTS: dict[tuple[str, str | None], str] = {}
+    # Device Split Callbacks
+    DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {}
 
     def __init__(self, bridge: "AferoBridgeV1") -> None:
         """Initialize instance."""
@@ -174,7 +176,12 @@ class BaseResourcesController(Generic[AferoResource]):
         return self.get_filtered_devices(initial_data)
 
     async def initialize(self) -> None:
-        """Initialize controller by subscribing to the required updates"""
+        """Initialize controller the controller
+
+        Initialization process should only occur once. During this process, it will
+        subscribe to all updates for the given resources and register any device
+        split callbacks for the event controller.
+        """
         if self._initialized:
             return
         # subscribe to item updates
@@ -183,6 +190,8 @@ class BaseResourcesController(Generic[AferoResource]):
             self._handle_event,
             resource_filter=res_filter,
         )
+        for name, callback in self.DEVICE_SPLIT_CALLBACKS.items():
+            self._bridge.events.register_multi_device(name, callback)
         self._initialized = True
 
     async def initialize_number(
