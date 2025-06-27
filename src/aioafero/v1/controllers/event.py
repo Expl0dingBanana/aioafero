@@ -38,6 +38,7 @@ class AferoEvent(TypedDict):
     type: EventType  # = EventType (add, update, delete)
     device_id: NotRequired[str]  # ID for interacting with the device
     device: NotRequired[AferoDevice]  # Afero Device
+    polled_data: NotRequired[Any]  # All data polled from the API
     force_forward: NotRequired[bool]
 
 
@@ -57,10 +58,11 @@ class EventStream:
         self._listeners = set()
         self._event_queue = asyncio.Queue()
         self._status = EventStreamStatus.DISCONNECTED
-        self._bg_tasks: list[asyncio.Task] = []
+        self._scheduled_tasks: list[asyncio.Task] = []
         self._subscribers: list[EventSubscriptionType] = []
         self._logger = bridge.logger.getChild("events")
         self._polling_interval: int = polling_interval
+        self._multiple_device_finder: dict[str, callable] = {}
 
     @property
     def connected(self) -> bool:
@@ -73,6 +75,10 @@ class EventStream:
         return self._status
 
     @property
+    def registered_multiple_devices(self) -> dict[str, Callable]:
+        return self._multiple_device_finder
+
+    @property
     def polling_interval(self) -> int:
         return self._polling_interval
 
@@ -82,22 +88,29 @@ class EventStream:
 
     async def initialize(self) -> None:
         """Start the polling processes"""
-        assert len(self._bg_tasks) == 0
+        assert len(self._scheduled_tasks) == 0
         await self.initialize_reader()
         await self.initialize_processor()
 
     async def initialize_reader(self) -> None:
-        self._bg_tasks.append(asyncio.create_task(self.__event_reader()))
+        self._scheduled_tasks.append(asyncio.create_task(self.__event_reader()))
 
     async def initialize_processor(self) -> None:
-        self._bg_tasks.append(asyncio.create_task(self.__event_processor()))
+        self._scheduled_tasks.append(asyncio.create_task(self.__event_processor()))
+
+    def register_multi_device(self, name: str, generate_devices: callable):
+        """Register a callable to find multi-devices within the payload
+
+        The callable must return a list of tracked AferoDevices
+        """
+        self._multiple_device_finder[name] = generate_devices
 
     async def stop(self) -> None:
         """Stop listening for events."""
-        for task in self._bg_tasks:
+        for task in self._scheduled_tasks:
             task.cancel()
         self._status = EventStreamStatus.DISCONNECTED
-        self._bg_tasks = []
+        self._scheduled_tasks = []
 
     def subscribe(
         self,
@@ -152,7 +165,9 @@ class EventStream:
                 ):
                     continue
                 if iscoroutinefunction(callback):
-                    asyncio.create_task(callback(event_type, data))
+                    self._bridge.add_job(
+                        asyncio.create_task(callback(event_type, data))
+                    )
                 else:
                     callback(event_type, data)
             except Exception:
@@ -218,8 +233,19 @@ class EventStream:
         """
         processed_ids = []
         skipped_ids = []
-        for dev in data:
-            device = get_afero_device(dev)
+        devices = [get_afero_device(dev) for dev in data]
+        for multi_dev_callable in self._multiple_device_finder.values():
+            multi_devs = multi_dev_callable(devices)
+            if multi_devs:
+                devices.extend(multi_devs)
+        self._event_queue.put_nowait(
+            AferoEvent(
+                type=EventType.POLLED_DATA,
+                polled_data=data,
+                force_forward=False,
+            )
+        )
+        for device in devices:
             if not device.device_class:
                 continue
             event_type = EventType.RESOURCE_UPDATED

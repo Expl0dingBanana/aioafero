@@ -4,6 +4,7 @@ from ...device import AferoDevice, get_afero_device
 from ..models.device import Device
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .event import AferoEvent, EventType
 
 
 class DeviceController(BaseResourcesController[Device]):
@@ -21,6 +22,7 @@ class DeviceController(BaseResourcesController[Device]):
     ITEM_BINARY_SENSORS: dict[str, str] = {
         "error": "alerting",
     }
+    _known_parents: dict[str, str] = {}
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Device:
         """Initialize the element"""
@@ -62,19 +64,56 @@ class DeviceController(BaseResourcesController[Device]):
         )
         return self._items[afero_device.id]
 
-    def get_filtered_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
+    async def initialize(self) -> None:
+        """Initialize controller by fetching all items for this resource type from bridge."""
+        if self._initialized:
+            return
+        # Subscribe to polled data to find all top-level devices
+        self._bridge.events.subscribe(
+            self._process_polled_data,
+            event_filter=EventType.POLLED_DATA,
+        )
+        self._initialized = True
+
+    async def _process_polled_data(
+        self, evt_type: EventType, evt_data: AferoEvent | None
+    ) -> None:
+        """Finds all top-level devices within the payload"""
+        polled_data: list[dict] = evt_data["polled_data"]
+        devices = [
+            get_afero_device(x)
+            for x in polled_data
+            if x.get("typeId") == ResourceTypes.DEVICE.value
+        ]
+        parent_devices: list[AferoDevice] = self.get_filtered_devices(devices)
+        processed: set[str] = set()
+        for parent_device in parent_devices:
+            evt = AferoEvent(
+                type=EventType.RESOURCE_ADDED,
+                device_id=parent_device.id,
+                device=parent_device,
+            )
+            if parent_device.device_id not in self._known_parents:
+                self._known_parents[parent_device.device_id] = parent_device.id
+            else:
+                evt["type"] = EventType.RESOURCE_UPDATED
+            processed.add(parent_device.device_id)
+            await self._handle_event_type(evt["type"], evt["device_id"], evt)
+        for known_id in list(self._known_parents):
+            if known_id not in processed:
+                device_id = self._known_parents.pop(known_id)
+                self._logger.info("Device %s was not polled. Removing", known_id)
+                evt = AferoEvent(
+                    type=EventType.RESOURCE_DELETED,
+                    device_id=device_id,
+                )
+                await self._handle_event_type(evt["type"], evt["device_id"], evt)
+
+    def get_filtered_devices(self, devices: list[AferoDevice]) -> list[AferoDevice]:
         """Find parent devices"""
         parents: dict = {}
         potential_parents: dict = {}
-        for element in initial_data:
-            if element["typeId"] != self.ITEM_TYPE_ID.value:
-                self._logger.debug(
-                    "TypeID [%s] does not match %s",
-                    element["typeId"],
-                    self.ITEM_TYPE_ID.value,
-                )
-                continue
-            device: AferoDevice = get_afero_device(element)
+        for device in devices:
             if device.children:
                 parents[device.device_id] = device
             elif device.device_id not in parents and (

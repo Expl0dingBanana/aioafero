@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import dataclasses
 import logging
 from unittest.mock import AsyncMock
@@ -19,7 +20,7 @@ switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 @pytest.mark.asyncio
 async def test_properties(bridge):
     stream = bridge.events
-    assert len(stream._bg_tasks) == 2
+    assert len(stream._scheduled_tasks) == 2
     stream._status = event.EventStreamStatus.CONNECTING
     assert stream.connected is False
     assert stream.status == event.EventStreamStatus.CONNECTING
@@ -28,19 +29,20 @@ async def test_properties(bridge):
     stream.polling_interval = 1
     assert stream._polling_interval == 1
     assert stream.polling_interval == 1
+    assert stream.registered_multiple_devices == {}
 
 
 @pytest.mark.asyncio
 async def test_initialize(bridge):
     stream = bridge.events
-    assert len(stream._bg_tasks) == 2
+    assert len(stream._scheduled_tasks) == 2
 
 
 @pytest.mark.asyncio
 async def test_stop(bridge):
     stream = bridge.events
     await stream.stop()
-    assert len(stream._bg_tasks) == 0
+    assert len(stream._scheduled_tasks) == 0
 
 
 @pytest.mark.asyncio
@@ -82,11 +84,9 @@ async def test_event_reader_dev_add(bridge, mocker):
     stream._subscribers = []
     await stream.stop()
 
-    def afero_dev(dev):
-        return dev
+    light_raw = utils.get_raw_dump("light-a21-raw.json")
 
-    mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=[a21_light]))
-    mocker.patch.object(event, "get_afero_device", side_effect=afero_dev)
+    mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=light_raw))
     await stream.initialize_reader()
     max_retry = 10
     retry = 0
@@ -98,7 +98,10 @@ async def test_event_reader_dev_add(bridge, mocker):
             await asyncio.sleep(0.1)
         else:
             break
+    await stream._bridge.async_block_until_done()
     assert stream._event_queue.qsize() != 0
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_ADDED,
@@ -265,8 +268,13 @@ async def test_generate_events_from_data(bridge, mocker):
     bad_switch = dataclasses.replace(switch)
     bad_switch.device_class = ""
     mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
+    # Show what happens when no multi-devs are found
+    stream.register_multi_device("security-system-sensor", security_system_callback)
     await stream.generate_events_from_data([a21_light, switch, bad_switch])
-    assert stream._event_queue.qsize() == 3
+    await stream._bridge.async_block_until_done()
+    assert stream._event_queue.qsize() == 4
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     assert await stream._event_queue.get() == {
         "type": event.EventType.RESOURCE_ADDED,
         "device_id": a21_light.id,
@@ -285,6 +293,86 @@ async def test_generate_events_from_data(bridge, mocker):
     }
 
 
+def get_sensor_ids(device) -> set[int]:
+    """Determine available sensors from the states"""
+    sensor_ids = set()
+    for state in device.states:
+        if state.functionInstance is None:
+            continue
+        if state.functionInstance.startswith("sensor-") and state.value is not None:
+            sensor_id = int(state.functionInstance.split("-", 1)[1])
+            sensor_ids.add(sensor_id)
+    return sensor_ids
+
+
+def generate_sensor_name(afero_device, sensor_id: int) -> str:
+    return f"{afero_device.id}-sensor-{sensor_id}"
+
+
+def get_valid_states(afero_states: list, sensor_id: int) -> list:
+    valid_states: list = []
+    for state in afero_states:
+        if (
+            state.functionClass not in ["sensor-state", "sensor-config"]
+            or state.value is None
+        ):
+            continue
+        state_sensor_split = state.functionInstance.rsplit("-", 1)
+        state_sensor_id = int(state_sensor_split[1])
+        if state_sensor_id != sensor_id:
+            continue
+        valid_states.append(state)
+    return valid_states
+
+
+def security_system_callback(devices):
+    multi_devs = []
+    for afero_device in devices:
+        if afero_device.device_class == "security-system":
+            for sensor_id in get_sensor_ids(afero_device):
+                cloned = copy.deepcopy(afero_device)
+                cloned.device_id = generate_sensor_name(afero_device, sensor_id)
+                cloned.id = generate_sensor_name(afero_device, sensor_id)
+                cloned.device_class = "security-system-sensor"
+                cloned.friendly_name = (
+                    f"{afero_device.friendly_name} - Sensor {sensor_id}"
+                )
+                cloned.states = get_valid_states(afero_device.states, sensor_id)
+                cloned.is_multi = True
+                multi_devs.append(cloned)
+    return multi_devs
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_data_multi(bridge):
+    stream = bridge.events
+    await stream.stop()
+    afero_data = utils.get_raw_dump("security-system-raw.json")
+    stream.register_multi_device("security-system-sensor", security_system_callback)
+    await stream.generate_events_from_data(afero_data)
+    assert stream._event_queue.qsize() == 6
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
+    security_keypad_event = await stream._event_queue.get()
+    assert security_keypad_event["type"] == event.EventType.RESOURCE_ADDED
+    assert security_keypad_event["device_id"] == "1f31be19-b9b9-4ca8-8a22-20d0015ec2dd"
+    security_system_event = await stream._event_queue.get()
+    assert security_system_event["type"] == event.EventType.RESOURCE_ADDED
+    assert security_system_event["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    sensor_one = await stream._event_queue.get()
+    assert sensor_one["type"] == event.EventType.RESOURCE_ADDED
+    assert sensor_one["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-1"
+    assert len(sensor_one["device"].states) == 2
+    sensor_two = await stream._event_queue.get()
+    assert sensor_two["type"] == event.EventType.RESOURCE_ADDED
+    assert sensor_two["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
+    assert len(sensor_two["device"].states) == 2
+    sensor_four = await stream._event_queue.get()
+    assert sensor_four["type"] == event.EventType.RESOURCE_ADDED
+    assert sensor_four["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-4"
+    assert len(sensor_four["device"].states) == 2
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     (
@@ -294,11 +382,16 @@ async def test_generate_events_from_data(bridge, mocker):
     [
         # Happy path
         (
-            [a21_light, switch],
+            utils.get_raw_dump("test_event_polled.json"),
+            None,
             None,
             [],
-            [],
             [
+                {
+                    "type": event.EventType.POLLED_DATA,
+                    "polled_data": None,
+                    "force_forward": False,
+                },
                 {
                     "type": event.EventType.RESOURCE_ADDED,
                     "device_id": a21_light.id,
@@ -352,14 +445,15 @@ async def test_perform_poll(
         "doesnt_exist_list": bridge.lights,
     }
     emit_calls = mocker.patch.object(stream, "emit")
-    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
-
     await stream.perform_poll()
+    await stream._bridge.async_block_until_done()
     assert emit_calls.call_count == len(expected_emits)
     for index, emit in enumerate(expected_emits):
         assert emit_calls.call_args_list[index][0][0] == emit, f"Issue at index {index}"
     assert stream._event_queue.qsize() == len(expected_queue)
     for index, event_to_process in enumerate(expected_queue):
+        if event_to_process["type"] == event.EventType.POLLED_DATA:
+            event_to_process["polled_data"] = mocker.ANY
         assert (
             await stream._event_queue.get() == event_to_process
         ), f"Issue at index {index}"
@@ -368,7 +462,7 @@ async def test_perform_poll(
 @pytest.mark.asyncio
 async def test_event_reader_dev_update(bridge, mocker):
     stream = bridge.events
-    bridge.lights.initialize({})
+    bridge.lights.initialize()
     await bridge.lights.initialize_elem(a21_light)
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
@@ -386,7 +480,10 @@ async def test_event_reader_dev_update(bridge, mocker):
             await asyncio.sleep(0.1)
         else:
             break
+    await stream._bridge.async_block_until_done()
     assert stream._event_queue.qsize() != 0
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_UPDATED,
@@ -399,7 +496,7 @@ async def test_event_reader_dev_update(bridge, mocker):
 @pytest.mark.asyncio
 async def test_event_reader_dev_delete(bridge, mocker):
     stream = bridge.events
-    bridge.lights.initialize({})
+    bridge.lights.initialize()
     bridge.lights.initialize_elem(a21_light)
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
@@ -420,7 +517,10 @@ async def test_event_reader_dev_delete(bridge, mocker):
             await asyncio.sleep(0.1)
         else:
             break
+    await stream._bridge.async_block_until_done()
     assert stream._event_queue.qsize() != 0
+    polled_data = await stream._event_queue.get()
+    assert polled_data["type"] == event.EventType.POLLED_DATA
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_DELETED,

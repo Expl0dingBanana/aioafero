@@ -46,6 +46,8 @@ class BaseResourcesController(Generic[AferoResource]):
     ITEM_NUMBERS: dict[tuple[str, str | None], str] = {}
     # Elements that map to selects func class / func instance to name
     ITEM_SELECTS: dict[tuple[str, str | None], str] = {}
+    # Device Split Callbacks
+    DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {}
 
     def __init__(self, bridge: "AferoBridgeV1") -> None:
         """Initialize instance."""
@@ -173,32 +175,23 @@ class BaseResourcesController(Generic[AferoResource]):
     async def _get_valid_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
         return self.get_filtered_devices(initial_data)
 
-    async def initialize(self, initial_data: list[dict]) -> None:
-        """Initialize controller by fetching all items for this resource type from bridge."""
+    async def initialize(self) -> None:
+        """Initialize controller the controller
+
+        Initialization process should only occur once. During this process, it will
+        subscribe to all updates for the given resources and register any device
+        split callbacks for the event controller.
+        """
         if self._initialized:
             return
-        valid_devices: list[AferoDevice] = await self._get_valid_devices(initial_data)
-        for device in valid_devices:
-            await self._handle_event(
-                EventType.RESOURCE_ADDED,
-                AferoEvent(
-                    type=EventType.RESOURCE_ADDED,
-                    device_id=device.id,
-                    device=device,
-                ),
-            )
         # subscribe to item updates
         res_filter = tuple(x.value for x in self.ITEM_TYPES)
-        if res_filter:
-            self._bridge.events.subscribe(
-                self._handle_event,
-                resource_filter=res_filter,
-            )
-        else:
-            # Subscribe to all events
-            self._bridge.events.subscribe(
-                self._handle_event,
-            )
+        self._bridge.events.subscribe(
+            self._handle_event,
+            resource_filter=res_filter,
+        )
+        for name, callback in self.DEVICE_SPLIT_CALLBACKS.items():
+            self._bridge.events.register_multi_device(name, callback)
         self._initialized = True
 
     async def initialize_number(
