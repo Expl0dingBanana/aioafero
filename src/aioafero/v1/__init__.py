@@ -296,11 +296,10 @@ class AferoBridgeV1:
         """Query Afero API for all data"""
         assert len(self._scheduled_tasks) == 0
         await self.initialize_cleanup()
-        data = await self.fetch_data()
         await self.get_account_id()
         await asyncio.gather(
             *[
-                controller.initialize(data)
+                controller.initialize()
                 for controller in self._controllers
                 if not controller.initialized
             ]

@@ -714,23 +714,17 @@ async def test__get_valid_devices(get_filtered_devices, expected_ids, ex1_rc):
 async def test_initialize_not_needed(ex1_rc, mocker):
     check = mocker.patch.object(ex1_rc, "_get_valid_devices")
     ex1_rc._initialized = True
-    await ex1_rc.initialize(utils.get_raw_dump("raw_hs_data.json"))
+    await ex1_rc.initialize()
     check.assert_not_called()
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("item_types", [True, False])
+@pytest.mark.parametrize("item_types", [True])
 async def test_initialize(item_types, ex1_rc, mocker):
     ex1_rc._initialized = False
-    if not item_types:
-        ex1_rc.ITEM_TYPES = []
     handle_event = mocker.patch.object(ex1_rc, "_handle_event")
-    await ex1_rc.initialize(utils.get_raw_dump("raw_hs_data.json"))
-    assert handle_event.call_count == 3
-    if item_types:
-        assert ex1_rc._bridge.events._subscribers == [(handle_event, None, ("light",))]
-    else:
-        assert ex1_rc._bridge.events._subscribers == [(handle_event, None, None)]
+    await ex1_rc.initialize()
+    assert ex1_rc._bridge.events._subscribers == [(handle_event, None, ("light",))]
 
 
 @pytest.mark.parametrize(

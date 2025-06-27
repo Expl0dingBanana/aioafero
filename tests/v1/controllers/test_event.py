@@ -460,7 +460,7 @@ async def test_perform_poll(
 @pytest.mark.asyncio
 async def test_event_reader_dev_update(bridge, mocker):
     stream = bridge.events
-    bridge.lights.initialize({})
+    bridge.lights.initialize()
     await bridge.lights.initialize_elem(a21_light)
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
@@ -494,7 +494,7 @@ async def test_event_reader_dev_update(bridge, mocker):
 @pytest.mark.asyncio
 async def test_event_reader_dev_delete(bridge, mocker):
     stream = bridge.events
-    bridge.lights.initialize({})
+    bridge.lights.initialize()
     bridge.lights.initialize_elem(a21_light)
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()

@@ -173,31 +173,16 @@ class BaseResourcesController(Generic[AferoResource]):
     async def _get_valid_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
         return self.get_filtered_devices(initial_data)
 
-    async def initialize(self, initial_data: list[dict]) -> None:
-        """Initialize controller by fetching all items for this resource type from bridge."""
+    async def initialize(self) -> None:
+        """Initialize controller by subscribing to the required updates"""
         if self._initialized:
             return
-        valid_devices: list[AferoDevice] = await self._get_valid_devices(initial_data)
-        for device in valid_devices:
-            await self._handle_event(
-                EventType.RESOURCE_ADDED,
-                AferoEvent(
-                    type=EventType.RESOURCE_ADDED,
-                    device_id=device.id,
-                    device=device,
-                ),
-            )
         # subscribe to item updates
         res_filter = tuple(x.value for x in self.ITEM_TYPES)
         if res_filter:
             self._bridge.events.subscribe(
                 self._handle_event,
                 resource_filter=res_filter,
-            )
-        else:
-            # Subscribe to all events
-            self._bridge.events.subscribe(
-                self._handle_event,
             )
         self._initialized = True
 
