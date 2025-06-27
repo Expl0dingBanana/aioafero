@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pytest
@@ -210,6 +211,16 @@ def test_set_token_data(mocked_bridge):
     )
     mocked_bridge.set_token_data(data)
     assert mocked_bridge.refresh_token == "refresh_token"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_process(mocked_bridge):
+    mocked_bridge.add_job(asyncio.create_task(asyncio.sleep(1)))
+    assert len(mocked_bridge._adhoc_tasks) == 1
+    await mocked_bridge.initialize_cleanup()
+    await mocked_bridge.async_block_until_done()
+    assert len(mocked_bridge._adhoc_tasks) == 0
+    await mocked_bridge.close()
 
 
 # @TODO - Implement these tests
