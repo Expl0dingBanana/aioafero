@@ -422,4 +422,4 @@ class AferoBridgeV1:
                 for task in self._adhoc_tasks[:]:
                     if task.done():
                         self._adhoc_tasks.remove(task)
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(1)
