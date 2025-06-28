@@ -1,11 +1,14 @@
 import pytest
 
+from aioafero import AferoState, get_afero_device
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.models.resource import DeviceInformation
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 
 from .. import utils
+from ..utils import modify_state
+from .test_event import security_system_callback
 
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
@@ -18,6 +21,17 @@ def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = DeviceController(mocked_bridge)
     yield controller
+
+
+@pytest.fixture
+def security_system_devices():
+    data = utils.get_raw_dump("security-system-raw.json")
+    devices = [get_afero_device(dev) for dev in data]
+    assert len(devices) == 2
+    multi_devs = security_system_callback(devices)
+    devices.extend(multi_devs)
+    assert len(devices) == 5
+    yield devices
 
 
 @pytest.mark.asyncio
@@ -165,14 +179,35 @@ async def test_initialize_binary_sensors(mocked_controller):
         ),
     ],
 )
-def test_get_filtered_devices(filename, expected, mocked_controller, caplog):
-    caplog.set_level(0)
+def test_get_filtered_devices(filename, expected, mocked_controller):
     data = utils.create_devices_from_data(filename)
     res = mocked_controller.get_filtered_devices(data)
     actual_devs = [x.device_id for x in res]
     assert len(actual_devs) == len(expected)
     for key in expected:
         assert key in actual_devs
+
+
+def test_get_filtered_devices_security_system(
+    mocked_controller, security_system_devices
+):
+    assert len(mocked_controller.get_filtered_devices(security_system_devices)) == 5
+    assert security_system_devices[0].friendly_name == "Main Keypad"
+    assert security_system_devices[1].friendly_name == "Helms Deep"
+    assert security_system_devices[2].friendly_name == "Helms Deep - Sensor 1"
+    assert security_system_devices[3].friendly_name == "Helms Deep - Sensor 2"
+    assert security_system_devices[4].friendly_name == "Helms Deep - Sensor 4"
+
+
+@pytest.mark.asyncio
+async def test__process_polled_devices(
+    mocked_controller, security_system_devices, mocker
+):
+    evt = event.AferoEvent(
+        type=event.EventType.POLLED_DEVICES, polled_devices=security_system_devices
+    )
+    await mocked_controller._process_polled_devices(evt["type"], evt)
+    assert len(mocked_controller.items) == 5
 
 
 @pytest.mark.asyncio
@@ -182,12 +217,12 @@ async def test_update_elem_sensor(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.id == a21_light.id
     dev_update: utils.AferoDevice = utils.create_devices_from_data("light-a21.json")[0]
-    unavail = utils.AferoState(
+    unavail = AferoState(
         functionClass="available",
         value=False,
     )
     utils.modify_state(dev_update, unavail)
-    rssi = utils.AferoState(
+    rssi = AferoState(
         functionClass="wifi-rssi",
         value="40db",
     )
@@ -205,7 +240,7 @@ async def test_update_elem_binary_sensor(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.id == freezer.id
     dev_update: utils.AferoDevice = utils.create_devices_from_data("freezer.json")[0]
-    temp_sensor_failure = utils.AferoState(
+    temp_sensor_failure = AferoState(
         functionClass="error",
         functionInstance="temperature-sensor-failure",
         value="alerting",
@@ -219,15 +254,18 @@ async def test_update_elem_binary_sensor(mocked_controller):
 @pytest.mark.asyncio
 async def test_update_lifecycle(bridge, caplog):
     caplog.set_level(0)
-    polled_data = utils.create_hs_raw_from_dump("freezer.json")
+    polled_devices = utils.create_devices_from_data("freezer.json")
     # Simulate a new poll with a new device
-    polled_data_event = event.AferoEvent(
-        type=event.EventType.POLLED_DATA,
-        polled_data=polled_data,
+    polled_devices_event = event.AferoEvent(
+        type=event.EventType.POLLED_DEVICES,
+        polled_devices=polled_devices,
     )
-    bridge.events.emit(event.EventType.POLLED_DATA, polled_data_event)
+    bridge.events.emit(polled_devices_event["type"], polled_devices_event)
     await bridge.async_block_until_done()
     assert len(bridge.devices.items) == 1
+    assert bridge.devices._known_parents == {
+        "596c120d-4e0d-4e33-ae9a-6330dcf2cbb5": "eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7"
+    }
     assert (
         "Initializing friendly-device-0 [eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7] as a Device"
         in caplog.text
@@ -237,36 +275,54 @@ async def test_update_lifecycle(bridge, caplog):
     assert dev.sensors["wifi-rssi"].value == -71
     assert dev.binary_sensors["error|temperature-sensor-failure"].value is False
     # Simulate an update
-    for state in polled_data[0]["state"]["values"]:
-        if state["functionClass"] == "available":
-            state["value"] = False
-        elif state["functionClass"] == "wifi-rssi":
-            state["value"] = -42
-        elif (
-            state["functionClass"] == "error"
-            and state["functionInstance"] == "temperature-sensor-failure"
-        ):
-            state["value"] = "alerting"
-    polled_data_event = event.AferoEvent(
-        type=event.EventType.POLLED_DATA,
-        polled_data=polled_data,
+    modify_state(
+        polled_devices[0],
+        AferoState(
+            functionClass="available",
+            functionInstance=None,
+            value=False,
+        ),
     )
-    bridge.events.emit(event.EventType.POLLED_DATA, polled_data_event)
+    modify_state(
+        polled_devices[0],
+        AferoState(
+            functionClass="wifi-rssi",
+            functionInstance=None,
+            value=-42,
+        ),
+    )
+    modify_state(
+        polled_devices[0],
+        AferoState(
+            functionClass="error",
+            functionInstance="temperature-sensor-failure",
+            value="alerting",
+        ),
+    )
+    polled_devices_event = event.AferoEvent(
+        type=event.EventType.POLLED_DEVICES,
+        polled_devices=polled_devices,
+    )
+    bridge.events.emit(polled_devices_event["type"], polled_devices_event)
     await bridge.async_block_until_done()
     assert len(bridge.devices.items) == 1
+    assert bridge.devices._known_parents == {
+        "596c120d-4e0d-4e33-ae9a-6330dcf2cbb5": "eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7"
+    }
     dev = bridge.devices["eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7"]
     assert not dev.available
     assert dev.sensors["wifi-rssi"].value == -42
     assert dev.binary_sensors["error|temperature-sensor-failure"].value
     # Simulate removal
-    polled_data_event = event.AferoEvent(
-        type=event.EventType.POLLED_DATA,
-        polled_data=[],
+    polled_devices_event = event.AferoEvent(
+        type=event.EventType.POLLED_DEVICES,
+        polled_devices=[],
     )
-    bridge.events.emit(event.EventType.POLLED_DATA, polled_data_event)
+    bridge.events.emit(polled_devices_event["type"], polled_devices_event)
     await bridge.async_block_until_done()
     assert (
         "Device 596c120d-4e0d-4e33-ae9a-6330dcf2cbb5 was not polled. Removing"
         in caplog.text
     )
     assert len(bridge.devices.items) == 0
+    assert bridge.devices._known_parents == {}

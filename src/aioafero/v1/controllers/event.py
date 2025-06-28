@@ -14,6 +14,7 @@ from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 from ...device import AferoDevice, get_afero_device
 from ...errors import InvalidAuth
 from ...types import EventType
+from ..models import ResourceTypes
 
 if TYPE_CHECKING:  # pragma: no cover
     from .. import AferoBridgeV1
@@ -40,6 +41,7 @@ class AferoEvent(TypedDict):
     device_id: NotRequired[str]  # ID for interacting with the device
     device: NotRequired[AferoDevice]  # Afero Device
     polled_data: NotRequired[Any]  # All data polled from the API
+    polled_devices: NotRequired[Any]  # All devices after the device split callbacks
     force_forward: NotRequired[bool]
 
 
@@ -235,7 +237,11 @@ class EventStream:
         """
         processed_ids = []
         skipped_ids = []
-        devices = [get_afero_device(dev) for dev in data]
+        devices = [
+            get_afero_device(dev)
+            for dev in data
+            if dev.get("typeId") == ResourceTypes.DEVICE.value
+        ]
         for multi_dev_callable in self._multiple_device_finder.values():
             multi_devs = multi_dev_callable(devices)
             if multi_devs:
@@ -245,6 +251,13 @@ class EventStream:
             AferoEvent(
                 type=EventType.POLLED_DATA,
                 polled_data=data,
+                force_forward=False,
+            )
+        )
+        self._event_queue.put_nowait(
+            AferoEvent(
+                type=EventType.POLLED_DEVICES,
+                polled_devices=devices,
                 force_forward=False,
             )
         )

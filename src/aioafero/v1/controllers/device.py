@@ -1,6 +1,6 @@
 """Controller that holds top-level devices"""
 
-from ...device import AferoDevice, get_afero_device
+from ...device import AferoDevice
 from ..models.device import Device
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
@@ -70,21 +70,16 @@ class DeviceController(BaseResourcesController[Device]):
             return
         # Subscribe to polled data to find all top-level devices
         self._bridge.events.subscribe(
-            self._process_polled_data,
-            event_filter=EventType.POLLED_DATA,
+            self._process_polled_devices,
+            event_filter=EventType.POLLED_DEVICES,
         )
         self._initialized = True
 
-    async def _process_polled_data(
+    async def _process_polled_devices(
         self, evt_type: EventType, evt_data: AferoEvent | None
     ) -> None:
         """Finds all top-level devices within the payload"""
-        polled_data: list[dict] = evt_data["polled_data"]
-        devices = [
-            get_afero_device(x)
-            for x in polled_data
-            if x.get("typeId") == ResourceTypes.DEVICE.value
-        ]
+        devices: list[AferoDevice] = evt_data["polled_devices"]
         parent_devices: list[AferoDevice] = self.get_filtered_devices(devices)
         processed: set[str] = set()
         for parent_device in parent_devices:

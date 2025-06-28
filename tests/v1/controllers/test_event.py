@@ -1,6 +1,5 @@
 import asyncio
 import copy
-import dataclasses
 import logging
 from unittest.mock import AsyncMock
 
@@ -102,6 +101,9 @@ async def test_event_reader_dev_add(bridge, mocker):
     assert stream._event_queue.qsize() != 0
     polled_data = await stream._event_queue.get()
     assert polled_data["type"] == event.EventType.POLLED_DATA
+    polled_devices = await stream._event_queue.get()
+    assert polled_devices["type"] == event.EventType.POLLED_DEVICES
+    assert len(polled_devices["polled_devices"]) == 1
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_ADDED,
@@ -259,22 +261,23 @@ async def test_gather_data(
 async def test_generate_events_from_data(bridge, mocker):
     stream = bridge.events
     await stream.stop()
-    a21_light = utils.create_devices_from_data("light-a21.json")[0]
-    switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
+    raw_data = []
+    raw_data.extend(utils.create_hs_raw_from_dump("light-a21.json"))
+    raw_data.append(utils.create_hs_raw_from_dump("switch-HPDA311CWB.json")[0])
     bridge._known_devs = {
         switch.id: bridge.switches,
         "doesnt_exist_list": bridge.lights,
     }
-    bad_switch = dataclasses.replace(switch)
-    bad_switch.device_class = ""
-    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
     # Show what happens when no multi-devs are found
     stream.register_multi_device("security-system-sensor", security_system_callback)
-    await stream.generate_events_from_data([a21_light, switch, bad_switch])
+    await stream.generate_events_from_data(raw_data)
     await stream._bridge.async_block_until_done()
-    assert stream._event_queue.qsize() == 4
+    assert stream._event_queue.qsize() == 5
     polled_data = await stream._event_queue.get()
     assert polled_data["type"] == event.EventType.POLLED_DATA
+    polled_devices = await stream._event_queue.get()
+    assert polled_devices["type"] == event.EventType.POLLED_DEVICES
+    assert len(polled_devices["polled_devices"]) == 2
     assert await stream._event_queue.get() == {
         "type": event.EventType.RESOURCE_ADDED,
         "device_id": a21_light.id,
@@ -350,9 +353,12 @@ async def test_generate_events_from_data_multi(bridge):
     afero_data = utils.get_raw_dump("security-system-raw.json")
     stream.register_multi_device("security-system-sensor", security_system_callback)
     await stream.generate_events_from_data(afero_data)
-    assert stream._event_queue.qsize() == 6
+    assert stream._event_queue.qsize() == 7
     polled_data = await stream._event_queue.get()
     assert polled_data["type"] == event.EventType.POLLED_DATA
+    polled_devices = await stream._event_queue.get()
+    assert polled_devices["type"] == event.EventType.POLLED_DEVICES
+    assert len(polled_devices["polled_devices"]) == 5
     security_keypad_event = await stream._event_queue.get()
     assert security_keypad_event["type"] == event.EventType.RESOURCE_ADDED
     assert security_keypad_event["device_id"] == "1f31be19-b9b9-4ca8-8a22-20d0015ec2dd"
@@ -390,6 +396,11 @@ async def test_generate_events_from_data_multi(bridge):
                 {
                     "type": event.EventType.POLLED_DATA,
                     "polled_data": None,
+                    "force_forward": False,
+                },
+                {
+                    "type": event.EventType.POLLED_DEVICES,
+                    "polled_devices": None,
                     "force_forward": False,
                 },
                 {
@@ -454,6 +465,8 @@ async def test_perform_poll(
     for index, event_to_process in enumerate(expected_queue):
         if event_to_process["type"] == event.EventType.POLLED_DATA:
             event_to_process["polled_data"] = mocker.ANY
+        elif event_to_process["type"] == event.EventType.POLLED_DEVICES:
+            event_to_process["polled_devices"] = mocker.ANY
         assert (
             await stream._event_queue.get() == event_to_process
         ), f"Issue at index {index}"
@@ -467,8 +480,11 @@ async def test_event_reader_dev_update(bridge, mocker):
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
 
-    mocker.patch.object(stream, "gather_data", AsyncMock(return_value=[a21_light]))
-    mocker.patch.object(event, "get_afero_device", side_effect=lambda x: x)
+    mocker.patch.object(
+        stream,
+        "gather_data",
+        AsyncMock(return_value=utils.create_hs_raw_from_dump("light-a21.json")),
+    )
     await stream.initialize_reader()
     max_retry = 10
     retry = 0
@@ -484,6 +500,9 @@ async def test_event_reader_dev_update(bridge, mocker):
     assert stream._event_queue.qsize() != 0
     polled_data = await stream._event_queue.get()
     assert polled_data["type"] == event.EventType.POLLED_DATA
+    polled_devices = await stream._event_queue.get()
+    assert polled_devices["type"] == event.EventType.POLLED_DEVICES
+    assert len(polled_devices["polled_devices"]) == 1
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_UPDATED,
@@ -521,6 +540,8 @@ async def test_event_reader_dev_delete(bridge, mocker):
     assert stream._event_queue.qsize() != 0
     polled_data = await stream._event_queue.get()
     assert polled_data["type"] == event.EventType.POLLED_DATA
+    polled_devices = await stream._event_queue.get()
+    assert polled_devices["type"] == event.EventType.POLLED_DEVICES
     event_to_process = await stream._event_queue.get()
     assert event_to_process == {
         "type": event.EventType.RESOURCE_DELETED,
