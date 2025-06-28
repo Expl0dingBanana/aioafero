@@ -10,6 +10,8 @@ def test_init_sensor():
     )
     assert dev.value == "cool"
     assert dev.unit == "beans"
+    dev.value = "cooler"
+    assert dev.value == "cooler"
 
 
 def test_init_mapped_sensor_error():

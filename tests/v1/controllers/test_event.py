@@ -7,7 +7,7 @@ import pytest
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
 from aioafero import InvalidAuth
-from aioafero.v1.controllers import event
+from aioafero.v1.controllers import event, security_system
 from aioafero.v1.models.resource import ResourceTypes
 
 from .. import utils
@@ -28,7 +28,9 @@ async def test_properties(bridge):
     stream.polling_interval = 1
     assert stream._polling_interval == 1
     assert stream.polling_interval == 1
-    assert stream.registered_multiple_devices == {}
+    assert stream.registered_multiple_devices == {
+        "security-system-sensor": security_system.security_system_callback
+    }
 
 
 @pytest.mark.asyncio

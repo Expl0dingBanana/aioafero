@@ -1,4 +1,5 @@
 __all__ = [
+    "AferoResource",
     "AferoDevice",
     "AferoState",
     "get_afero_device",

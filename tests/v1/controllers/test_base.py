@@ -1,5 +1,5 @@
 import logging
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 
 import pytest
 
@@ -124,6 +124,13 @@ class TestResourcePut:
 
 
 @dataclass
+class TestResourcePutCallback:
+    on: TestFeatureBool | None
+    beans: TestFeatureInstance | None
+    callback: callable
+
+
+@dataclass
 class TestResourceList:
     the_beans: ReturnsAListFeature | None
 
@@ -156,6 +163,7 @@ test_res = TestResource(
         "bean2": TestFeatureInstance(on=False, func_instance="bean2"),
     },
 )
+
 
 test_res_update = TestResource(
     id="cool",
@@ -1155,6 +1163,26 @@ async def test_get_device(ex1_rc, starting_items, device_id, expected):
         assert ex1_rc.get_device(device_id) == expected
 
 
+def callback_test(elem, update_vals: dataclass):
+    for f in fields(update_vals):
+        if f.name == "callback":
+            continue
+        cur_val = getattr(update_vals, f.name, None)
+        elem_val = getattr(elem, f.name)
+        if cur_val is None:
+            continue
+        # There is probably a better way to approach this
+        if not str(f.type).startswith("dict"):
+            # Special processing for dicts
+            if isinstance(elem_val, dict):
+                cur_val = {getattr(cur_val, "func_instance", None): cur_val}
+                getattr(elem, f.name).update(cur_val)
+            else:
+                setattr(elem, f.name, cur_val)
+        else:
+            elem_val.update(cur_val)
+
+
 @pytest.mark.parametrize(
     "resource,update,expected",
     [
@@ -1166,6 +1194,24 @@ async def test_get_device(ex1_rc, starting_items, device_id, expected):
             TestResourcePut(
                 on=TestFeatureBool(on=False),
                 beans=TestFeatureInstance(on=False, func_instance=None),
+            ),
+            replace(
+                test_res,
+                on=TestFeatureBool(on=False),
+                beans={
+                    None: TestFeatureInstance(on=False, func_instance=None),
+                    "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
+                    "bean2": TestFeatureInstance(on=False, func_instance="bean2"),
+                },
+            ),
+        ),
+        # Callback test
+        (
+            replace(test_res),
+            TestResourcePutCallback(
+                on=TestFeatureBool(on=False),
+                beans=TestFeatureInstance(on=False, func_instance=None),
+                callback=callback_test,
             ),
             replace(
                 test_res,

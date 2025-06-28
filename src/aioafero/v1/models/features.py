@@ -256,6 +256,30 @@ class PresetFeature:
 
 
 @dataclass
+class SecuritySensorConfigFeature:
+    """Represent the current security sensor configuration"""
+
+    sensor_id: int
+    chirp_mode: int
+    trigger_type: int
+    bypass_type: int
+
+    @property
+    def api_value(self):
+        return {
+            "functionClass": "sensor-config",
+            "value": {
+                "security-sensor-config-v2": {
+                    "chirpMode": self.chirp_mode,
+                    "triggerType": self.trigger_type,
+                    "bypassType": self.bypass_type,
+                }
+            },
+            "functionInstance": f"sensor-{self.sensor_id}",
+        }
+
+
+@dataclass
 class SelectFeature:
     """Represent available options and currently selected"""
 

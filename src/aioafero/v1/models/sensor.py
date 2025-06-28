@@ -14,13 +14,17 @@ class AferoSensor:
     def value(self):
         return self._value
 
+    @value.setter
+    def value(self, value):
+        self._value = value
+
 
 @dataclass
 class AferoBinarySensor:
     id: str
     owner: str
-    _value: str
-    _error: str
+    _value: str | int
+    _error: str | int
 
     unit: str | None = field(default=None)
     instance: str | None = field(default=None)
