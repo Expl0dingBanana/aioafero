@@ -97,11 +97,7 @@ class BaseResourcesController(Generic[AferoResource]):
         item_id = evt_data.get("device_id", None)
         cur_item = await self._handle_event_type(evt_type, item_id, evt_data)
         if cur_item:
-            if isinstance(cur_item, list):
-                for item in cur_item:
-                    await self.emit_to_subscribers(evt_type, item_id, item)
-            else:
-                await self.emit_to_subscribers(evt_type, item_id, cur_item)
+            await self.emit_to_subscribers(evt_type, item_id, cur_item)
 
     async def _handle_event_type(
         self, evt_type: EventType, item_id: str, evt_data: AferoEvent
@@ -122,13 +118,8 @@ class BaseResourcesController(Generic[AferoResource]):
                 self.ITEM_CLS.__name__,
             )
             cur_item = await self.initialize_elem(evt_data["device"])
-            if isinstance(cur_item, list):
-                for item in cur_item:
-                    self._items[item.id] = item
-                    self._bridge.add_device(item.id, self)
-            else:
-                self._items[item_id] = cur_item
-                self._bridge.add_device(evt_data["device"].id, self)
+            self._items[item_id] = cur_item
+            self._bridge.add_device(evt_data["device"].id, self)
         elif evt_type == EventType.RESOURCE_DELETED:
             cur_item = self._items.pop(item_id, evt_data)
             self._bridge.remove_device(evt_data["device_id"])
