@@ -16,6 +16,7 @@ __all__ = [
     "token_data",
     "PortableACController",
     "SecuritySystemController",
+    "SecuritySystemSensorController",
 ]
 
 import asyncio
@@ -60,6 +61,7 @@ type AferoModelResource = (
     | models.ExhaustFan
     | models.PortableAC
     | models.SecuritySystem
+    | models.SecuritySystemSensor
 )
 
 type AferoController = (
@@ -74,6 +76,7 @@ type AferoController = (
     | ExhaustFanController
     | PortableACController
     | SecuritySystemController
+    | SecuritySystemSensorController
 )
 
 
