@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 4.1.0
+=============
+
+ * Add support for Security Systems
+ * Add a callback when setting device states
+
 Version 4.0.1
 =============
 

@@ -84,6 +84,15 @@ The following controllers are implemented:
    * set_temperature_range
 
 
+* ``bridge.security_systems``: Any device that matches a security-system. Can perform
+  the following actions
+
+   * alarm_trigger
+   * arm_away
+   * arm_home
+   * disarm
+
+
 * ``bridge.valves``: Any device that matches a valves. Can perform the following
   actions:
 
