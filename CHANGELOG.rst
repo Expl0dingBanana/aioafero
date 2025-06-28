@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 4.0.1
+=============
+
+ * Fix an issue where DeviceController did not receive split devices
+
 Version 4.0.0
 =============
 
