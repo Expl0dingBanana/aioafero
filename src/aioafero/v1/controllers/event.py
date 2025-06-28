@@ -241,6 +241,7 @@ class EventStream:
             get_afero_device(dev)
             for dev in data
             if dev.get("typeId") == ResourceTypes.DEVICE.value
+            and dev.get("description", {}).get("device", {}).get("deviceClass")
         ]
         for multi_dev_callable in self._multiple_device_finder.values():
             multi_devs = multi_dev_callable(devices)
@@ -262,8 +263,6 @@ class EventStream:
             )
         )
         for device in devices:
-            if not device.device_class:
-                continue
             event_type = EventType.RESOURCE_UPDATED
             if device.id not in self._bridge.tracked_devices:
                 event_type = EventType.RESOURCE_ADDED

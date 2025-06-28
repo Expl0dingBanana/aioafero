@@ -268,6 +268,9 @@ async def test_generate_events_from_data(bridge, mocker):
         switch.id: bridge.switches,
         "doesnt_exist_list": bridge.lights,
     }
+    bad_device = utils.create_hs_raw_from_dump("switch-HPDA311CWB.json")[0]
+    bad_device["description"]["device"]["deviceClass"] = ""
+    raw_data.append(bad_device)
     # Show what happens when no multi-devs are found
     stream.register_multi_device("security-system-sensor", security_system_callback)
     await stream.generate_events_from_data(raw_data)
