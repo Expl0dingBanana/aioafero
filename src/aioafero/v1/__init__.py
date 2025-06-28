@@ -410,7 +410,6 @@ class AferoBridgeV1:
 
     async def async_block_until_done(self):
         await asyncio.gather(*self._adhoc_tasks)
-        self.logger.warning("Devs: %s", len(self.devices._items))
 
     async def initialize_cleanup(self) -> None:
         self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
