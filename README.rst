@@ -92,6 +92,11 @@ The following controllers are implemented:
    * arm_home
    * disarm
 
+* ``bridge.security_systems_sensors``: Sensors split from security-system. Can perform
+  the following actions
+
+   * Everything is done through set_state
+
 
 * ``bridge.valves``: Any device that matches a valves. Can perform the following
   actions:
@@ -133,3 +138,29 @@ Troubleshooting
 
   * The API rate-limits request. If other things are hitting the API (such as the phone app
     or Home Assistant), you may need to stop using one to ensure a better connection.
+
+
+Creating multiple devices from a single device
+==============================================
+
+Sometimes a device can contain multiple devices that should be controlled individually
+for ease-of-use within other integrations. This can be done by implementing the following
+functionality:
+
+ * Primary class (class of the non-split device): Fill out class attribute DEVICE_SPLIT_CALLBACKS
+ * Model for the split class:
+
+   * Initialization uses model._id instead of model._id. This should be unique and not the main class ID
+   * Add the following properties to the model
+
+     * id: Uses model._id
+     * update_id: Device ID used during the update. This should match the parent class ID
+     * (optional): Additional property to specify the "instance" of the split class
+
+
+Custom handling of state update
+===============================
+
+If the device class has special processing for state updates (for example, one state contains
+multiple datapoints) you can specify a custom callback in the models Put class. This is done
+through the attribute ``callback`` and must specify a callable to handle the update.
