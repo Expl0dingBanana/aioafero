@@ -243,11 +243,13 @@ class EventStream:
             if dev.get("typeId") == ResourceTypes.DEVICE.value
             and dev.get("description", {}).get("device", {}).get("deviceClass")
         ]
-        for multi_dev_callable in self._multiple_device_finder.values():
+        self._logger.debug("Number of devices: %s", len(devices))
+        for name, multi_dev_callable in self._multiple_device_finder.items():
             multi_devs = multi_dev_callable(devices)
             if multi_devs:
+                self._logger.debug("Found %s devices from %s", len(multi_devs), name)
                 devices.extend(multi_devs)
-        self._logger.debug("Number of devices found: %s", len(devices))
+        self._logger.debug("Total number of devices (post split): %s", len(devices))
         self._event_queue.put_nowait(
             AferoEvent(
                 type=EventType.POLLED_DATA,
