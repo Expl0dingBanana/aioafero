@@ -39,7 +39,7 @@ async def test_initialize(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.available is True
     assert dev.id == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
-    assert dev.device_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    assert dev.update_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
     assert dev.sensor_id == 2
     assert dev.sensors == {
         "battery-level": AferoSensor(
@@ -252,7 +252,11 @@ async def test_update_security_sensor_no_updates(mocked_controller):
 async def test_set_state(device, updates, expected_updates, mocked_controller):
     await mocked_controller.initialize_elem(device)
     await mocked_controller.set_state(device.id, **updates)
-    utils.ensure_states_sent(mocked_controller, expected_updates)
+    utils.ensure_states_sent(
+        mocked_controller,
+        expected_updates,
+        device_id="7f4e4c01-e799-45c5-9b1a-385433a78edc",
+    )
 
 
 @pytest.mark.asyncio

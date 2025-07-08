@@ -41,7 +41,7 @@ class SecuritySystemSensor:
         return int(self._id.rsplit("-sensor-", 1)[1])
 
     @property
-    def device_id(self):
+    def update_id(self):
         return self._id.split("-sensor-", 1)[0]
 
 

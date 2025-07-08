@@ -70,5 +70,5 @@ def test_init(populated_entity):
     assert populated_entity.id == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
     assert populated_entity.available is True
     assert populated_entity.instances == {"preset": "preset-1"}
-    assert populated_entity.device_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    assert populated_entity.update_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
     assert populated_entity.sensor_id == 2
