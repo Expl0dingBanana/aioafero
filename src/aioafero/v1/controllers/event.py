@@ -153,9 +153,9 @@ class EventStream:
         attempt = 0
         while not self._event_queue.empty():
             self._logger.debug("Number of events in queue: %d", self._event_queue.qsize())
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
             attempt += 1
-            if attempt > 10:
+            if attempt > 100:
                 self._logger.warning("Queue did not empty within a second. Breaking out of the wait")
                 break
 
