@@ -42,7 +42,7 @@ async def test_initialize(mocked_controller):
     assert dev.update_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
     assert dev.sensor_id == 2
     assert dev.sensors == {
-        "battery": AferoSensor(
+        "battery-level": AferoSensor(
             id="sensor-state",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
             _value=100,
@@ -138,7 +138,7 @@ async def test_update_elem(mocked_controller):
         utils.modify_state(dev_update, state)
     updates = await mocked_controller.update_elem(dev_update)
     assert updates == {
-        "battery",
+        "battery-level",
         "bypassType",
         "chirpMode",
         "tampered",
@@ -149,7 +149,7 @@ async def test_update_elem(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.available is False
     assert dev.sensors == {
-        "battery": AferoSensor(
+        "battery-level": AferoSensor(
             id="sensor-state",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
             _value=95,

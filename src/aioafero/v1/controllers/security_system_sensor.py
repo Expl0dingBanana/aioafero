@@ -55,7 +55,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                     _value=data["triggered"],
                     _error=1,
                 )
-                sensors["battery"] = AferoSensor(
+                sensors["battery-level"] = AferoSensor(
                     id=state.functionClass,
                     owner=device.device_id,
                     _value=data["batteryLevel"],
@@ -170,9 +170,9 @@ def update_from_states(
             if data["triggered"] != cur_item.binary_sensors["triggered"].value:
                 updated_keys.add("triggered")
                 cur_item.binary_sensors["triggered"].value = data["triggered"]
-            if data["batteryLevel"] != cur_item.sensors["battery"].value:
-                updated_keys.add("battery")
-                cur_item.sensors["battery"]._value = data["batteryLevel"]
+            if data["batteryLevel"] != cur_item.sensors["battery-level"].value:
+                updated_keys.add("battery-level")
+                cur_item.sensors["battery-level"]._value = data["batteryLevel"]
             if bool(data["missing"]) == cur_item.available:
                 updated_keys.add("available")
                 cur_item.available = not bool(data["missing"])
