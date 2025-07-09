@@ -152,11 +152,15 @@ class EventStream:
     async def async_block_until_done(self):
         attempt = 0
         while not self._event_queue.empty():
-            self._logger.debug("Number of events in queue: %d", self._event_queue.qsize())
+            self._logger.debug(
+                "Number of events in queue: %d", self._event_queue.qsize()
+            )
             await asyncio.sleep(0.01)
             attempt += 1
             if attempt > 100:
-                self._logger.warning("Queue did not empty within a second. Breaking out of the wait")
+                self._logger.warning(
+                    "Queue did not empty within a second. Breaking out of the wait"
+                )
                 break
 
     def emit(self, event_type: EventType, data: AferoEvent = None) -> None:
@@ -240,12 +244,14 @@ class EventStream:
                     self.emit(EventType.CONNECTED)
                 return data
 
-    async def generate_devices_from_data(self, data: list[dict[Any, str]]) -> list[AferoDevice]:
+    async def generate_devices_from_data(
+        self, data: list[dict[Any, str]]
+    ) -> list[AferoDevice]:
         devices = [
             get_afero_device(dev)
             for dev in data
             if dev.get("typeId") == ResourceTypes.DEVICE.value
-               and dev.get("description", {}).get("device", {}).get("deviceClass")
+            and dev.get("description", {}).get("device", {}).get("deviceClass")
         ]
         self._logger.debug("Number of devices: %s", len(devices))
         for name, multi_dev_callable in self._multiple_device_finder.items():
