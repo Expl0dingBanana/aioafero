@@ -1,5 +1,6 @@
 """Controller holding and managing Hubspace resources of type `light`."""
 
+import copy
 from contextlib import suppress
 
 from ... import device, errors
@@ -9,6 +10,9 @@ from ..models import features
 from ..models.light import Light, LightPut
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .event import CallbackResponse
+
+SPLIT_IDENTIFIER: str = "light"
 
 
 def process_names(values: list[dict]) -> set[str]:
@@ -16,6 +20,63 @@ def process_names(values: list[dict]) -> set[str]:
     for val in values:
         vals.add(val["name"])
     return vals
+
+
+def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
+    return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
+
+
+def get_split_instances(afero_dev: AferoDevice) -> list[str]:
+    """Determine available sensors from the states"""
+    instances = set()
+    for state in afero_dev.states:
+        if (
+            afero_dev.model == "LCN3002LM-01 WH"
+            and state.functionClass == "toggle"
+            and state.functionInstance
+            not in [
+                None,
+                "speaker-power",
+                "primary",
+            ]
+        ):
+            instances.add(state.functionInstance)
+    return sorted(instances)
+
+
+def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
+    """Find states associated with the specific sensor"""
+    valid_states: list = []
+    for state in afero_dev.states:
+        if afero_dev.model == "LCN3002LM-01 WH":
+            if state.functionInstance == "primary":
+                continue
+            if (
+                instance == "white"
+                and state.functionInstance == instance
+                or instance != "white"
+                and state.functionInstance != "white"
+            ):
+                valid_states.append(state)
+    return valid_states
+
+
+def light_callback(afero_device: AferoDevice) -> CallbackResponse:
+    multi_devs: list[AferoDevice] = []
+    if afero_device.device_class == ResourceTypes.LIGHT.value:
+        for instance in get_split_instances(afero_device):
+            cloned = copy.deepcopy(afero_device)
+            # Lights should all appear under the same device
+            cloned.device_id = afero_device.device_id
+            cloned.id = generate_split_name(afero_device, instance)
+            cloned.split_identifier = SPLIT_IDENTIFIER
+            cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
+            cloned.states = get_valid_states(afero_device, instance)
+            multi_devs.append(cloned)
+    return CallbackResponse(
+        split_devices=multi_devs,
+        remove_original=bool(multi_devs),
+    )
 
 
 class LightController(BaseResourcesController[Light]):
@@ -35,6 +96,10 @@ class LightController(BaseResourcesController[Light]):
     ITEM_SENSORS: dict[str, str] = {}
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {}
+    # Split Lights from the primary payload
+    DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
+        ResourceTypes.LIGHT.value: light_callback
+    }
 
     async def turn_on(self, device_id: str) -> None:
         """Turn on the light."""
@@ -79,7 +144,9 @@ class LightController(BaseResourcesController[Light]):
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
             )
-            if state.functionClass == "power":
+            if state.functionClass == "power" or (
+                afero_device.split_identifier and state.functionClass == "toggle"
+            ):
                 on = features.OnFeature(
                     on=state.value == "on",
                     func_class=state.functionClass,
@@ -134,6 +201,7 @@ class LightController(BaseResourcesController[Light]):
             afero_device.functions,
             id=afero_device.id,
             available=available,
+            split_identifier=afero_device.split_identifier,
             sensors=sensors,
             binary_sensors=binary_sensors,
             device_information=DeviceInformation(
@@ -160,7 +228,9 @@ class LightController(BaseResourcesController[Light]):
         updated_keys = set()
         color_seq_states: dict[str, AferoState] = {}
         for state in afero_device.states:
-            if state.functionClass == "power":
+            if state.functionClass == "power" or (
+                afero_device.split_identifier and state.functionClass == "toggle"
+            ):
                 new_val = state.value == "on"
                 if cur_item.on.on != new_val:
                     cur_item.on.on = new_val

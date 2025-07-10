@@ -8,9 +8,10 @@ from ...util import process_function
 from ..models import SecuritySystem, SecuritySystemPut, features
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
-
+from .event import CallbackResponse
 
 SENSOR_SPLIT_IDENTIFIER = "sensor"
+
 
 def get_sensor_ids(device) -> set[int]:
     """Determine available sensors from the states"""
@@ -45,22 +46,22 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
     return valid_states
 
 
-def security_system_callback(devices: list[AferoDevice]) -> list[AferoDevice]:
+def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
     multi_devs: list[AferoDevice] = []
-    for afero_device in devices:
-        if afero_device.device_class == "security-system":
-            for sensor_id in get_sensor_ids(afero_device):
-                cloned = copy.deepcopy(afero_device)
-                cloned.device_id = generate_sensor_name(afero_device, sensor_id)
-                cloned.id = generate_sensor_name(afero_device, sensor_id)
-                cloned.split_identifier = SENSOR_SPLIT_IDENTIFIER
-                cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
-                cloned.friendly_name = (
-                    f"{afero_device.friendly_name} - Sensor {sensor_id}"
-                )
-                cloned.states = get_valid_states(afero_device.states, sensor_id)
-                multi_devs.append(cloned)
-    return multi_devs
+    if afero_device.device_class == "security-system":
+        for sensor_id in get_sensor_ids(afero_device):
+            cloned = copy.deepcopy(afero_device)
+            cloned.device_id = generate_sensor_name(afero_device, sensor_id)
+            cloned.id = generate_sensor_name(afero_device, sensor_id)
+            cloned.split_identifier = SENSOR_SPLIT_IDENTIFIER
+            cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
+            cloned.friendly_name = f"{afero_device.friendly_name} - Sensor {sensor_id}"
+            cloned.states = get_valid_states(afero_device.states, sensor_id)
+            multi_devs.append(cloned)
+    return CallbackResponse(
+        split_devices=multi_devs,
+        remove_original=False,
+    )
 
 
 class SecuritySystemController(BaseResourcesController[SecuritySystem]):

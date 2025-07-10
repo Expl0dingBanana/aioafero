@@ -1,6 +1,5 @@
 """Test Security System Sensor"""
 
-import asyncio
 import copy
 
 import pytest
@@ -20,8 +19,8 @@ from .. import utils
 security_system = utils.create_devices_from_data("security-system.json")[1]
 
 security_system_sensors = security_system_callback(
-    utils.create_devices_from_data("security-system.json")
-)
+    utils.create_devices_from_data("security-system.json")[1]
+).split_devices
 security_system_sensor_2 = security_system_sensors[1]
 
 
@@ -289,9 +288,7 @@ async def test_emitting(bridge):
     await bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("security-system.json")
     )
-    # @TODO - Determine why bridge.async_block_until_done is not successfully stopping for these
-    # await bridge.async_block_until_done()
-    await asyncio.sleep(1)
+    await bridge.async_block_until_done()
     assert len(bridge.security_systems_sensors._items) == 3
     dev_update = copy.deepcopy(security_system_sensor_2)
     # Simulate an update

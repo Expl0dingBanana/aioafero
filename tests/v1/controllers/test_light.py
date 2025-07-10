@@ -3,7 +3,7 @@
 import pytest
 
 from aioafero.device import AferoState
-from aioafero.v1.controllers import event
+from aioafero.v1.controllers import event, light
 from aioafero.v1.controllers.light import LightController, features, process_color_temps
 from aioafero.v1.models.features import EffectFeature
 from aioafero.v1.models.light import Light
@@ -13,6 +13,9 @@ from .. import utils
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 dimmer_light = utils.create_devices_from_data("dimmer-HPDA1110NWBP.json")[0]
+flushmount_light = utils.create_devices_from_data("light-flushmount.json")[0]
+flushmount_light_color_id = f"{flushmount_light.id}-light-color"
+flushmount_light_white_id = f"{flushmount_light.id}-light-white"
 
 
 @pytest.fixture
@@ -20,6 +23,215 @@ def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = LightController(mocked_bridge)
     yield controller
+
+
+def test_generate_split_name():
+    assert (
+        light.generate_split_name(a21_light, "beans") == f"{a21_light.id}-light-beans"
+    )
+
+
+@pytest.mark.parametrize(
+    "device, expected",
+    [
+        # Flushmount splits
+        (
+            flushmount_light,
+            [
+                "color",
+                "white",
+            ],
+        ),
+        # No splits
+        (a21_light, []),
+        (zandra_light, []),
+        (dimmer_light, []),
+    ],
+)
+def test_get_split_instances(device, expected):
+    assert light.get_split_instances(device) == expected
+
+
+@pytest.mark.parametrize(
+    "device, instance, expected",
+    [
+        (
+            flushmount_light,
+            "white",
+            [
+                AferoState(
+                    functionClass="toggle",
+                    value="off",
+                    lastUpdateTime=0,
+                    functionInstance="white",
+                ),
+                AferoState(
+                    functionClass="brightness",
+                    value=100,
+                    lastUpdateTime=0,
+                    functionInstance="white",
+                ),
+            ],
+        ),
+        (
+            flushmount_light,
+            "color",
+            [
+                AferoState(
+                    functionClass="brightness",
+                    value=1,
+                    lastUpdateTime=0,
+                    functionInstance="color",
+                ),
+                AferoState(
+                    functionClass="restore-values",
+                    value="partial-restore",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="color-sequence",
+                    value="sleep",
+                    lastUpdateTime=0,
+                    functionInstance="custom",
+                ),
+                AferoState(
+                    functionClass="toggle",
+                    value="on",
+                    lastUpdateTime=0,
+                    functionInstance="color",
+                ),
+                AferoState(
+                    functionClass="color-mode",
+                    value="color",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="color-rgb",
+                    value={
+                        "color-rgb": {
+                            "b": 204,
+                            "g": 242,
+                            "r": 255,
+                        },
+                    },
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="speed",
+                    value=0,
+                    lastUpdateTime=0,
+                    functionInstance="color-sequence",
+                ),
+                AferoState(
+                    functionClass="color-sequence",
+                    value="custom",
+                    lastUpdateTime=0,
+                    functionInstance="preset",
+                ),
+                AferoState(
+                    functionClass="color-temperature",
+                    value=3000,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="wifi-ssid",
+                    value="c87d78a4-3f6e-4468-a034-4bef7b7cd4b3",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="wifi-rssi",
+                    value=-37,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="wifi-steady-state",
+                    value="connected",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="wifi-setup-state",
+                    value="connected",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="wifi-mac-address",
+                    value="0ddc8684-2404-4e10-8495-fd5c82dda3e6",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="geo-coordinates",
+                    value={
+                        "geo-coordinates": {
+                            "latitude": "0",
+                            "longitude": "0",
+                        },
+                    },
+                    lastUpdateTime=0,
+                    functionInstance="system-device-location",
+                ),
+                AferoState(
+                    functionClass="scheduler-flags",
+                    value=1,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="available",
+                    value=True,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="visible",
+                    value=True,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="direct",
+                    value=True,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+                AferoState(
+                    functionClass="ble-mac-address",
+                    value="444a8248-56ef-4735-a5a6-9dc486a16f85",
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+            ],
+        ),
+    ],
+)
+def test_get_valid_states(device, instance, expected):
+    assert light.get_valid_states(device, instance) == expected
+
+
+def test_light_callback():
+    multi_devs, remove_dev = light.light_callback(flushmount_light)
+    assert remove_dev is True
+    assert len(multi_devs) == 2
+    assert len(multi_devs[0].states) == 20
+    assert multi_devs[0].id == flushmount_light_color_id
+    assert len(multi_devs[1].states) == 2
+    assert multi_devs[1].id == flushmount_light_white_id
+    assert multi_devs[1].friendly_name == f"{flushmount_light.friendly_name} - white"
+    assert len(multi_devs[1].states) == 2
+
+
+def test_light_callback_none():
+    multi_devs, remove_dev = light.light_callback(a21_light)
+    assert remove_dev is False
+    assert len(multi_devs) == 0
 
 
 @pytest.mark.asyncio
@@ -737,3 +949,59 @@ async def test_update_elem_color(
 def test_process_color_temps():
     temps = [{"name": "2700K"}, {"name": "3000"}]
     assert process_color_temps(temps) == [2700, 3000]
+
+
+@pytest.mark.asyncio
+async def test_emitting(bridge):
+    # Simulate the discovery process
+    await bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await bridge.async_block_until_done()
+    assert len(bridge.lights._items) == 2
+    assert bridge.lights[flushmount_light_color_id].on.on
+    assert bridge.lights[flushmount_light_color_id].brightness == 1
+    assert not bridge.lights[flushmount_light_white_id].on.on
+    assert bridge.lights[flushmount_light_white_id].brightness == 100
+    dev_update = utils.create_devices_from_data("light-flushmount.json")[0]
+    # Simulate an update
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="toggle",
+            functionInstance="white",
+            value="on",
+        ),
+    )
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="brightness",
+            functionInstance="white",
+            value=50,
+        ),
+    )
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="toggle",
+            functionInstance="color",
+            value="off",
+        ),
+    )
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="brightness",
+            functionInstance="color",
+            value=55,
+        ),
+    )
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dev_update)]
+    )
+    await bridge.async_block_until_done()
+    assert bridge.lights[flushmount_light_color_id].brightness == 55
+    assert not bridge.lights[flushmount_light_color_id].on.on
+    assert bridge.lights[flushmount_light_white_id].brightness == 50
+    assert bridge.lights[flushmount_light_white_id].on.on

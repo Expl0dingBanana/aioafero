@@ -21,6 +21,7 @@ class Light:
     effect: features.EffectFeature | None
 
     # Defined at initialization
+    split_identifier: str | None = field(default_factory=lambda: None)
     instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
     sensors: dict[str, AferoSensor] = field(default_factory=lambda: dict())

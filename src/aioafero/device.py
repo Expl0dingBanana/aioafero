@@ -82,6 +82,9 @@ class AferoDevice:
                 self.model = "12A19060WRGBWH2"
             elif self.default_image == "slide-dimmer-icon":
                 self.model = "HPDA110NWBP"
+            elif self.default_image == "bright-edgelit-flushmount-light-icon":
+                self.manufacturerName = "Commercial-Electric"
+                self.model = "LCN3002LM-01 WH"
         # Fix switches
         elif self.device_class == "switch":
             if self.default_image == "smart-switch-icon" and self.model == "TBD":
