@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 4.1.1
+=============
+
+ * Fix an issue where split devices would not send the correct ID to Afero
+ * Fix an issue where siren-action was not sent when adjusting alarm state
+
 Version 4.1.0
 =============
 
