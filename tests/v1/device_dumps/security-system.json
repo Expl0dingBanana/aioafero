@@ -6276,12 +6276,7 @@
             },
             {
                 "functionClass": "siren-action",
-                "value": {
-                    "security-siren-action": {
-                        "resultCode": 0,
-                        "command": 4
-                    }
-                },
+                "value": null,
                 "lastUpdateTime": 0,
                 "functionInstance": null
             },

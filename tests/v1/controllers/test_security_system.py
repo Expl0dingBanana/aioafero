@@ -2,13 +2,26 @@
 
 import pytest
 
-from aioafero.device import AferoState
+from aioafero.device import AferoDevice, AferoState
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.security_system import SecuritySystemController, features
 
 from .. import utils
 
 alarm_panel = utils.create_devices_from_data("security-system.json")[1]
+
+
+def get_alarm_panel_with_siren() -> AferoDevice:
+    alarm_panel_with_siren = utils.create_devices_from_data("security-system.json")[1]
+    utils.modify_state(
+        alarm_panel_with_siren,
+        AferoState(
+            functionClass="siren-action",
+            functionInstance=None,
+            value={"security-siren-action": {"resultCode": 0, "command": 4}},
+        ),
+    )
+    return alarm_panel_with_siren
 
 
 @pytest.fixture
@@ -37,6 +50,9 @@ async def test_initialize(mocked_controller):
             "triggered",
             "arm-away",
         },
+    )
+    assert dev.siren_action == features.SecuritySensorSirenFeature(
+        result_code=None, command=None
     )
     assert dev.numbers == {
         ("arm-exit-delay", "away"): features.NumbersFeature(
@@ -128,8 +144,19 @@ async def test_initialize(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_initialize_with_siren(mocked_controller):
+    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.siren_action == features.SecuritySensorSirenFeature(
+        result_code=0,
+        command=4,
+    )
+
+
+@pytest.mark.asyncio
 async def test_disarm(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
     assert len(mocked_controller.items) == 1
     mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
     await mocked_controller.disarm(alarm_panel.id)
@@ -141,7 +168,13 @@ async def test_disarm(mocked_controller):
             "functionInstance": None,
             "lastUpdateTime": 12345,
             "value": "disarmed",
-        }
+        },
+        {
+            "functionClass": "siren-action",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": None,
+        },
     ]
     utils.ensure_states_sent(mocked_controller, expected_states)
 
@@ -159,7 +192,13 @@ async def test_arm_home(mocked_controller):
             "functionInstance": None,
             "lastUpdateTime": 12345,
             "value": "arm-started-stay",
-        }
+        },
+        {
+            "functionClass": "siren-action",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": {"security-siren-action": {"resultCode": 0, "command": 4}},
+        },
     ]
     utils.ensure_states_sent(mocked_controller, expected_states)
 
@@ -177,7 +216,13 @@ async def test_arm_away(mocked_controller):
             "functionInstance": None,
             "lastUpdateTime": 12345,
             "value": "arm-started-away",
-        }
+        },
+        {
+            "functionClass": "siren-action",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": {"security-siren-action": {"resultCode": 0, "command": 4}},
+        },
     ]
     utils.ensure_states_sent(mocked_controller, expected_states)
 
@@ -195,7 +240,13 @@ async def test_alarm_trigger(mocked_controller):
             "functionInstance": None,
             "lastUpdateTime": 12345,
             "value": "alarming-sos",
-        }
+        },
+        {
+            "functionClass": "siren-action",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": {"security-siren-action": {"resultCode": 0, "command": 5}},
+        },
     ]
     utils.ensure_states_sent(mocked_controller, expected_states)
 
@@ -257,6 +308,11 @@ async def test_update_elem(mocked_controller):
                 "functionInstance": "alarm",
             }
         ),
+        AferoState(
+            functionClass="siren-action",
+            functionInstance=None,
+            value={"security-siren-action": {"resultCode": 0, "command": 4}},
+        ),
     ]
     for state in new_states:
         utils.modify_state(update, state)
@@ -268,12 +324,45 @@ async def test_update_elem(mocked_controller):
         "available",
         "select-('song-id', 'alarm')",
         "binary-battery-powered|None",
+        "siren-action",
     }
     assert dev.alarm_state.mode == "triggered"
     assert dev.numbers[("arm-exit-delay", "away")].value == 300
     assert dev.selects[("song-id", "alarm")].selected == "preset-12"
     assert dev.binary_sensors["battery-powered|None"]._value == "battery-powered"
     assert dev.binary_sensors["battery-powered|None"].value is True
+    assert dev.siren_action.result_code == 0
+    assert dev.siren_action.command == 4
+
+
+@pytest.mark.asyncio
+async def test_update_elem_from_siren(mocked_controller):
+    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    assert len(mocked_controller.items) == 1
+    update = get_alarm_panel_with_siren()
+    utils.modify_state(
+        update,
+        AferoState(
+            functionClass="siren-action",
+            functionInstance=None,
+            value=None,
+        ),
+    )
+    updates = await mocked_controller.update_elem(update)
+    assert updates == {"siren-action"}
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.siren_action == features.SecuritySensorSirenFeature(
+        result_code=None, command=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_elem_from_siren_empty(mocked_controller):
+    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    assert len(mocked_controller.items) == 1
+    update = get_alarm_panel_with_siren()
+    updates = await mocked_controller.update_elem(update)
+    assert updates == set()
 
 
 @pytest.mark.asyncio

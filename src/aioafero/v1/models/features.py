@@ -293,6 +293,34 @@ class SelectFeature:
 
 
 @dataclass
+class SecuritySensorSirenFeature:
+    """Represent the current state of the siren"""
+
+    result_code: int | None
+    command: int | None
+
+    @property
+    def api_value(self):
+        if self.result_code is None and self.command is None:
+            return {
+                "functionClass": "siren-action",
+                "value": None,
+                "functionInstance": None,
+            }
+        else:
+            return {
+                "functionClass": "siren-action",
+                "value": {
+                    "security-siren-action": {
+                        "resultCode": self.result_code,
+                        "command": self.command,
+                    }
+                },
+                "functionInstance": None,
+            }
+
+
+@dataclass
 class SpeedFeature:
     """Represent Current Fan speed Feature"""
 

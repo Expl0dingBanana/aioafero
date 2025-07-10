@@ -195,3 +195,24 @@ def test_TargetTemperatureAutoFeature():
         "functionInstance": "whatever",
         "value": 12,
     }
+
+
+def test_SecuritySensorSirenFeature():
+    feat = features.SecuritySensorSirenFeature(
+        result_code=0,
+        command=4,
+    )
+    assert feat.api_value == {
+        "functionClass": "siren-action",
+        "value": {"security-siren-action": {"resultCode": 0, "command": 4}},
+        "functionInstance": None,
+    }
+    feat = features.SecuritySensorSirenFeature(
+        result_code=None,
+        command=None,
+    )
+    assert feat.api_value == {
+        "functionClass": "siren-action",
+        "value": None,
+        "functionInstance": None,
+    }

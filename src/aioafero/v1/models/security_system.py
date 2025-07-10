@@ -13,6 +13,7 @@ class SecuritySystem:
     available: bool
 
     alarm_state: features.ModeFeature | None
+    siren_action: features.SecuritySensorSirenFeature | None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None
     selects: dict[tuple[str, str | None], features.SelectFeature] | None
 
@@ -76,6 +77,7 @@ class SecuritySystemPut:
     """States that can be updated for a Security System"""
 
     alarm_state: features.ModeFeature | None = None
+    siren_action: features.SecuritySensorSirenFeature | None = None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
         default_factory=lambda: dict(), repr=False, init=False
     )
