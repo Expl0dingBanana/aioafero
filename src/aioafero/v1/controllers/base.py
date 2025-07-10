@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import copy
 import re
 import time
@@ -459,6 +460,9 @@ class BaseResourcesController(Generic[AferoResource]):
                 "Unable to update device %s as it does not exist", device_id
             )
             return
+        # split devices use <elem>.update_id to specify the correct device id
+        with contextlib.suppress(AttributeError):
+            device_id = cur_item.update_id
         # Make a clone to restore if the update fails
         fallback = copy.deepcopy(cur_item)
         if obj_in:

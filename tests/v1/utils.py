@@ -54,17 +54,19 @@ def get_json_call(mocked_controller):
     return call["json"]
 
 
-def ensure_states_sent(mocked_controller, expected_states):
-    req = get_json_call(mocked_controller)["values"]
-    assert len(req) == len(
+def ensure_states_sent(mocked_controller, expected_states, device_id=None):
+    req = get_json_call(mocked_controller)
+    assert len(req["values"]) == len(
         expected_states
     ), f"States Sent: {len(req)}. Expected: {len(expected_states)}. Actual: {req}"
     for state in expected_states:
-        assert state in req, (
+        assert state in req["values"], (
             f"Missing {state['functionClass']} / "
             f"{state['functionInstance']} for "
             f"{state['value']} in {req}"
         )
+    if device_id:
+        assert req["metadeviceId"] == device_id
 
 
 def modify_state(device: AferoDevice, new_state):

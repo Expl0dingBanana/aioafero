@@ -134,6 +134,7 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         """Initialize the element"""
         available: bool = False
         alarm_state: features.ModeFeature | None = None
+        siren_action: features.SecuritySensorSirenFeature | None = None
         numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = {}
         selects: dict[tuple[str, str | None], features.SelectFeature] | None = {}
         sensors: dict[str, AferoSensor] = {}
@@ -160,6 +161,17 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 numbers[number[0]] = number[1]
             elif select := await self.initialize_select(afero_device.functions, state):
                 selects[select[0]] = select[1]
+            elif state.functionClass == "siren-action":
+                try:
+                    result_code = state.value["security-siren-action"]["resultCode"]
+                    command = state.value["security-siren-action"]["command"]
+                except TypeError:
+                    result_code = None
+                    command = None
+                siren_action = features.SecuritySensorSirenFeature(
+                    result_code=result_code,
+                    command=command,
+                )
 
         self._items[afero_device.id] = SecuritySystem(
             afero_device.functions,
@@ -179,6 +191,7 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 parent_id=afero_device.device_id,
             ),
             alarm_state=alarm_state,
+            siren_action=siren_action,
         )
         return self._items[afero_device.id]
 
@@ -200,6 +213,20 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 updated_keys.add(update_key)
             elif update_key := await self.update_select(state, cur_item):
                 updated_keys.add(update_key)
+            elif state.functionClass == "siren-action":
+                try:
+                    result_code = state.value["security-siren-action"]["resultCode"]
+                    command = state.value["security-siren-action"]["command"]
+                except TypeError:
+                    result_code = None
+                    command = None
+                if (
+                    result_code != cur_item.siren_action.result_code
+                    or command != cur_item.siren_action.command
+                ):
+                    cur_item.siren_action.result_code = result_code
+                    cur_item.siren_action.command = command
+                    updated_keys.add("siren-action")
 
         return updated_keys
 
@@ -222,6 +249,21 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 mode=mode,
                 modes=cur_item.alarm_state.modes,
             )
+            if "-started-" in mode:
+                update_obj.siren_action = features.SecuritySensorSirenFeature(
+                    result_code=0,
+                    command=4,
+                )
+            elif mode == "alarming-sos":
+                update_obj.siren_action = features.SecuritySensorSirenFeature(
+                    result_code=0,
+                    command=5,
+                )
+            else:
+                update_obj.siren_action = features.SecuritySensorSirenFeature(
+                    result_code=None,
+                    command=None,
+                )
         if numbers:
             for key, val in numbers.items():
                 if key not in cur_item.numbers:

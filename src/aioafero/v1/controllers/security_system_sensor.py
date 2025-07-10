@@ -37,7 +37,6 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         device_type: int | None = None
-        _, sensor_id = device.id.split("-sensor-")
         for state in device.states:
             if state.functionClass == "sensor-state":
                 data = state.value["security-sensor-state"]
