@@ -40,7 +40,7 @@ async def test_initialize(mocked_controller):
     assert dev.available is True
     assert dev.id == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
     assert dev.update_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
-    assert dev.sensor_id == 2
+    assert dev.instance == 2
     assert dev.sensors == {
         "battery-level": AferoSensor(
             id="sensor-state",

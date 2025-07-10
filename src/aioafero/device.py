@@ -42,6 +42,7 @@ class AferoDevice:
     states: list[AferoState] = field(default=list)
     children: list[str] = field(default=list)
     manufacturerName: Optional[str] = field(default=None)
+    split_identifier: str | None = field(default=None, repr=False)
 
     def __hash__(self):
         return hash((self.id, self.friendly_name))

@@ -5,6 +5,7 @@ from ...errors import DeviceNotFound
 from ..models import SecuritySystemSensor, SecuritySystemSensorPut, features
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, AferoState, BaseResourcesController
+from .security_system import SENSOR_SPLIT_IDENTIFIER
 
 
 class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSensor]):
@@ -86,6 +87,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         self._items[device.id] = SecuritySystemSensor(
             [],
             _id=device.id,
+            split_identifier=SENSOR_SPLIT_IDENTIFIER,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
@@ -127,17 +129,17 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
             select_vals = {
                 "chirp_mode": chirp_modes[
                     cur_item.selects.get(
-                        (f"sensor-{cur_item.sensor_id}", "chirpMode")
+                        (f"sensor-{cur_item.instance}", "chirpMode")
                     ).selected
                 ],
                 "trigger_type": trigger_types[
                     cur_item.selects.get(
-                        (f"sensor-{cur_item.sensor_id}", "chirpMode")
+                        (f"sensor-{cur_item.instance}", "chirpMode")
                     ).selected
                 ],
                 "bypass_type": bypass_types[
                     cur_item.selects.get(
-                        (f"sensor-{cur_item.sensor_id}", "bypassType")
+                        (f"sensor-{cur_item.instance}", "bypassType")
                     ).selected
                 ],
             }
@@ -151,7 +153,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 else:
                     continue
             update_obj.sensor_config = features.SecuritySensorConfigFeature(
-                sensor_id=cur_item.sensor_id, **select_vals
+                sensor_id=cur_item.instance, **select_vals
             )
             await self.update(cur_item.id, obj_in=update_obj)
 

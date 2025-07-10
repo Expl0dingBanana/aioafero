@@ -10,6 +10,8 @@ from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
 
 
+SENSOR_SPLIT_IDENTIFIER = "sensor"
+
 def get_sensor_ids(device) -> set[int]:
     """Determine available sensors from the states"""
     sensor_ids = set()
@@ -23,7 +25,7 @@ def get_sensor_ids(device) -> set[int]:
 
 
 def generate_sensor_name(afero_device, sensor_id: int) -> str:
-    return f"{afero_device.id}-sensor-{sensor_id}"
+    return f"{afero_device.id}-{SENSOR_SPLIT_IDENTIFIER}-{sensor_id}"
 
 
 def get_valid_states(afero_states: list, sensor_id: int) -> list:
@@ -51,12 +53,12 @@ def security_system_callback(devices: list[AferoDevice]) -> list[AferoDevice]:
                 cloned = copy.deepcopy(afero_device)
                 cloned.device_id = generate_sensor_name(afero_device, sensor_id)
                 cloned.id = generate_sensor_name(afero_device, sensor_id)
+                cloned.split_identifier = SENSOR_SPLIT_IDENTIFIER
                 cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
                 cloned.friendly_name = (
                     f"{afero_device.friendly_name} - Sensor {sensor_id}"
                 )
                 cloned.states = get_valid_states(afero_device.states, sensor_id)
-                cloned.is_multi = True
                 multi_devs.append(cloned)
     return multi_devs
 

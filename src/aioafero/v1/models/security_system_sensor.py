@@ -12,6 +12,8 @@ class SecuritySystemSensor:
     _id: str  # ID used when interacting with Afero
     available: bool
     selects: dict[tuple[str, str | None], features.SelectFeature] | None
+    # Security System Sensors are always split devices
+    split_identifier: str
 
     # Defined at initialization
     instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
@@ -37,12 +39,12 @@ class SecuritySystemSensor:
         return self._id
 
     @property
-    def sensor_id(self):
-        return int(self._id.rsplit("-sensor-", 1)[1])
+    def instance(self):
+        return int(self._id.rsplit(f"-{self.split_identifier}-", 1)[1])
 
     @property
-    def update_id(self):
-        return self._id.split("-sensor-", 1)[0]
+    def update_id(self) -> str:
+        return self._id.rsplit(f"-{self.split_identifier}-", 1)[0]
 
 
 @dataclass

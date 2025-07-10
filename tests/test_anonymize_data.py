@@ -171,6 +171,7 @@ def test_anonymize_state(state, only_geo, expected, mocker):
             {},
             True,
             {
+                "split_identifier": None,
                 "friendly_name": "friendly-device-0",
                 "id": "its-a-1",
                 "device_id": "its-a-2",
@@ -200,6 +201,7 @@ def test_anonymize_state(state, only_geo, expected, mocker):
             {child_dev_1.id: {"parent": parent_dev_1.id, "new": "anon-id"}},
             False,
             {
+                "split_identifier": None,
                 "friendly_name": child_dev_1.friendly_name,
                 "id": "anon-id",
                 "device_id": "anon-device-id",
@@ -262,6 +264,7 @@ def test_generate_parent_mapping(devices, expected, new_children, mock_uuid):
 def test_anonymize_devices(anon_name, mock_uuid):
     expected = [
         {
+            "split_identifier": None,
             "id": "its-a-1",
             "device_id": "its-a-2",
             "model": "test-dev-1",
@@ -294,6 +297,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "manufacturerName": "test-manuf",
         },
         {
+            "split_identifier": None,
             "id": "its-a-2",
             "device_id": "its-a-2",
             "model": "test-c-dev-1",
@@ -326,6 +330,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "manufacturerName": "test-manuf",
         },
         {
+            "split_identifier": None,
             "id": "its-a-2",
             "device_id": "its-a-2",
             "model": "test-c-dev-2",
