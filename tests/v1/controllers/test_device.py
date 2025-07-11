@@ -28,7 +28,9 @@ def security_system_devices():
     data = utils.get_raw_dump("security-system-raw.json")
     devices = [get_afero_device(dev) for dev in data]
     assert len(devices) == 2
-    multi_devs = security_system_callback(devices)
+    multi_devs = []
+    for dev in devices:
+        multi_devs.extend(security_system_callback(dev).split_devices)
     devices.extend(multi_devs)
     assert len(devices) == 5
     yield devices

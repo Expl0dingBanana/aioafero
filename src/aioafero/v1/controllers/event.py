@@ -6,7 +6,7 @@ from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable
 from enum import Enum
 from types import NoneType
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
 
 from aiohttp.client_exceptions import ClientError
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
@@ -24,6 +24,17 @@ class BackoffException(Exception):
     """Exception raised when a backoff is required."""
 
     pass
+
+
+class CallbackResponse(NamedTuple):
+    """Callback response for DEVICE_SPLIT_CALLBACKS
+
+    :param split_devices: New devices that should be added to the overall list
+    :param remove_original: Remove the original device from the list of devices
+    """
+
+    split_devices: list[AferoDevice] = []
+    remove_original: bool = False
 
 
 class EventStreamStatus(Enum):
@@ -255,10 +266,16 @@ class EventStream:
         ]
         self._logger.debug("Number of devices: %s", len(devices))
         for name, multi_dev_callable in self._multiple_device_finder.items():
-            multi_devs = multi_dev_callable(devices)
-            if multi_devs:
-                self._logger.debug("Found %s devices from %s", len(multi_devs), name)
-                devices.extend(multi_devs)
+            for dev in devices[:]:
+                multi_devs, remove_root = multi_dev_callable(dev)
+                if remove_root:
+                    with contextlib.suppress(KeyError):
+                        devices.remove(dev)
+                if multi_devs:
+                    self._logger.debug(
+                        "Found %s devices from %s", len(multi_devs), name
+                    )
+                    devices.extend(multi_devs)
         self._logger.debug("Total number of devices (post split): %s", len(devices))
         return devices
 

@@ -451,6 +451,34 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 }
             ),
         ),
+        # LCN3002LM-01 WH
+        (
+            {
+                "id": "id",
+                "device_id": "device_id",
+                "model": "model",
+                "device_class": "light",
+                "default_name": "default_name",
+                "default_image": "bright-edgelit-flushmount-light-icon",
+                "friendly_name": "friendly_name",
+                "functions": ["functions!"],
+                "states": [],
+            },
+            device.AferoDevice(
+                **{
+                    "id": "id",
+                    "device_id": "device_id",
+                    "manufacturerName": "Commercial-Electric",
+                    "model": "LCN3002LM-01 WH",
+                    "device_class": "light",
+                    "default_name": "default_name",
+                    "default_image": "bright-edgelit-flushmount-light-icon",
+                    "friendly_name": "friendly_name",
+                    "functions": ["functions!"],
+                    "states": [],
+                }
+            ),
+        ),
     ],
 )
 def test_AferoDevice(afero_device, expected):

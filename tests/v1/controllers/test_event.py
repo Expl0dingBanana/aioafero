@@ -7,7 +7,7 @@ import pytest
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
 from aioafero import InvalidAuth
-from aioafero.v1.controllers import event, security_system
+from aioafero.v1.controllers import event, light, security_system
 from aioafero.v1.models.resource import ResourceTypes
 
 from .. import utils
@@ -29,7 +29,8 @@ async def test_properties(bridge):
     assert stream._polling_interval == 1
     assert stream.polling_interval == 1
     assert stream.registered_multiple_devices == {
-        "security-system-sensor": security_system.security_system_callback
+        "light": light.light_callback,
+        "security-system-sensor": security_system.security_system_callback,
     }
 
 
@@ -333,22 +334,22 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
     return valid_states
 
 
-def security_system_callback(devices):
+def security_system_callback(afero_device) -> event.CallbackResponse:
     multi_devs = []
-    for afero_device in devices:
-        if afero_device.device_class == "security-system":
-            for sensor_id in get_sensor_ids(afero_device):
-                cloned = copy.deepcopy(afero_device)
-                cloned.device_id = generate_sensor_name(afero_device, sensor_id)
-                cloned.id = generate_sensor_name(afero_device, sensor_id)
-                cloned.device_class = "security-system-sensor"
-                cloned.friendly_name = (
-                    f"{afero_device.friendly_name} - Sensor {sensor_id}"
-                )
-                cloned.states = get_valid_states(afero_device.states, sensor_id)
-                cloned.is_multi = True
-                multi_devs.append(cloned)
-    return multi_devs
+    if afero_device.device_class == "security-system":
+        for sensor_id in get_sensor_ids(afero_device):
+            cloned = copy.deepcopy(afero_device)
+            cloned.device_id = generate_sensor_name(afero_device, sensor_id)
+            cloned.id = generate_sensor_name(afero_device, sensor_id)
+            cloned.device_class = "security-system-sensor"
+            cloned.friendly_name = f"{afero_device.friendly_name} - Sensor {sensor_id}"
+            cloned.states = get_valid_states(afero_device.states, sensor_id)
+            cloned.is_multi = True
+            multi_devs.append(cloned)
+    return event.CallbackResponse(
+        split_devices=multi_devs,
+        remove_original=False,
+    )
 
 
 @pytest.mark.asyncio

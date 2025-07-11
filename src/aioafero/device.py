@@ -42,6 +42,7 @@ class AferoDevice:
     states: list[AferoState] = field(default=list)
     children: list[str] = field(default=list)
     manufacturerName: Optional[str] = field(default=None)
+    split_identifier: str | None = field(default=None, repr=False)
 
     def __hash__(self):
         return hash((self.id, self.friendly_name))
@@ -81,6 +82,9 @@ class AferoDevice:
                 self.model = "12A19060WRGBWH2"
             elif self.default_image == "slide-dimmer-icon":
                 self.model = "HPDA110NWBP"
+            elif self.default_image == "bright-edgelit-flushmount-light-icon":
+                self.manufacturerName = "Commercial-Electric"
+                self.model = "LCN3002LM-01 WH"
         # Fix switches
         elif self.device_class == "switch":
             if self.default_image == "smart-switch-icon" and self.model == "TBD":

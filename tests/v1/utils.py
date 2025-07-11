@@ -82,6 +82,43 @@ def modify_state(device: AferoDevice, new_state):
         break
 
 
+def create_hs_raw_from_device(afero_dev: AferoDevice) -> dict:
+    """Convert an AferoDevice to Hubspace data"""
+    descr_device = {
+        "defaultName": afero_dev.default_name,
+        "deviceClass": afero_dev.device_class,
+        "manufacturerName": afero_dev.manufacturerName,
+        "model": afero_dev.model,
+        "profileId": "6ea6d241-3909-4235-836d-c594ece2bb67",
+        "type": "device",
+    }
+    description = {
+        "createdTimestampMs": 0,
+        "defaultImage": afero_dev.default_image,
+        "descriptions": [],
+        "device": descr_device,
+        "functions": afero_dev.functions,
+        "hints": [],
+        "id": afero_dev.id,
+        "updatedTimestampMs": 0,
+        "version": 1,
+    }
+    return {
+        "children": afero_dev.children,
+        "createdTimestampMs": 0,
+        "description": description,
+        "deviceId": afero_dev.device_id,
+        "friendlyDescription": "",
+        "friendlyName": afero_dev.friendly_name,
+        "id": afero_dev.id,
+        "state": {
+            "metadeviceId": afero_dev.id,
+            "values": convert_states(afero_dev.states),
+        },
+        "typeId": "metadevice.device",
+    }
+
+
 def create_hs_raw_from_dump(file_name: str) -> list[dict]:
     """Generate a Hubspace payload from devices and save it to a file.
 
@@ -94,41 +131,7 @@ def create_hs_raw_from_dump(file_name: str) -> list[dict]:
     """
     hs_raw: list[dict] = []
     for device in create_devices_from_data(file_name):
-        descr_device = {
-            "defaultName": device.default_name,
-            "deviceClass": device.device_class,
-            "manufacturerName": device.manufacturerName,
-            "model": device.model,
-            "profileId": "6ea6d241-3909-4235-836d-c594ece2bb67",
-            "type": "device",
-        }
-        description = {
-            "createdTimestampMs": 0,
-            "defaultImage": device.default_image,
-            "descriptions": [],
-            "device": descr_device,
-            "functions": device.functions,
-            "hints": [],
-            "id": device.id,
-            "updatedTimestampMs": 0,
-            "version": 1,
-        }
-        hs_raw.append(
-            {
-                "children": device.children,
-                "createdTimestampMs": 0,
-                "description": description,
-                "deviceId": device.device_id,
-                "friendlyDescription": "",
-                "friendlyName": device.friendly_name,
-                "id": device.id,
-                "state": {
-                    "metadeviceId": device.id,
-                    "values": convert_states(device.states),
-                },
-                "typeId": "metadevice.device",
-            }
-        )
+        hs_raw.append(create_hs_raw_from_device(device))
     return hs_raw
 
 

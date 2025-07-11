@@ -21,6 +21,7 @@ class Light:
     effect: features.EffectFeature | None
 
     # Defined at initialization
+    split_identifier: str | None = None
     instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
     sensors: dict[str, AferoSensor] = field(default_factory=lambda: dict())
@@ -43,6 +44,20 @@ class Light:
     def get_instance(self, elem):
         """Lookup the instance associated with the elem"""
         return self.instances.get(elem, None)
+
+    @property
+    def instance(self):
+        if self.split_identifier:
+            return self.id.rsplit(f"-{self.split_identifier}-", 1)[1]
+        else:
+            return None
+
+    @property
+    def update_id(self) -> str:
+        if self.split_identifier:
+            return self.id.rsplit(f"-{self.split_identifier}-", 1)[0]
+        else:
+            return self.id
 
     @property
     def supports_color(self) -> bool:
