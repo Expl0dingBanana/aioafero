@@ -219,13 +219,15 @@ def test_get_valid_states(device, instance, expected):
 def test_light_callback():
     multi_devs, remove_dev = light.light_callback(flushmount_light)
     assert remove_dev is True
-    assert len(multi_devs) == 2
+    assert len(multi_devs) == 3
     assert len(multi_devs[0].states) == 20
     assert multi_devs[0].id == flushmount_light_color_id
     assert len(multi_devs[1].states) == 2
     assert multi_devs[1].id == flushmount_light_white_id
     assert multi_devs[1].friendly_name == f"{flushmount_light.friendly_name} - white"
     assert len(multi_devs[1].states) == 2
+    assert multi_devs[2].id == flushmount_light.id
+    assert len(multi_devs[2].states) == 7
 
 
 def test_light_callback_none():
@@ -958,11 +960,12 @@ async def test_emitting(bridge):
         utils.create_hs_raw_from_dump("light-flushmount.json")
     )
     await bridge.async_block_until_done()
-    assert len(bridge.lights._items) == 2
+    assert len(bridge.lights._items) == 3
     assert bridge.lights[flushmount_light_color_id].on.on
     assert bridge.lights[flushmount_light_color_id].brightness == 1
     assert not bridge.lights[flushmount_light_white_id].on.on
     assert bridge.lights[flushmount_light_white_id].brightness == 100
+    assert bridge.lights[flushmount_light.id].available is True
     dev_update = utils.create_devices_from_data("light-flushmount.json")[0]
     # Simulate an update
     utils.modify_state(
@@ -997,6 +1000,14 @@ async def test_emitting(bridge):
             value=55,
         ),
     )
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="available",
+            functionInstance=None,
+            value=False,
+        ),
+    )
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(dev_update)]
     )
@@ -1005,3 +1016,4 @@ async def test_emitting(bridge):
     assert not bridge.lights[flushmount_light_color_id].on.on
     assert bridge.lights[flushmount_light_white_id].brightness == 50
     assert bridge.lights[flushmount_light_white_id].on.on
+    assert bridge.lights[flushmount_light.id].available is False

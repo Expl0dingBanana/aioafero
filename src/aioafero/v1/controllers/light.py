@@ -64,6 +64,7 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:
     multi_devs: list[AferoDevice] = []
     if afero_device.device_class == ResourceTypes.LIGHT.value:
+        children = []
         for instance in get_split_instances(afero_device):
             cloned = copy.deepcopy(afero_device)
             # Lights should all appear under the same device
@@ -72,6 +73,24 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
             cloned.split_identifier = SPLIT_IDENTIFIER
             cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
             cloned.states = get_valid_states(afero_device, instance)
+            multi_devs.append(cloned)
+            children.append(cloned.id)
+        if afero_device.model == "LCN3002LM-01 WH":
+            cloned = copy.deepcopy(afero_device)
+            valid_states = []
+            for state in afero_device.states:
+                if state.functionClass in [
+                    "available",
+                    "wifi-ssid",
+                    "wifi-rssi",
+                    "wifi-steady-state",
+                    "wifi-setup-state",
+                    "wifi-mac-address",
+                    "ble-mac-address",
+                ]:
+                    valid_states.append(state)
+            cloned.states = valid_states
+            cloned.children = children
             multi_devs.append(cloned)
     return CallbackResponse(
         split_devices=multi_devs,
