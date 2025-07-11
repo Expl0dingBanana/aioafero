@@ -91,6 +91,7 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
                     valid_states.append(state)
             cloned.states = valid_states
             cloned.children = children
+            cloned.device_class = "parent-device"
             multi_devs.append(cloned)
     return CallbackResponse(
         split_devices=multi_devs,
