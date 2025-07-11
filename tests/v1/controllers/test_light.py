@@ -55,6 +55,9 @@ def test_get_split_instances(device, expected):
 @pytest.mark.parametrize(
     "device, instance, expected",
     [
+        # Has no split instances
+        (a21_light, "nada", []),
+        # Flushmount white
         (
             flushmount_light,
             "white",
@@ -71,8 +74,15 @@ def test_get_split_instances(device, expected):
                     lastUpdateTime=0,
                     functionInstance="white",
                 ),
+                AferoState(
+                    functionClass="available",
+                    value=True,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
             ],
         ),
+        # Flushmount color
         (
             flushmount_light,
             "color",
@@ -222,10 +232,9 @@ def test_light_callback():
     assert len(multi_devs) == 3
     assert len(multi_devs[0].states) == 20
     assert multi_devs[0].id == flushmount_light_color_id
-    assert len(multi_devs[1].states) == 2
+    assert len(multi_devs[1].states) == 3
     assert multi_devs[1].id == flushmount_light_white_id
     assert multi_devs[1].friendly_name == f"{flushmount_light.friendly_name} - white"
-    assert len(multi_devs[1].states) == 2
     assert multi_devs[2].id == flushmount_light.id
     assert len(multi_devs[2].states) == 7
 

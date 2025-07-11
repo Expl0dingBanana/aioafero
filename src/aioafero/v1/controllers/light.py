@@ -51,7 +51,9 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
         if afero_dev.model == "LCN3002LM-01 WH":
             if state.functionInstance == "primary":
                 continue
-            if (
+            elif state.functionClass == "available":
+                valid_states.append(state)
+            elif (
                 instance == "white"
                 and state.functionInstance == instance
                 or instance != "white"
