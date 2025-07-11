@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 4.2.0
+=============
+
+ * Add support for Light LCN3002LM-01 WH
+
+
 Version 4.1.1
 =============
 
