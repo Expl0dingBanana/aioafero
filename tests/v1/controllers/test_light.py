@@ -568,6 +568,36 @@ async def test_set_brightness(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_set_brightness_split(bridge, mocker):
+    mocker.patch("time.time", return_value=12345)
+    controller = bridge.lights
+    await bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await bridge.async_block_until_done()
+    assert len(bridge.lights._items) == 2
+    dev = controller[flushmount_light_white_id]
+    assert dev.on.on is False
+    await controller.set_brightness(flushmount_light_white_id, 20)
+    await bridge.async_block_until_done()
+    expected_states = [
+        {
+            "functionClass": "toggle",
+            "functionInstance": "white",
+            "lastUpdateTime": 12345,
+            "value": "on",
+        },
+        {
+            "functionClass": "brightness",
+            "functionInstance": "white",
+            "lastUpdateTime": 12345,
+            "value": 20,
+        },
+    ]
+    utils.ensure_states_sent(controller, expected_states, device_id=flushmount_light.id)
+
+
+@pytest.mark.asyncio
 async def test_set_rgb(mocked_controller):
     await mocked_controller.initialize_elem(a21_light)
     assert len(mocked_controller.items) == 1

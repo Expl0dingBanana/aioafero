@@ -78,6 +78,12 @@ def test_init(populated_light):
     populated_light.on = None
     assert not populated_light.supports_on
     assert populated_light.brightness == 100
+    assert populated_light.update_id == "entity-1"
+    assert populated_light.instance is None
+    populated_light.id = "entity-beans-1"
+    populated_light.split_identifier = "beans"
+    assert populated_light.update_id == "entity"
+    assert populated_light.instance == "1"
 
 
 def test_empty_light(empty_light):
