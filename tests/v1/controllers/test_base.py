@@ -1340,7 +1340,7 @@ def test_update_dataclass(resource, update, expected):
                 },
             ],
         ),
-        # Testing when a value doesnt change
+        # Testing when a value does not change
         (
             TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
             TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),

@@ -5,7 +5,7 @@ import pytest_asyncio
 from aioresponses import aioresponses
 
 from aioafero.v1 import AferoBridgeV1
-from aioafero.v1.auth import token_data
+from aioafero.v1.auth import TokenData
 from aioafero.v1.controllers.event import EventType
 
 
@@ -47,7 +47,7 @@ def mocked_bridge_req(mocker):
     mocker.patch.object(bridge, "initialize", side_effect=mocker.AsyncMock())
     mocker.patch.object(bridge, "fetch_data", side_effect=bridge.fetch_data)
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
-    bridge._auth._token_data = token_data(
+    bridge._auth._token_data = TokenData(
         "mock-token",
         None,
         "mock-refresh-token",

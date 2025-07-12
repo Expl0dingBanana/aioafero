@@ -329,7 +329,7 @@ async def test_update_elem(mocked_controller):
     assert dev.alarm_state.mode == "triggered"
     assert dev.numbers[("arm-exit-delay", "away")].value == 300
     assert dev.selects[("song-id", "alarm")].selected == "preset-12"
-    assert dev.binary_sensors["battery-powered|None"]._value == "battery-powered"
+    assert dev.binary_sensors["battery-powered|None"].current_value == "battery-powered"
     assert dev.binary_sensors["battery-powered|None"].value is True
     assert dev.siren_action.result_code == 0
     assert dev.siren_action.command == 4

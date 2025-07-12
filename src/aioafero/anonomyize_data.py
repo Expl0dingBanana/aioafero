@@ -1,6 +1,6 @@
 """Provides an interface for anonymizing data"""
 
-__all__ = ["anonymize_devices", "anonymize_device"]
+__all__ = ["anonymize_device", "anonymize_devices"]
 
 from dataclasses import asdict
 from uuid import uuid4

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 
 def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int) -> _T:
@@ -76,7 +76,7 @@ def float_range(start, stop, step):
 
 
 def process_function(
-    functions: list[dict], func_class: str, func_instance: Optional[str] = None
+    functions: list[dict], func_class: str, func_instance: str | None = None
 ) -> list[Any]:
     """Generates a list of whatever you are searching for
 

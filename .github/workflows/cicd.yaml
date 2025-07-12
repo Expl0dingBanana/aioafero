@@ -1,10 +1,11 @@
+---
 name: Execute tests and linting
 
 on:
   workflow_dispatch:
   push:
     branches:
-    - main
+      - main
   pull_request:
 
 jobs:

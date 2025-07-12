@@ -1,10 +1,11 @@
 """Controller holding and managing Afero IoT resources of type `valve`."""
 
-from ... import errors
-from ...device import AferoDevice
-from ..models import features
-from ..models.resource import DeviceInformation, ResourceTypes
-from ..models.valve import Valve, ValvePut
+from aioafero import errors
+from aioafero.device import AferoDevice
+from aioafero.v1.models import features
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+from aioafero.v1.models.valve import Valve, ValvePut
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
@@ -25,15 +26,20 @@ class ValveController(BaseResourcesController[Valve]):
     ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str, instance: str | None = None) -> None:
-        """Open the valve"""
+        """Open the valve."""
         await self.set_state(device_id, valve_open=True, instance=instance)
 
     async def turn_off(self, device_id: str, instance: str | None = None) -> None:
-        """Close the valve"""
+        """Close the valve."""
         await self.set_state(device_id, valve_open=False, instance=instance)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Valve:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
         valve_open: dict[str, features.OpenFeature] = {}
@@ -74,6 +80,12 @@ class ValveController(BaseResourcesController[Valve]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Valve with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         for state in afero_device.states:

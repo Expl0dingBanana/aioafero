@@ -95,7 +95,7 @@ async def test_initialize(mocked_controller):
         "humidity-threshold-met|humidity-threshold-met": AferoBinarySensor(
             id="humidity-threshold-met|humidity-threshold-met",
             owner="7475607b-c3ea-4afe-a465-1c11c5c09985",
-            _value="below-threshold",
+            current_value="below-threshold",
             _error="above-threshold",
             unit=None,
             instance="humidity-threshold-met",
@@ -103,7 +103,7 @@ async def test_initialize(mocked_controller):
         "motion-detection|motion-detection": AferoBinarySensor(
             id="motion-detection|motion-detection",
             owner="7475607b-c3ea-4afe-a465-1c11c5c09985",
-            _value="motion-detected",
+            current_value="motion-detected",
             _error="motion-detected",
             unit=None,
             instance="motion-detection",
@@ -179,7 +179,7 @@ async def test_update_elem(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.available is False
     assert (
-        dev.binary_sensors["humidity-threshold-met|humidity-threshold-met"]._value
+        dev.binary_sensors["humidity-threshold-met|humidity-threshold-met"].current_value
         == "above-threshold"
     )
     assert dev.numbers[("auto-off-timer", "auto-off")].value == 120

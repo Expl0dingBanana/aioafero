@@ -5,7 +5,7 @@ def test_init_sensor():
     dev = AferoSensor(
         id="entity-1",
         owner="device-link",
-        _value="cool",
+        value="cool",
         unit="beans",
     )
     assert dev.value == "cool"
@@ -18,9 +18,9 @@ def test_init_mapped_sensor_error():
     dev = AferoBinarySensor(
         id="entity-1",
         owner="device-link",
-        _value="alerting",
+        current_value="alerting",
         _error="alerting",
     )
     assert dev.value is True
-    dev.value = "normal"
+    dev.current_value = "normal"
     assert dev.value is False

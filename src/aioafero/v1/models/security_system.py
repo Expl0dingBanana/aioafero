@@ -1,13 +1,16 @@
+"""Representation of an Afero Security System and its corresponding updates."""
+
 from dataclasses import dataclass, field
 
-from ..models import features
+from aioafero.v1.models import features
+
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
 
 
 @dataclass
 class SecuritySystem:
-    """Representation of an Afero Security Panel"""
+    """Representation of an Afero Security Panel."""
 
     id: str  # ID used when interacting with Afero
     available: bool
@@ -18,14 +21,14 @@ class SecuritySystem:
     selects: dict[tuple[str, str | None], features.SelectFeature] | None
 
     # Defined at initialization
-    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+    instances: dict = field(default_factory=dict, repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=lambda: dict())
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=lambda: dict())
+    sensors: dict[str, AferoSensor] = field(default_factory=dict)
+    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.SECURITY_SYSTEM
 
-    def __init__(self, functions: list, **kwargs):
+    def __init__(self, functions: list, **kwargs):  # noqa: D107
         for key, value in kwargs.items():
             if key == "instances":
                 continue
@@ -39,48 +42,48 @@ class SecuritySystem:
 
     @property
     def supports_away(self) -> bool:
-        """States if the panel supports away mode"""
+        """States if the panel supports away mode."""
         return "arm-away" in self.alarm_state.modes
 
     @property
     def supports_arm_bypass(self) -> bool:
-        """States if the panel supports arm-bypass mode"""
+        """States if the panel supports arm-bypass mode."""
         return False
 
     @property
     def supports_home(self) -> bool:
-        """States if the panel supports home mode"""
+        """States if the panel supports home mode."""
         return "arm-stay" in self.alarm_state.modes
 
     @property
     def supports_night(self) -> bool:
-        """States if the panel supports night mode"""
+        """States if the panel supports night mode."""
         return False
 
     @property
     def supports_vacation(self) -> bool:
-        """States if the panel supports vacation mode"""
+        """States if the panel supports vacation mode."""
         return False
 
     @property
     def supports_trigger(self) -> bool:
-        """States if the panel supports manually triggering"""
+        """States if the panel supports manually triggering."""
         return "alarming-sos" in self.alarm_state.modes
 
     def get_instance(self, elem):
-        """Lookup the instance associated with the elem"""
+        """Lookup the instance associated with the elem."""
         return self.instances.get(elem, None)
 
 
 @dataclass
 class SecuritySystemPut:
-    """States that can be updated for a Security System"""
+    """States that can be updated for a Security System."""
 
     alarm_state: features.ModeFeature | None = None
     siren_action: features.SecuritySensorSirenFeature | None = None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
-        default_factory=lambda: dict(), repr=False, init=False
+        default_factory=dict, repr=False, init=False
     )
     selects: dict[tuple[str, str | None], features.SelectFeature] | None = field(
-        default_factory=lambda: dict(), repr=False, init=False
+        default_factory=dict, repr=False, init=False
     )

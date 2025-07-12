@@ -1,10 +1,11 @@
 """Controller holding and managing Afero IoT resources of type `switch`."""
 
-from ... import errors
-from ...device import AferoDevice
-from ..models import features
-from ..models.resource import DeviceInformation, ResourceTypes
-from ..models.switch import Switch, SwitchPut
+from aioafero import errors
+from aioafero.device import AferoDevice
+from aioafero.v1.models import features
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+from aioafero.v1.models.switch import Switch, SwitchPut
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
@@ -37,7 +38,12 @@ class SwitchController(BaseResourcesController[Switch]):
         await self.set_state(device_id, on=False, instance=instance)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Switch:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         on: dict[str, features.OnFeature] = {}
         sensors: dict[str, AferoSensor] = {}
@@ -76,6 +82,12 @@ class SwitchController(BaseResourcesController[Switch]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Switch with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         toggle_states = ["power", "toggle"]

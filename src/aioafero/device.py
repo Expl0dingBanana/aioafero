@@ -1,13 +1,13 @@
 __all__ = [
-    "AferoResource",
     "AferoDevice",
+    "AferoResource",
     "AferoState",
     "get_afero_device",
     "get_function_from_device",
 ]
-import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar
+import logging
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,8 @@ class AferoState:
 
     functionClass: str
     value: Any
-    lastUpdateTime: Optional[int] = None
-    functionInstance: Optional[str] = None
+    lastUpdateTime: int | None = None
+    functionInstance: str | None = None
 
 
 @dataclass
@@ -41,7 +41,7 @@ class AferoDevice:
     functions: list[dict] = field(default=list)
     states: list[AferoState] = field(default=list)
     children: list[str] = field(default=list)
-    manufacturerName: Optional[str] = field(default=None)
+    manufacturerName: str | None = field(default=None)
     split_identifier: str | None = field(default=None, repr=False)
 
     def __hash__(self):

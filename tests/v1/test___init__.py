@@ -5,7 +5,7 @@ import pytest
 
 from aioafero import EventType, InvalidAuth
 from aioafero.errors import DeviceNotFound
-from aioafero.v1 import AferoBridgeV1, add_secret, token_data
+from aioafero.v1 import AferoBridgeV1, add_secret, TokenData
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -205,7 +205,7 @@ class DummyResponse:
 
 
 def test_set_token_data(mocked_bridge):
-    data = token_data(
+    data = TokenData(
         "token",
         "access_token",
         "refresh_token",

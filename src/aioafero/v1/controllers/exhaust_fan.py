@@ -2,12 +2,13 @@
 
 import copy
 
-from ...device import AferoDevice, get_function_from_device
-from ...errors import DeviceNotFound
-from ..models import features
-from ..models.exhaust_fan import ExhaustFan, ExhaustFanPut
-from ..models.features import NumbersFeature, SelectFeature
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero.device import AferoDevice, get_function_from_device
+from aioafero.errors import DeviceNotFound
+from aioafero.v1.models import features
+from aioafero.v1.models.exhaust_fan import ExhaustFan, ExhaustFanPut
+from aioafero.v1.models.features import NumbersFeature, SelectFeature
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
 from .event import CallbackResponse
 
@@ -15,11 +16,12 @@ SPLIT_IDENTIFIER: str = "exhaust-fan"
 
 
 def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
+    """Generate the name for an instanced element."""
     return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
 
 
 def get_split_instances(afero_dev: AferoDevice) -> list[str]:
-    """Determine available switches from the states"""
+    """Determine available instances from the states."""
     instances = set()
     for state in afero_dev.states:
         if state.functionClass == "toggle" and state.functionInstance not in [
@@ -31,17 +33,17 @@ def get_split_instances(afero_dev: AferoDevice) -> list[str]:
 
 
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
-    """Find states associated with the specific sensor"""
-    valid_states: list = []
-    for state in afero_dev.states:
-        if state.functionClass == "available" or (
-            state.functionClass == "toggle" and state.functionInstance == instance
-        ):
-            valid_states.append(state)
-    return valid_states
+    """Find states associated with the specific instance."""
+    return [
+        state
+        for state in afero_dev.states
+        if state.functionClass == "available"
+        or (state.functionClass == "toggle" and state.functionInstance == instance)
+    ]
 
 
 def exhaust_fan_callback(afero_device: AferoDevice) -> CallbackResponse:
+    """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
     if afero_device.device_class == ResourceTypes.EXHAUST_FAN.value:
         for instance in get_split_instances(afero_device):
@@ -92,7 +94,12 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
     }
 
     async def initialize_elem(self, afero_device: AferoDevice) -> ExhaustFan:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
         numbers: dict[tuple[str, str], features.NumbersFeature] = {}
@@ -133,6 +140,12 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Exhaust Fan with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         for state in afero_device.states:
@@ -140,11 +153,11 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
                 if cur_item.available != state.value:
                     updated_keys.add("available")
                 cur_item.available = state.value
-            elif update_key := await self.update_sensor(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_number(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_select(state, cur_item):
+            elif (
+                (update_key := await self.update_sensor(state, cur_item))
+                or (update_key := await self.update_number(state, cur_item))
+                or (update_key := await self.update_select(state, cur_item))
+            ):
                 updated_keys.add(update_key)
         return updated_keys
 

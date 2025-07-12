@@ -2,13 +2,14 @@
 
 import copy
 
-from ... import device
-from ...device import AferoDevice, AferoState
-from ...errors import DeviceNotFound
-from ...util import calculate_hubspace_celsius, process_function
-from ..models import features
-from ..models.portable_ac import PortableAC, PortableACPut
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero import device
+from aioafero.device import AferoDevice, AferoState
+from aioafero.errors import DeviceNotFound
+from aioafero.util import calculate_hubspace_celsius, process_function
+from aioafero.v1.models import features
+from aioafero.v1.models.portable_ac import PortableAC, PortableACPut
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import BaseResourcesController
 from .event import CallbackResponse
 
@@ -16,19 +17,21 @@ SPLIT_IDENTIFIER: str = "portable-ac"
 
 
 def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
+    """Generate the name for an instanced element."""
     return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
 
 
-def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
-    """Find states associated with the specific sensor"""
-    valid_states: list = []
-    for state in afero_dev.states:
-        if state.functionClass == "available" or (state.functionClass == "power"):
-            valid_states.append(state)
-    return valid_states
+def get_valid_states(afero_dev: AferoDevice) -> list:
+    """Find states associated with the element."""
+    return [
+        state
+        for state in afero_dev.states
+        if state.functionClass in ["available", "power"]
+    ]
 
 
 def portable_ac_callback(afero_device: AferoDevice) -> CallbackResponse:
+    """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
     if afero_device.device_class == ResourceTypes.PORTABLE_AC.value:
         instance = "power"
@@ -36,7 +39,7 @@ def portable_ac_callback(afero_device: AferoDevice) -> CallbackResponse:
         cloned.id = generate_split_name(afero_device, instance)
         cloned.split_identifier = SPLIT_IDENTIFIER
         cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
-        cloned.states = get_valid_states(afero_device, instance)
+        cloned.states = get_valid_states(afero_device)
         cloned.device_class = ResourceTypes.SWITCH.value
         cloned.children = []
         multi_devs.append(cloned)
@@ -71,7 +74,12 @@ class PortableACController(BaseResourcesController[PortableAC]):
     }
 
     async def initialize_elem(self, afero_device: AferoDevice) -> PortableAC:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         # Afero reports in Celsius by default
         display_celsius: bool = True
@@ -143,6 +151,12 @@ class PortableACController(BaseResourcesController[PortableAC]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Portable AC with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         updated_keys = set()
         cur_item = self.get_device(afero_device.id)
         for state in afero_device.states:
@@ -169,9 +183,9 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     cur_item.hvac_mode.previous_mode = cur_item.hvac_mode.mode
                     cur_item.hvac_mode.mode = state.value
                     updated_keys.add(state.functionClass)
-            elif update_key := await self.update_number(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_select(state, cur_item):
+            elif (update_key := await self.update_number(state, cur_item)) or (
+                update_key := await self.update_select(state, cur_item)
+            ):
                 updated_keys.add(update_key)
             elif state.functionClass == "temperature-units":
                 new_val: bool = state.value == "celsius"
@@ -181,7 +195,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
         return updated_keys
 
     async def set_state(self, device_id: str, **kwargs) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Set supported feature(s) to portable ac resource."""
         update_obj = PortableACPut()
         hvac_mode: str | None = kwargs.get("hvac_mode")
         target_temperature: float | None = kwargs.get("target_temperature")
@@ -249,6 +263,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
 def generate_target_temp(
     func_def: dict, state: AferoState
 ) -> features.TargetTemperatureFeature:
+    """Determine the target temp based on the function definition."""
     return features.TargetTemperatureFeature(
         value=round(state.value, 2),
         step=func_def["range"]["step"],

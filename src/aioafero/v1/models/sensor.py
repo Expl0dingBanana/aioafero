@@ -1,29 +1,27 @@
+"""Representation of an Afero Sensor and its corresponding updates."""
+
 from dataclasses import dataclass, field
 
 
 @dataclass
 class AferoSensor:
+    """Sensor that can return any value."""
+
     id: str
     owner: str
-    _value: str | int | float | None
+    value: str | int | float | None
 
     unit: str | None = field(default=None)
     instance: str | None = field(default=None)
 
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        self._value = value
-
 
 @dataclass
 class AferoBinarySensor:
+    """Sensor that can return True (alerting) or False (normal)."""
+
     id: str
     owner: str
-    _value: str | int
+    current_value: str | int
     _error: str | int
 
     unit: str | None = field(default=None)
@@ -31,8 +29,5 @@ class AferoBinarySensor:
 
     @property
     def value(self) -> bool:
-        return self._value == self._error
-
-    @value.setter
-    def value(self, value):
-        self._value = value
+        """Determine if the binary sensor is in an alert state."""
+        return self.current_value == self._error

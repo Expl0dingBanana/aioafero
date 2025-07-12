@@ -1,166 +1,243 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" class="login-pf">
-
-<head>
-    <meta charset="utf-8">
+  <head>
+    <meta charset="utf-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="noindex, nofollow" />
 
-    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css">
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto"
+      rel="stylesheet"
+      type="text/css"
+    />
     <link rel="icon" href="#" />
-            <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Log in to Hubspace</title>
-            <link href="/auth/resources/zpbf1/common/keycloak/web_modules/@patternfly/react-core/dist/styles/base.css" rel="stylesheet" />
-            <link href="/auth/resources/zpbf1/common/keycloak/web_modules/@patternfly/react-core/dist/styles/app.css" rel="stylesheet" />
-            <link href="/auth/resources/zpbf1/common/keycloak/node_modules/patternfly/dist/css/patternfly.min.css" rel="stylesheet" />
-            <link href="/auth/resources/zpbf1/common/keycloak/node_modules/patternfly/dist/css/patternfly-additions.min.css" rel="stylesheet" />
-            <link href="/auth/resources/zpbf1/common/keycloak/lib/pficon/pficon.css" rel="stylesheet" />
+    <link
+      href="/auth/resources/zpbf1/common/keycloak/web_modules/@patternfly/react-core/dist/styles/base.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/zpbf1/common/keycloak/web_modules/@patternfly/react-core/dist/styles/app.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/zpbf1/common/keycloak/node_modules/patternfly/dist/css/patternfly.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/zpbf1/common/keycloak/node_modules/patternfly/dist/css/patternfly-additions.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/zpbf1/common/keycloak/lib/pficon/pficon.css"
+      rel="stylesheet"
+    />
 
-            <link href="/auth/resources/zpbf1/login/hubspace/css/login.css" rel="stylesheet" />
-            <link href="/auth/resources/zpbf1/login/hubspace/css/style.css" rel="stylesheet" />
+    <link
+      href="/auth/resources/zpbf1/login/hubspace/css/login.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/zpbf1/login/hubspace/css/style.css"
+      rel="stylesheet"
+    />
     <script type="text/javascript">
-        function getUrlVars() {
-            var vars = [], hash;
-            var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+      function getUrlVars() {
+        var vars = [],
+          hash;
+        var hashes = window.location.href
+          .slice(window.location.href.indexOf("?") + 1)
+          .split("&");
 
-            for(var i = 0; i < hashes.length; i++)
-                {
-                hash = hashes[i].split('=');
-                vars.push(hash[0]);
-                vars[hash[0]] = hash[1];
-                }
-
-            return vars;
+        for (var i = 0; i < hashes.length; i++) {
+          hash = hashes[i].split("=");
+          vars.push(hash[0]);
+          vars[hash[0]] = hash[1];
         }
-        function togglePassword(id) {
-            var passwordField = document.getElementById(id);
-            var passwordFieldToggle = document.getElementById('bt-toggle-' + id);
-            if(passwordField.getAttribute('type') === 'password') {
-                passwordField.setAttribute('type', 'text');
-                passwordFieldToggle.value = 'Hide';
+
+        return vars;
+      }
+      function togglePassword(id) {
+        var passwordField = document.getElementById(id);
+        var passwordFieldToggle = document.getElementById("bt-toggle-" + id);
+        if (passwordField.getAttribute("type") === "password") {
+          passwordField.setAttribute("type", "text");
+          passwordFieldToggle.value = "Hide";
+        } else {
+          passwordField.setAttribute("type", "password");
+          passwordFieldToggle.value = "Show";
+        }
+      }
+
+      function clickLocale() {
+        var localeDropdown = document.querySelector("#kc-locale ul");
+        localeDropdown.style.display =
+          localeDropdown.style.display != "block" ? "block" : "none";
+      }
+
+      document.addEventListener("DOMContentLoaded", function (event) {
+        var usernameField = document.getElementById("username");
+        var usernameInput = getUrlVars()["username"];
+        if (usernameInput) {
+          usernameField.value = decodeURIComponent(usernameInput);
+        }
+
+        var acceptChk = document.getElementById("acceptterms");
+        if (acceptChk) {
+          acceptChk.onclick = function () {
+            var login = document.getElementById("login-button");
+            console.log("Disabled " + login.disabled);
+
+            if (acceptChk.checked) {
+              console.log("enable");
+              login.disabled = false;
             } else {
-                passwordField.setAttribute('type', 'password');
-                passwordFieldToggle.value = 'Show';
+              console.log("disable");
+              login.disabled = true;
             }
+          };
         }
-
-        function clickLocale() {
-            var localeDropdown = document.querySelector("#kc-locale ul");
-            localeDropdown.style.display = localeDropdown.style.display != "block" ? "block" : "none";
-        }
-
-
-        document.addEventListener("DOMContentLoaded", function(event) {
-            var usernameField = document.getElementById('username');
-            var usernameInput = getUrlVars()['username'];
-            if (usernameInput) {
-                usernameField.value = decodeURIComponent(usernameInput);
-            }
-
-            var acceptChk = document.getElementById('acceptterms');
-            if (acceptChk) {
-                acceptChk.onclick = function () {
-                    var login = document.getElementById('login-button');
-                    console.log('Disabled ' + login.disabled);
-
-                    if(acceptChk.checked) {
-                        console.log('enable');
-                        login.disabled = false;
-                    } else {
-                        console.log('disable');
-                        login.disabled = true;
-                    }
-                }
-            }
-        }
-
-
-        );
+      });
     </script>
-</head>
+  </head>
 
-<body class="">
-  <div class="login-pf-page">
-    <div id="kc-header" class="login-pf-page-header">
-      <img src="/auth/resources/zpbf1/login/hubspace/img/hubspace-mobile-logo.png" alt="Hubspace logo">
-    </div>
-    <div class="card-pf ">
-      <header class="login-pf-header">
-
-            <div id="kc-locale">
-                <div id="kc-locale-wrapper" class="">
-                    <div class="kc-dropdown" id="kc-locale-dropdown">
-                        <button id="kc-current-locale-link" type="button" onClick="clickLocale()" tabindex=0>
-                            English
-                        </button>
-                        <ul>
-                                <li class="kc-dropdown-item"><a href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=url_tab_id&amp;execution=url_exec_code&amp;kc_locale=en">English</a></li>
-                                <li class="kc-dropdown-item"><a href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=url_tab_id&amp;execution=url_exec_code&amp;kc_locale=fr">Français</a></li>
-                                <li class="kc-dropdown-item"><a href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=url_tab_id&amp;execution=url_exec_code&amp;kc_locale=es">Español</a></li>
-                        </ul>
-                    </div>
-                </div>
+  <body class="">
+    <div class="login-pf-page">
+      <div id="kc-header" class="login-pf-page-header">
+        <img
+          src="/auth/resources/zpbf1/login/hubspace/img/hubspace-mobile-logo.png"
+          alt="Hubspace logo"
+        />
+      </div>
+      <div class="card-pf">
+        <header class="login-pf-header">
+          <div id="kc-locale">
+            <div id="kc-locale-wrapper" class="">
+              <div class="kc-dropdown" id="kc-locale-dropdown">
+                <button
+                  id="kc-current-locale-link"
+                  type="button"
+                  onClick="clickLocale()"
+                  tabindex="0"
+                >
+                  English
+                </button>
+                <ul>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=url_tab_id&amp;execution=url_exec_code&amp;kc_locale=en"
+                      >English</a
+                    >
+                  </li>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=url_tab_id&amp;execution=url_exec_code&amp;kc_locale=fr"
+                      >Français</a
+                    >
+                  </li>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=url_tab_id&amp;execution=url_exec_code&amp;kc_locale=es"
+                      >Español</a
+                    >
+                  </li>
+                </ul>
+              </div>
             </div>
-                <h1 id="kc-page-title">        Sign In
-
-</h1>
-      </header>
-      <div id="kc-content">
-        <div id="kc-content-wrapper">
-
-
-    <div id="kc-form" >
-      <div id="kc-form-wrapper" >
-            <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=url_sess_code&amp;execution=url_exec_code&amp;client_id=hubspace_android&amp;tab_id=url_tab_id" method="post">
-                <div class="form-group">
+          </div>
+          <h1 id="kc-page-title">Sign In</h1>
+        </header>
+        <div id="kc-content">
+          <div id="kc-content-wrapper">
+            <div id="kc-form">
+              <div id="kc-form-wrapper">
+                <form
+                  id="kc-form-login"
+                  onsubmit="login.disabled = true; return true;"
+                  action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=url_sess_code&amp;execution=url_exec_code&amp;client_id=hubspace_android&amp;tab_id=url_tab_id"
+                  method="post"
+                >
+                  <div class="form-group">
                     <label for="username" class="form-label">Email</label>
 
-                        <input tabindex="0" id="username" class="form-control" name="username" value=""  type="email" inputmode="email" autofocus autocomplete="off" />
+                    <input
+                      tabindex="0"
+                      id="username"
+                      class="form-control"
+                      name="username"
+                      value=""
+                      type="email"
+                      inputmode="email"
+                      autofocus
+                      autocomplete="off"
+                    />
+                  </div>
 
-
-                </div>
-
-                <div class="form-group">
+                  <div class="form-group">
                     <label for="password" class="form-label">Password</label>
-                    <input tabindex="0" id="password" class="form-control" name="password" type="password" autocomplete="off"/>
-                    <input type="button" class="bt-password-toggle" id="bt-toggle-password" onClick="togglePassword('password')"  value='Show'/>
-                </div>
+                    <input
+                      tabindex="0"
+                      id="password"
+                      class="form-control"
+                      name="password"
+                      type="password"
+                      autocomplete="off"
+                    />
+                    <input
+                      type="button"
+                      class="bt-password-toggle"
+                      id="bt-toggle-password"
+                      onClick="togglePassword('password')"
+                      value="Show"
+                    />
+                  </div>
 
-                <div class="form-group login-pf-settings">
-                    <div id="kc-form-options">
-
-                    </div>
-
+                  <div class="form-group login-pf-settings">
+                    <div id="kc-form-options"></div>
                   </div>
 
                   <div id="kc-form-buttons" class="form-group">
-                      <input type="hidden" id="id-hidden-input" name="credentialId" />
-                      <input tabindex="0" class="pf-c-button pf-m-primary btn-block btn-lg" name="login" id="kc-login" type="submit" value="Sign In"/>
+                    <input
+                      type="hidden"
+                      id="id-hidden-input"
+                      name="credentialId"
+                    />
+                    <input
+                      tabindex="0"
+                      class="pf-c-button pf-m-primary btn-block btn-lg"
+                      name="login"
+                      id="kc-login"
+                      type="submit"
+                      value="Sign In"
+                    />
                   </div>
-                    <div id="kc-form-buttons" class="form-group">
-                            <a tabindex="0" href="/auth/realms/thd/login-actions/registration?client_id=hubspace_android&amp;tab_id=url_tab_id" class="btn reg-button">Register</a>
-
-                    </div>
-
-
-            </form>
-        </div>
-
-      </div>
-
-
-
-              <div id="kc-info" class="login-pf-signup">
-                  <div id="kc-info-wrapper" class="">
-                                <span><a tabindex="0" href="/auth/realms/thd/login-actions/reset-credentials?client_id=hubspace_android&amp;tab_id=url_tab_id">Forgot Password?</a></span>
-
+                  <div id="kc-form-buttons" class="form-group">
+                    <a
+                      tabindex="0"
+                      href="/auth/realms/thd/login-actions/registration?client_id=hubspace_android&amp;tab_id=url_tab_id"
+                      class="btn reg-button"
+                      >Register</a
+                    >
                   </div>
+                </form>
               </div>
+            </div>
 
+            <div id="kc-info" class="login-pf-signup">
+              <div id="kc-info-wrapper" class="">
+                <span
+                  ><a
+                    tabindex="0"
+                    href="/auth/realms/thd/login-actions/reset-credentials?client_id=hubspace_android&amp;tab_id=url_tab_id"
+                    >Forgot Password?</a
+                  ></span
+                >
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
-  </div>
-</body>
+  </body>
 </html>

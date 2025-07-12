@@ -33,7 +33,7 @@ def test_generate_split_name():
 
 
 def test_get_valid_states():
-    assert get_valid_states(portable_ac, "power") == [
+    assert get_valid_states(portable_ac) == [
         AferoState(
             functionClass="power",
             value="off",

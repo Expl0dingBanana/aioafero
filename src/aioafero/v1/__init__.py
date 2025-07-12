@@ -4,27 +4,28 @@ __all__ = [
     "AferoBridgeV1",
     "AferoController",
     "AferoModelResource",
-    "models",
     "BaseResourcesController",
     "DeviceController",
     "FanController",
     "LightController",
     "LockController",
-    "SwitchController",
-    "ThermostatController",
-    "ValveController",
-    "token_data",
     "PortableACController",
     "SecuritySystemController",
     "SecuritySystemSensorController",
+    "SwitchController",
+    "ThermostatController",
+    "TokenData",
+    "ValveController",
+    "models",
 ]
 
 import asyncio
+from collections.abc import Callable, Generator
 import contextlib
-import logging
 from contextlib import asynccontextmanager
+import logging
 from types import TracebackType
-from typing import Any, Callable, Generator, Optional
+from typing import Any, Optional
 
 import aiohttp
 from aiohttp import web_exceptions
@@ -33,7 +34,7 @@ from securelogging import LogRedactorMessage, add_secret
 from ..device import AferoResource
 from ..errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
 from . import models, v1_const
-from .auth import AferoAuth, passthrough, token_data
+from .auth import AferoAuth, TokenData, passthrough
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
@@ -83,16 +84,16 @@ type AferoController = (
 class AferoBridgeV1:
     """Controls Afero IoT devices on v1 API"""
 
-    _web_session: Optional[aiohttp.ClientSession] = None
+    _web_session: aiohttp.ClientSession | None = None
 
     def __init__(
         self,
         username: str,
         password: str,
-        refresh_token: Optional[str] = None,
-        session: Optional[aiohttp.ClientSession] = None,
+        refresh_token: str | None = None,
+        session: aiohttp.ClientSession | None = None,
         polling_interval: int = 30,
-        afero_client: Optional[str] = "hubspace",
+        afero_client: str | None = "hubspace",
         hide_secrets: bool = True,
     ):
         if hide_secrets:
@@ -101,7 +102,7 @@ class AferoBridgeV1:
             self.secret_logger = passthrough
         self._close_session: bool = session is None
         self._web_session: aiohttp.ClientSession = session
-        self._account_id: Optional[str] = None
+        self._account_id: str | None = None
         self._afero_client: str = afero_client
         self._auth = AferoAuth(
             username,
@@ -254,7 +255,7 @@ class AferoBridgeV1:
         """Get identifier for Afero system"""
         return self._afero_client
 
-    def set_token_data(self, data: token_data) -> None:
+    def set_token_data(self, data: TokenData) -> None:
         self._auth.set_token_data(data)
 
     def set_polling_interval(self, polling_interval: int) -> None:
@@ -275,11 +276,11 @@ class AferoBridgeV1:
         self,
         callback: EventCallBackType,
     ) -> Callable:
-        """
-        Subscribe to status changes for all resources.
+        """Subscribe to status changes for all resources.
 
         Returns:
             function to unsubscribe.
+
         """
         unsubscribes = [
             controller.subscribe(callback) for controller in self.controllers
@@ -355,8 +356,7 @@ class AferoBridgeV1:
     async def create_request(
         self, method: str, url: str, **kwargs
     ) -> Generator[aiohttp.ClientResponse, None, None]:
-        """
-        Make a request to any path with V2 request method (auth in header).
+        """Make a request to any path with V2 request method (auth in header).
 
         Returns a generator with aiohttp ClientResponse.
         """
@@ -372,11 +372,7 @@ class AferoBridgeV1:
             self.events.emit(EventType.INVALID_AUTH)
             raise
         else:
-            headers = self.get_headers(
-                **{
-                    "authorization": f"Bearer {token}",
-                }
-            )
+            headers = self.get_headers(authorization=f"Bearer {token}")
             headers.update(kwargs.get("headers", {}))
             kwargs["headers"] = headers
             kwargs["ssl"] = True
@@ -399,7 +395,7 @@ class AferoBridgeV1:
                 if resp.status in [429, 503]:
                     continue
                 # 403 is bad auth
-                elif resp.status == 403:
+                if resp.status == 403:
                     raise web_exceptions.HTTPForbidden()
                 await resp.read()
                 return resp

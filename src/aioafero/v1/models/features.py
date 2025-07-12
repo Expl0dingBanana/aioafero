@@ -3,23 +3,24 @@
 from dataclasses import dataclass, field
 from enum import Enum
 
-from ...util import percentage_to_ordered_list_item
+from aioafero.util import percentage_to_ordered_list_item
 
 
 @dataclass
 class ColorModeFeature:
-    """Represent the current mode (ie white, color) Feature object"""
+    """Represent the current mode (ie white, color) Feature object."""
 
     mode: str
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.mode
 
 
 @dataclass
 class ColorFeature:
-    """Represent `RGB` Feature object"""
+    """Represent `RGB` Feature object."""
 
     red: int
     green: int
@@ -27,6 +28,7 @@ class ColorFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return {
             "value": {
                 "color-rgb": {
@@ -40,7 +42,7 @@ class ColorFeature:
 
 @dataclass
 class ColorTemperatureFeature:
-    """Represent Current temperature Feature"""
+    """Represent Current temperature Feature."""
 
     temperature: int
     supported: list[int]
@@ -48,6 +50,7 @@ class ColorTemperatureFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return f"{self.temperature}{self.prefix}"
 
 
@@ -67,18 +70,19 @@ class CurrentPositionEnum(Enum):
 
 @dataclass
 class CurrentPositionFeature:
-    """Represents the current position of the lock"""
+    """Represents the current position of the lock."""
 
     position: CurrentPositionEnum
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.position.value
 
 
 @dataclass
 class CurrentTemperatureFeature:
-    """Represents the current temperature"""
+    """Represents the current temperature."""
 
     temperature: float
     function_class: str
@@ -86,6 +90,7 @@ class CurrentTemperatureFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return {
             "functionClass": self.function_class,
             "functionInstance": self.function_instance,
@@ -95,44 +100,46 @@ class CurrentTemperatureFeature:
 
 @dataclass
 class DimmingFeature:
-    """Represent Current temperature Feature"""
+    """Represent Current temperature Feature."""
 
     brightness: int
     supported: list[int]
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.brightness
 
 
 @dataclass
 class DirectionFeature:
-    """Represent Current Fan direction Feature"""
+    """Represent Current Fan direction Feature."""
 
     forward: bool
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return "forward" if self.forward else "reverse"
 
 
 @dataclass
 class EffectFeature:
-    """Represent the current effect"""
+    """Represent the current effect."""
 
     effect: str
     effects: dict[str, set[str]]
 
     @property
     def api_value(self):
+        """States to send to Afero API."""
         states = []
         seq_key = None
         for effect_group, effects in self.effects.items():
             if self.effect not in effects:
                 continue
-            else:
-                seq_key = effect_group
-                break
+            seq_key = effect_group
+            break
         preset_val = self.effect if self.effect in self.effects["preset"] else seq_key
         states.append(
             {
@@ -152,6 +159,7 @@ class EffectFeature:
         return states
 
     def is_preset(self, effect):
+        """Determine if the current state is a preset effect."""
         try:
             return effect in self.effects["preset"]
         except KeyError:
@@ -160,7 +168,7 @@ class EffectFeature:
 
 @dataclass
 class HVACModeFeature:
-    """Represent HVAC Mode Feature"""
+    """Represent HVAC Mode Feature."""
 
     mode: str | None
     previous_mode: str | None
@@ -169,24 +177,26 @@ class HVACModeFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.mode
 
 
 @dataclass
 class ModeFeature:
-    """Represent Current Fan mode Feature"""
+    """Represent Current Fan mode Feature."""
 
     mode: str | None
     modes: set[str]
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.mode
 
 
 @dataclass
 class NumbersFeature:
-    """Represents a numeric value"""
+    """Represents a numeric value."""
 
     value: float
     min: float
@@ -197,6 +207,7 @@ class NumbersFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.value
 
 
@@ -210,6 +221,7 @@ class OnFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         state = {
             "value": "on" if self.on else "off",
             "functionClass": self.func_class,
@@ -221,7 +233,7 @@ class OnFeature:
 
 @dataclass
 class OpenFeature:
-    """Represent `Open` Feature object"""
+    """Represent `Open` Feature object."""
 
     open: bool
     func_class: str | None = field(default="toggle")
@@ -229,6 +241,7 @@ class OpenFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         state = {
             "value": "on" if self.open else "off",
             "functionClass": self.func_class,
@@ -240,7 +253,7 @@ class OpenFeature:
 
 @dataclass
 class PresetFeature:
-    """Represent the current preset"""
+    """Represent the current preset."""
 
     enabled: bool
     func_instance: str
@@ -248,6 +261,7 @@ class PresetFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return {
             "functionClass": self.func_class,
             "functionInstance": self.func_instance,
@@ -257,7 +271,7 @@ class PresetFeature:
 
 @dataclass
 class SecuritySensorConfigFeature:
-    """Represent the current security sensor configuration"""
+    """Represent the current security sensor configuration."""
 
     sensor_id: int
     chirp_mode: int
@@ -266,6 +280,7 @@ class SecuritySensorConfigFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return {
             "functionClass": "sensor-config",
             "value": {
@@ -281,7 +296,7 @@ class SecuritySensorConfigFeature:
 
 @dataclass
 class SelectFeature:
-    """Represent available options and currently selected"""
+    """Represent available options and currently selected."""
 
     selected: str
     selects: set[str]
@@ -289,52 +304,54 @@ class SelectFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return self.selected
 
 
 @dataclass
 class SecuritySensorSirenFeature:
-    """Represent the current state of the siren"""
+    """Represent the current state of the siren."""
 
     result_code: int | None
     command: int | None
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         if self.result_code is None and self.command is None:
             return {
                 "functionClass": "siren-action",
                 "value": None,
                 "functionInstance": None,
             }
-        else:
-            return {
-                "functionClass": "siren-action",
-                "value": {
-                    "security-siren-action": {
-                        "resultCode": self.result_code,
-                        "command": self.command,
-                    }
-                },
-                "functionInstance": None,
-            }
+        return {
+            "functionClass": "siren-action",
+            "value": {
+                "security-siren-action": {
+                    "resultCode": self.result_code,
+                    "command": self.command,
+                }
+            },
+            "functionInstance": None,
+        }
 
 
 @dataclass
 class SpeedFeature:
-    """Represent Current Fan speed Feature"""
+    """Represent Current Fan speed Feature."""
 
     speed: int
     speeds: list[str]
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return percentage_to_ordered_list_item(self.speeds, self.speed)
 
 
 @dataclass
 class TargetTemperatureFeature:
-    """Represents the target temperature for auto"""
+    """Represents the target temperature for auto."""
 
     value: float
     min: float
@@ -344,6 +361,7 @@ class TargetTemperatureFeature:
 
     @property
     def api_value(self):
+        """Value to send to Afero API."""
         return {
             "functionClass": "temperature",
             "functionInstance": self.instance,

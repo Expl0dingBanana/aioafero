@@ -1,24 +1,28 @@
+"""Base class for Controllers."""
+
 import asyncio
+from asyncio.coroutines import iscoroutinefunction
+from collections.abc import Callable, Iterator
 import contextlib
 import copy
+from dataclasses import dataclass, fields
+from datetime import UTC, datetime
 import re
 import time
-from asyncio.coroutines import iscoroutinefunction
-from dataclasses import dataclass, fields
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterator, NamedTuple
+from typing import TYPE_CHECKING, Any, Generic, NamedTuple
 
-from ...device import AferoDevice, AferoResource, AferoState, get_afero_device
-from ...errors import DeviceNotFound, ExceededMaximumRetries
-from ...util import process_function
-from .. import v1_const
-from ..models.features import NumbersFeature, SelectFeature
-from ..models.resource import ResourceTypes
-from ..models.sensor import AferoBinarySensor, AferoSensor
+from aioafero.device import AferoDevice, AferoResource, AferoState, get_afero_device
+from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
+from aioafero.util import process_function
+from aioafero.v1 import v1_const
+from aioafero.v1.models.features import NumbersFeature, SelectFeature
+from aioafero.v1.models.resource import ResourceTypes
+from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
+
 from .event import AferoEvent, EventCallBackType, EventType
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import AferoBridgeV1
+    from aioafero.v1 import AferoBridgeV1
 
 
 EventSubscriptionType = tuple[
@@ -32,12 +36,14 @@ unit_extractor = re.compile(r"(\d*)(\D*)")
 
 
 class NumbersName(NamedTuple):
+    """Data used for displaying a Number."""
+
     unit: str
     display_name: str | None = None
 
 
 class BaseResourcesController(Generic[AferoResource]):
-    """Base Controller for Afero IoT Cloud devices"""
+    """Base Controller for Afero IoT Cloud devices."""
 
     ITEM_TYPE_ID: ResourceTypes | None = None
     ITEM_TYPES: list[ResourceTypes] | None = None
@@ -83,16 +89,18 @@ class BaseResourcesController(Generic[AferoResource]):
 
     @property
     def initialized(self) -> bool:
+        """Determine if the controller has been initialized."""
         return self._initialized
 
     @property
     def subscribers(self) -> dict[str, list[EventSubscriptionType]]:
+        """Get all subscribers aligned to this controller."""
         return self._subscribers
 
     async def _handle_event(
         self, evt_type: EventType, evt_data: AferoEvent | None
     ) -> None:
-        """Handle incoming event for this resource"""
+        """Handle incoming event for this resource."""
         if evt_data is None:
             return
         item_id = evt_data.get("device_id", None)
@@ -103,7 +111,7 @@ class BaseResourcesController(Generic[AferoResource]):
     async def _handle_event_type(
         self, evt_type: EventType, item_id: str, evt_data: AferoEvent
     ) -> AferoResource | list[AferoResource] | None:
-        """Determines what to do with the incoming event
+        """Determine what to do with the incoming event.
 
         :param evt_type: Type of event
         :param item_id: ID of the item
@@ -129,20 +137,20 @@ class BaseResourcesController(Generic[AferoResource]):
             try:
                 cur_item = self.get_device(item_id)
             except DeviceNotFound:
-                return
+                return None
             if not await self.update_elem(evt_data["device"]) and not evt_data.get(
                 "force_forward", False
             ):
-                return
+                return None
         else:
             # Skip all other events
-            return
+            return None
         return cur_item
 
     async def emit_to_subscribers(
         self, evt_type: EventType, item_id: str, item: AferoResource
     ):
-        """Emit updates to subscribers
+        """Emit updates to subscribers.
 
         :param evt_type: Type of event
         :param item_id: ID of the item
@@ -161,6 +169,7 @@ class BaseResourcesController(Generic[AferoResource]):
                 callback(evt_type, item)
 
     def get_filtered_devices(self, initial_data: list[dict]) -> list[AferoDevice]:
+        """Determine devices that align to the controller."""
         valid_devices: list[AferoDevice] = []
         for element in initial_data:
             if element["typeId"] != self.ITEM_TYPE_ID.value:
@@ -185,7 +194,7 @@ class BaseResourcesController(Generic[AferoResource]):
         return self.get_filtered_devices(initial_data)
 
     async def initialize(self) -> None:
-        """Initialize controller the controller
+        """Initialize controller the controller.
 
         Initialization process should only occur once. During this process, it will
         subscribe to all updates for the given resources and register any device
@@ -206,8 +215,9 @@ class BaseResourcesController(Generic[AferoResource]):
     async def initialize_number(
         self, func_def: dict, state: AferoState
     ) -> tuple[tuple[str, str | None], NumbersFeature] | None:
+        """Initialize a number from the provided data."""
         key = (state.functionClass, state.functionInstance)
-        if key in self.ITEM_NUMBERS.keys():
+        if key in self.ITEM_NUMBERS:
             working_def = func_def["values"][0]
             primary_name = self.ITEM_NUMBERS[key].display_name
             if primary_name is None:
@@ -228,8 +238,9 @@ class BaseResourcesController(Generic[AferoResource]):
     async def initialize_select(
         self, functions: list[dict], state: AferoState
     ) -> tuple[tuple[str, str | None], SelectFeature] | None:
+        """Initialize a select from the provided data."""
         key = (state.functionClass, state.functionInstance)
-        if key in self.ITEM_SELECTS.keys():
+        if key in self.ITEM_SELECTS:
             return key, SelectFeature(
                 selected=state.value,
                 selects=set(
@@ -244,27 +255,27 @@ class BaseResourcesController(Generic[AferoResource]):
     async def initialize_sensor(
         self, state: AferoState, child_id: str
     ) -> AferoSensor | AferoBinarySensor | None:
-        """Initialize the sensor
+        """Initialize the sensor.
 
         :param state: State to update
         :param child_id: device_id of the parent device
         """
-        if state.functionClass in self.ITEM_SENSORS.keys():
+        if state.functionClass in self.ITEM_SENSORS:
             value, unit = await self.split_sensor_data(state)
             return AferoSensor(
                 id=state.functionClass,
                 owner=child_id,
-                _value=value,
+                value=value,
                 unit=unit,
             )
-        elif state.functionClass in self.ITEM_BINARY_SENSORS.keys():
+        if state.functionClass in self.ITEM_BINARY_SENSORS:
             value, _ = await self.split_sensor_data(state)
             key = f"{state.functionClass}|{state.functionInstance}"
             return AferoBinarySensor(
                 id=key,
                 owner=child_id,
                 instance=state.functionInstance,
-                _value=value,
+                current_value=value,
                 _error=self.ITEM_BINARY_SENSORS[state.functionClass],
             )
         return None
@@ -272,14 +283,14 @@ class BaseResourcesController(Generic[AferoResource]):
     async def update_number(
         self, state: AferoState, cur_item: AferoResource
     ) -> str | None:
-        """Update the number if its tracked and a change has been detected
+        """Update the number if its tracked and a change has been detected.
 
         :param state: State to update
         :param cur_item: Current item to update
         :return: Identifier of the number that was updated or None
         """
         key = (state.functionClass, state.functionInstance)
-        if key in self.ITEM_NUMBERS.keys():
+        if key in self.ITEM_NUMBERS:
             if cur_item.numbers[key].value != state.value:
                 cur_item.numbers[key].value = state.value
                 return f"number-{key}"
@@ -288,14 +299,14 @@ class BaseResourcesController(Generic[AferoResource]):
     async def update_select(
         self, state: AferoState, cur_item: AferoResource
     ) -> str | None:
-        """Update the select if its tracked and a change has been detected
+        """Update the select if its tracked and a change has been detected.
 
         :param state: State to update
         :param cur_item: Current item to update
         :return: Identifier of the select that was updated or None
         """
         key = (state.functionClass, state.functionInstance)
-        if key in self.ITEM_SELECTS.keys():
+        if key in self.ITEM_SELECTS:
             if cur_item.selects[key].selected != state.value:
                 cur_item.selects[key].selected = state.value
                 return f"select-{key}"
@@ -304,26 +315,27 @@ class BaseResourcesController(Generic[AferoResource]):
     async def update_sensor(
         self, state: AferoState, cur_item: AferoResource
     ) -> str | None:
-        """Update the sensor if its tracked and a change has been detected
+        """Update the sensor if its tracked and a change has been detected.
 
         :param state: State to update
         :param cur_item: Current item to update
         :return: Identifier of the sensor that was updated or None
         """
-        if state.functionClass in self.ITEM_SENSORS.keys():
+        if state.functionClass in self.ITEM_SENSORS:
             value, _ = await self.split_sensor_data(state)
-            if cur_item.sensors[state.functionClass]._value != value:
-                cur_item.sensors[state.functionClass]._value = value
+            if cur_item.sensors[state.functionClass].value != value:
+                cur_item.sensors[state.functionClass].value = value
                 return f"sensor-{state.functionClass}"
-        elif state.functionClass in self.ITEM_BINARY_SENSORS.keys():
+        elif state.functionClass in self.ITEM_BINARY_SENSORS:
             value, _ = await self.split_sensor_data(state)
             key = f"{state.functionClass}|{state.functionInstance}"
-            if cur_item.binary_sensors[key]._value != value:
-                cur_item.binary_sensors[key]._value = value
+            if cur_item.binary_sensors[key].current_value != value:
+                cur_item.binary_sensors[key].current_value = value
                 return f"binary-{key}"
         return None
 
     async def split_sensor_data(self, state: AferoState) -> tuple[Any, str | None]:
+        """Split the sensor value and return a tuple of the sensor value and key."""
         if isinstance(state.value, str):
             match = unit_extractor.match(state.value)
             if match and match.group(1) and match.group(2):
@@ -331,9 +343,21 @@ class BaseResourcesController(Generic[AferoResource]):
         return state.value, self.ITEM_SENSORS.get(state.functionClass, None)
 
     async def initialize_elem(self, element: AferoDevice) -> None:  # pragma: no cover
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         raise NotImplementedError("Class should implement initialize_elem")
 
     async def update_elem(self, element: AferoDevice) -> None:  # pragma: no cover
+        """Update the Portable AC with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         raise NotImplementedError("Class should implement update_elem")
 
     def subscribe(
@@ -342,16 +366,15 @@ class BaseResourcesController(Generic[AferoResource]):
         id_filter: str | tuple[str] | None = None,
         event_filter: EventType | tuple[EventType] | None = None,
     ) -> Callable:
-        """
-        Subscribe to status changes for this resource type.
+        """Subscribe to status changes for this resource type.
 
-        Parameters:
-            - `callback` - callback function to call when an event emits.
-            - `id_filter` - Optionally provide resource ID(s) to filter events for.
-            - `event_filter` - Optionally provide EventType(s) as filter.
+        :param callback: callback function to call when an event emits.
+        :param id_filter: Optionally provide resource ID(s) to filter events for.
+        :param event_filter: Optionally provide EventType(s) as filter.
 
         Returns:
             function to unsubscribe.
+
         """
         if not isinstance(event_filter, None | list | tuple):
             event_filter = (event_filter,)
@@ -380,16 +403,15 @@ class BaseResourcesController(Generic[AferoResource]):
     async def _process_state_update(
         self, cur_item: AferoResource, device_id: str, states: list[dict]
     ) -> None:
-        dev_states = []
-        for state in states:
-            dev_states.append(
-                AferoState(
-                    functionClass=state["functionClass"],
-                    value=state["value"],
-                    functionInstance=state.get("functionInstance"),
-                    lastUpdateTime=int(datetime.now(timezone.utc).timestamp() * 1000),
-                )
+        dev_states = [
+            AferoState(
+                functionClass=state["functionClass"],
+                value=state["value"],
+                functionInstance=state.get("functionInstance"),
+                lastUpdateTime=int(datetime.now(UTC).timestamp() * 1000),
             )
+            for state in states
+        ]
         dummy_update = AferoDevice(
             id=device_id,
             device_id=cur_item.device_information.parent_id,
@@ -412,7 +434,7 @@ class BaseResourcesController(Generic[AferoResource]):
         )
 
     async def update_afero_api(self, device_id: str, states: list[dict]) -> bool:
-        """Update Afero IoT API with the new states
+        """Update Afero IoT API with the new states.
 
         :param device_id: Afero IoT Device ID
         :param states: States to manually set
@@ -444,10 +466,10 @@ class BaseResourcesController(Generic[AferoResource]):
     async def update(
         self,
         device_id: str,
-        obj_in: Generic[AferoResource] = None,
+        obj_in: AferoResource | None = None,
         states: list[dict] | None = None,
     ) -> None:
-        """Update Afero IoT with the new data
+        """Update Afero IoT with the new data.
 
         :param device_id: Afero IoT Device ID
         :param obj_in: Afero IoT Resource elements to change
@@ -480,14 +502,15 @@ class BaseResourcesController(Generic[AferoResource]):
             self._items[device_id] = fallback
 
     def get_device(self, device_id) -> AferoResource:
+        """Lookup the device with the given ID."""
         try:
             return self[device_id]
-        except KeyError:
-            raise DeviceNotFound(device_id)
+        except KeyError as err:
+            raise DeviceNotFound(device_id) from err
 
 
 def update_dataclass(elem: AferoResource, update_vals: dataclass):
-    """Updates the element with the latest changes"""
+    """Update the element with the latest changes."""
     if "callback" in [field.name for field in fields(update_vals)]:
         update_vals.callback(elem, update_vals)
     else:
@@ -511,7 +534,7 @@ def update_dataclass(elem: AferoResource, update_vals: dataclass):
 def dataclass_to_afero(
     elem: AferoResource, cls: dataclass, mapping: dict
 ) -> list[dict]:
-    """Convert the current state to be consumed by Afero IoT"""
+    """Convert the current state to be consumed by Afero IoT."""
     states = []
     for f in fields(cls):
         current_feature = getattr(cls, f.name, None)
@@ -554,6 +577,7 @@ def dataclass_to_afero(
 def get_afero_states_from_mapped(
     element: AferoResource, field_name: str, update_vals: dict
 ) -> list[dict]:
+    """Convert an update element to dict to be consumed by Afero API."""
     states = []
     current_elems = getattr(element, field_name, None)
     for key, val in update_vals.items():
@@ -573,7 +597,7 @@ def get_afero_states_from_mapped(
 def get_afero_instance_for_state(
     elem: AferoResource, feature, mapped_afero_key: str | None
 ) -> str | None:
-    """Determine the function instance based on the field data or device"""
+    """Determine the function instance based on the field data or device."""
     if hasattr(feature, "func_instance") and getattr(feature, "func_instance", None):
         instance = getattr(feature, "func_instance", None)
     elif (
@@ -590,7 +614,7 @@ def get_afero_instance_for_state(
 def get_afero_state_from_feature(
     func_class: str, func_instance: str | None, current_val: Any
 ) -> dict:
-    """Generate a single state from the current data"""
+    """Generate a single state from the current data."""
     new_state = {
         "functionClass": func_class,
         "functionInstance": func_instance,
@@ -605,7 +629,7 @@ def get_afero_state_from_feature(
 
 
 def get_afero_states_from_list(states: list[dict]) -> list[dict]:
-    """Add timestamp to the states
+    """Add timestamp to the states.
 
     Assume the state already has functionClass, functionState, and value
     """
