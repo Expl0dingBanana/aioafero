@@ -371,6 +371,11 @@ async def test_generate_events_from_data_multi(bridge):
     security_system_event = await stream._event_queue.get()
     assert security_system_event["type"] == event.EventType.RESOURCE_ADDED
     assert security_system_event["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    assert security_system_event["device"].children == [
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-1",
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-4",
+    ]
     sensor_one = await stream._event_queue.get()
     assert sensor_one["type"] == event.EventType.RESOURCE_ADDED
     assert sensor_one["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-1"
