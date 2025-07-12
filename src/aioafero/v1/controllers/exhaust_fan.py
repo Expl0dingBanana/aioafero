@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `exhaust-fan`."""
 
+import copy
+
 from ...device import AferoDevice, get_function_from_device
 from ...errors import DeviceNotFound
 from ..models import features
@@ -7,6 +9,54 @@ from ..models.exhaust_fan import ExhaustFan, ExhaustFanPut
 from ..models.features import NumbersFeature, SelectFeature
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
+from .event import CallbackResponse
+
+SPLIT_IDENTIFIER: str = "exhaust-fan"
+
+
+def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
+    return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
+
+
+def get_split_instances(afero_dev: AferoDevice) -> list[str]:
+    """Determine available switches from the states"""
+    instances = set()
+    for state in afero_dev.states:
+        if state.functionClass == "toggle" and state.functionInstance not in [
+            None,
+            "primary",
+        ]:
+            instances.add(state.functionInstance)
+    return sorted(instances)
+
+
+def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
+    """Find states associated with the specific sensor"""
+    valid_states: list = []
+    for state in afero_dev.states:
+        if state.functionClass == "available" or (
+            state.functionClass == "toggle" and state.functionInstance == instance
+        ):
+            valid_states.append(state)
+    return valid_states
+
+
+def exhaust_fan_callback(afero_device: AferoDevice) -> CallbackResponse:
+    multi_devs: list[AferoDevice] = []
+    if afero_device.device_class == ResourceTypes.EXHAUST_FAN.value:
+        for instance in get_split_instances(afero_device):
+            cloned = copy.deepcopy(afero_device)
+            cloned.id = generate_split_name(afero_device, instance)
+            cloned.split_identifier = SPLIT_IDENTIFIER
+            cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
+            cloned.states = get_valid_states(afero_device, instance)
+            cloned.device_class = ResourceTypes.SWITCH.value
+            cloned.children = []
+            multi_devs.append(cloned)
+    return CallbackResponse(
+        split_devices=multi_devs,
+        remove_original=False,
+    )
 
 
 class ExhaustFanController(BaseResourcesController[ExhaustFan]):
@@ -36,6 +86,9 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
     ITEM_SELECTS = {
         ("motion-action", "exhaust-fan"): "Motion Action",
         ("sensitivity", "humidity-sensitivity"): "Humidity Sensitivity",
+    }
+    DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
+        ResourceTypes.EXHAUST_FAN.value: exhaust_fan_callback
     }
 
     async def initialize_elem(self, afero_device: AferoDevice) -> ExhaustFan:

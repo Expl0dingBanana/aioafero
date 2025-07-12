@@ -225,6 +225,13 @@ async def test_cleanup_process(mocked_bridge):
     await mocked_bridge.close()
 
 
+@pytest.mark.asyncio
+async def test_double_initialize(bridge):
+    assert len(bridge._scheduled_tasks) == 1
+    await bridge.initialize()
+    assert len(bridge._scheduled_tasks) == 1
+
+
 # @TODO - Implement these tests
 # def double_429(*args, **kwargs):
 #     yield DummyResponse(status_code=429)

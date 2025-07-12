@@ -318,17 +318,17 @@ class AferoBridgeV1:
 
     async def initialize(self) -> None:
         """Query Afero API for all data"""
-        assert len(self._scheduled_tasks) == 0
-        await self.initialize_cleanup()
-        await self.get_account_id()
-        await asyncio.gather(
-            *[
-                controller.initialize()
-                for controller in self._controllers
-                if not controller.initialized
-            ]
-        )
-        await self._events.initialize()
+        if len(self._scheduled_tasks) == 0:
+            await self.initialize_cleanup()
+            await self.get_account_id()
+            await asyncio.gather(
+                *[
+                    controller.initialize()
+                    for controller in self._controllers
+                    if not controller.initialized
+                ]
+            )
+            await self._events.initialize()
 
     async def fetch_data(self) -> list[dict[Any, str]]:
         """Query the API"""

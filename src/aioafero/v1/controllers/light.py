@@ -75,6 +75,7 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
             cloned.split_identifier = SPLIT_IDENTIFIER
             cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
             cloned.states = get_valid_states(afero_device, instance)
+            cloned.children = []
             multi_devs.append(cloned)
             children.append(cloned.id)
         if afero_device.model == "LCN3002LM-01 WH":

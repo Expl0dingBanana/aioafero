@@ -7,7 +7,13 @@ import pytest
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
 from aioafero import InvalidAuth
-from aioafero.v1.controllers import event, light, security_system
+from aioafero.v1.controllers import (
+    event,
+    exhaust_fan,
+    light,
+    portable_ac,
+    security_system,
+)
 from aioafero.v1.models.resource import ResourceTypes
 
 from .. import utils
@@ -29,7 +35,9 @@ async def test_properties(bridge):
     assert stream._polling_interval == 1
     assert stream.polling_interval == 1
     assert stream.registered_multiple_devices == {
+        "exhaust-fan": exhaust_fan.exhaust_fan_callback,
         "light": light.light_callback,
+        "portable-air-conditioner": portable_ac.portable_ac_callback,
         "security-system-sensor": security_system.security_system_callback,
     }
 
@@ -37,6 +45,8 @@ async def test_properties(bridge):
 @pytest.mark.asyncio
 async def test_initialize(bridge):
     stream = bridge.events
+    assert len(stream._scheduled_tasks) == 2
+    await stream.initialize()
     assert len(stream._scheduled_tasks) == 2
 
 
@@ -371,6 +381,11 @@ async def test_generate_events_from_data_multi(bridge):
     security_system_event = await stream._event_queue.get()
     assert security_system_event["type"] == event.EventType.RESOURCE_ADDED
     assert security_system_event["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    assert security_system_event["device"].children == [
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-1",
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-4",
+    ]
     sensor_one = await stream._event_queue.get()
     assert sensor_one["type"] == event.EventType.RESOURCE_ADDED
     assert sensor_one["device_id"] == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-1"
