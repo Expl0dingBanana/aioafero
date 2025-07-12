@@ -46,6 +46,8 @@ async def test_properties(bridge):
 async def test_initialize(bridge):
     stream = bridge.events
     assert len(stream._scheduled_tasks) == 2
+    await stream.initialize()
+    assert len(stream._scheduled_tasks) == 2
 
 
 @pytest.mark.asyncio
