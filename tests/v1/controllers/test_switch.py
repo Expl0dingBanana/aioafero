@@ -85,30 +85,21 @@ async def test_initialize_glass_door(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_initialize_exhaust_fan(mocked_controller):
-    await mocked_controller.initialize_elem(exhaust_fan)
-    assert len(mocked_controller.items) == 1
-    dev = mocked_controller.items[0]
-    assert dev.id == "44620d02-8b62-49ce-afe8-1ea8f15e0ec5"
-    assert dev.on == {
-        "humidity-detection-enabled": features.OnFeature(
-            on=False, func_class="toggle", func_instance="humidity-detection-enabled"
-        ),
-        "humidity-sensor-led": features.OnFeature(
-            on=False, func_class="toggle", func_instance="humidity-sensor-led"
-        ),
-        "motion-sensor-led": features.OnFeature(
-            on=True, func_class="toggle", func_instance="motion-sensor-led"
-        ),
-        "speaker-power": features.OnFeature(
-            on=True, func_class="toggle", func_instance="speaker-power"
-        ),
-        "motion-detection-enabled-exhaust-fan": features.OnFeature(
-            on=True,
-            func_class="toggle",
-            func_instance="motion-detection-enabled-exhaust-fan",
-        ),
-    }
+async def test_initialize_exhaust_fan(bridge):
+    await bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("exhaust-fan.json")
+    )
+    await bridge.async_block_until_done()
+    controller = bridge.switches
+    assert len(controller.items) == 5
+    for expected_id in [
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-humidity-detection-enabled",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-humidity-sensor-led",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-motion-detection-enabled-exhaust-fan",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-motion-sensor-led",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-speaker-power",
+    ]:
+        assert controller.get_device(expected_id) is not None
 
 
 @pytest.mark.asyncio

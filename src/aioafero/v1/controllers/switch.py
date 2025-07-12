@@ -20,8 +20,6 @@ class SwitchController(BaseResourcesController[Switch]):
         ResourceTypes.SWITCH,
         ResourceTypes.POWER_OUTLET,
         ResourceTypes.LANDSCAPE_TRANSFORMER,
-        # Exhaust-Fans have On / Off toggles
-        ResourceTypes.EXHAUST_FAN,
         # Portable ACs have On / Off toggle
         ResourceTypes.PORTABLE_AC,
     ]
@@ -47,8 +45,6 @@ class SwitchController(BaseResourcesController[Switch]):
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         toggle_states = ["power", "toggle"]
-        if afero_device.device_class == ResourceTypes.EXHAUST_FAN.value:
-            toggle_states.remove("power")
         for state in afero_device.states:
             if state.functionClass in toggle_states:
                 on[state.functionInstance] = features.OnFeature(

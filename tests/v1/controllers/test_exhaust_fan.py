@@ -4,12 +4,21 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.exhaust_fan import ExhaustFanController, features
+from aioafero.v1.controllers.exhaust_fan import (
+    ExhaustFanController,
+    exhaust_fan_callback,
+    features,
+    generate_split_name,
+    get_split_instances,
+    get_valid_states,
+)
+from aioafero.v1.models import ResourceTypes
 from aioafero.v1.models.sensor import AferoBinarySensor
 
 from .. import utils
 
 exhaust_fan = utils.create_devices_from_data("exhaust-fan.json")[0]
+a21_light = utils.create_devices_from_data("light-a21.json")[0]
 
 
 @pytest.fixture
@@ -17,6 +26,63 @@ def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = ExhaustFanController(mocked_bridge)
     yield controller
+
+
+def test_generate_split_name():
+    assert (
+        generate_split_name(exhaust_fan, "humidity-detection-enabled")
+        == "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-humidity-detection-enabled"
+    )
+
+
+def test_get_split_instances():
+    assert get_split_instances(exhaust_fan) == [
+        "humidity-detection-enabled",
+        "humidity-sensor-led",
+        "motion-detection-enabled-exhaust-fan",
+        "motion-sensor-led",
+        "speaker-power",
+    ]
+
+
+def test_get_valid_states():
+    assert get_valid_states(exhaust_fan, "humidity-detection-enabled") == [
+        AferoState(
+            functionClass="toggle",
+            value="off",
+            lastUpdateTime=0,
+            functionInstance="humidity-detection-enabled",
+        ),
+        AferoState(
+            functionClass="available",
+            value=True,
+            lastUpdateTime=0,
+            functionInstance=None,
+        ),
+    ]
+
+
+def test_exhaust_fan_callback():
+    devs, remove_original = exhaust_fan_callback(exhaust_fan)
+    assert remove_original is False
+    assert len(devs) == 5
+    expected_ids = [
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-humidity-detection-enabled",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-humidity-sensor-led",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-motion-detection-enabled-exhaust-fan",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-motion-sensor-led",
+        "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-speaker-power",
+    ]
+    for ind, dev in enumerate(devs):
+        assert dev.id == expected_ids[ind]
+        assert len(dev.states) == 2
+        assert dev.device_class == ResourceTypes.SWITCH.value
+
+
+def test_exhaust_fan_callback_wrong_dev():
+    devs, remove_original = exhaust_fan_callback(a21_light)
+    assert remove_original is False
+    assert len(devs) == 0
 
 
 @pytest.mark.asyncio
