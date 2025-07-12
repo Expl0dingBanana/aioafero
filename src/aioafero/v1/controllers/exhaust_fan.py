@@ -51,6 +51,7 @@ def exhaust_fan_callback(afero_device: AferoDevice) -> CallbackResponse:
             cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
             cloned.states = get_valid_states(afero_device, instance)
             cloned.device_class = ResourceTypes.SWITCH.value
+            cloned.children = []
             multi_devs.append(cloned)
     return CallbackResponse(
         split_devices=multi_devs,

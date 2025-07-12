@@ -102,9 +102,9 @@ class EventStream:
 
     async def initialize(self) -> None:
         """Start the polling processes"""
-        assert len(self._scheduled_tasks) == 0
-        await self.initialize_reader()
-        await self.initialize_processor()
+        if len(self._scheduled_tasks) == 0:
+            await self.initialize_reader()
+            await self.initialize_processor()
 
     async def initialize_reader(self) -> None:
         self._scheduled_tasks.append(asyncio.create_task(self.__event_reader()))
