@@ -14,13 +14,6 @@ from .event import CallbackResponse
 SPLIT_IDENTIFIER: str = "exhaust-fan"
 
 
-def process_names(values: list[dict]) -> set[str]:
-    vals = set()
-    for val in values:
-        vals.add(val["name"])
-    return vals
-
-
 def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
     return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
 
