@@ -3,7 +3,14 @@
 import pytest
 
 from aioafero.device import AferoState
-from aioafero.v1.controllers.portable_ac import PortableACController, features
+from aioafero.v1.controllers.portable_ac import (
+    PortableACController,
+    features,
+    generate_split_name,
+    get_valid_states,
+    portable_ac_callback,
+)
+from aioafero.v1.models import ResourceTypes
 
 from .. import utils
 
@@ -16,6 +23,51 @@ def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = PortableACController(mocked_bridge)
     yield controller
+
+
+def test_generate_split_name():
+    assert (
+        generate_split_name(portable_ac, "power")
+        == "8d0414d6-a7f7-4bdb-99d5-d866318ff559-portable-ac-power"
+    )
+
+
+def test_get_valid_states():
+    assert get_valid_states(portable_ac, "power") == [
+        AferoState(
+            functionClass="power",
+            value="off",
+            lastUpdateTime=0,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="available",
+            value=True,
+            lastUpdateTime=0,
+            functionInstance=None,
+        ),
+    ]
+
+
+def test_exhaust_fan_callback():
+    devs, remove_original = portable_ac_callback(portable_ac)
+    assert remove_original is False
+    assert len(devs) == 1
+    expected_ids = [
+        "8d0414d6-a7f7-4bdb-99d5-d866318ff559-portable-ac-power",
+    ]
+    for ind, dev in enumerate(devs):
+        assert dev.id == expected_ids[ind]
+        assert len(dev.states) == 2
+        assert dev.device_class == ResourceTypes.SWITCH.value
+
+
+def test_exhaust_fan_callback_wrong_dev():
+    devs, remove_original = portable_ac_callback(
+        utils.create_devices_from_data("light-a21.json")[0]
+    )
+    assert remove_original is False
+    assert len(devs) == 0
 
 
 @pytest.mark.asyncio

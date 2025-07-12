@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `portable-air-conditioner`."""
 
+import copy
+
 from ... import device
 from ...device import AferoDevice, AferoState
 from ...errors import DeviceNotFound
@@ -8,6 +10,39 @@ from ..models import features
 from ..models.portable_ac import PortableAC, PortableACPut
 from ..models.resource import DeviceInformation, ResourceTypes
 from .base import BaseResourcesController
+from .event import CallbackResponse
+
+SPLIT_IDENTIFIER: str = "portable-ac"
+
+
+def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
+    return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
+
+
+def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
+    """Find states associated with the specific sensor"""
+    valid_states: list = []
+    for state in afero_dev.states:
+        if state.functionClass == "available" or (state.functionClass == "power"):
+            valid_states.append(state)
+    return valid_states
+
+
+def portable_ac_callback(afero_device: AferoDevice) -> CallbackResponse:
+    multi_devs: list[AferoDevice] = []
+    if afero_device.device_class == ResourceTypes.PORTABLE_AC.value:
+        instance = "power"
+        cloned = copy.deepcopy(afero_device)
+        cloned.id = generate_split_name(afero_device, instance)
+        cloned.split_identifier = SPLIT_IDENTIFIER
+        cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
+        cloned.states = get_valid_states(afero_device, instance)
+        cloned.device_class = ResourceTypes.SWITCH.value
+        multi_devs.append(cloned)
+    return CallbackResponse(
+        split_devices=multi_devs,
+        remove_original=False,
+    )
 
 
 class PortableACController(BaseResourcesController[PortableAC]):
@@ -29,6 +64,9 @@ class PortableACController(BaseResourcesController[PortableAC]):
     ITEM_SELECTS = {
         ("fan-speed", "ac-fan-speed"): "Fan Speed",
         ("sleep", None): "Sleep Mode",
+    }
+    DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
+        ResourceTypes.PORTABLE_AC.value: portable_ac_callback
     }
 
     async def initialize_elem(self, afero_device: AferoDevice) -> PortableAC:

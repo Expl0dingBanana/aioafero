@@ -103,14 +103,24 @@ async def test_initialize_exhaust_fan(bridge):
 
 
 @pytest.mark.asyncio
-async def test_initialize_portable_ac(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
-    assert len(mocked_controller.items) == 1
-    dev = mocked_controller.items[0]
-    assert dev.id == "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
-    assert dev.on == {
-        None: features.OnFeature(on=False, func_class="power", func_instance=None),
-    }
+async def test_initialize_portable_ac(bridge):
+    await bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("portable-ac.json")
+    )
+    await bridge.async_block_until_done()
+    controller = bridge.switches
+    assert len(controller.items) == 1
+    for expected_id in [
+        "8d0414d6-a7f7-4bdb-99d5-d866318ff559-portable-ac-power",
+    ]:
+        assert controller.get_device(expected_id) is not None
+    # await mocked_controller.initialize_elem(portable_ac)
+    # assert len(mocked_controller.items) == 1
+    # dev = mocked_controller.items[0]
+    # assert dev.id == "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
+    # assert dev.on == {
+    #     None: features.OnFeature(on=False, func_class="power", func_instance=None),
+    # }
 
 
 @pytest.mark.asyncio

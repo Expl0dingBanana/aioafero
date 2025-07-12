@@ -7,7 +7,13 @@ import pytest
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
 from aioafero import InvalidAuth
-from aioafero.v1.controllers import event, exhaust_fan, light, security_system
+from aioafero.v1.controllers import (
+    event,
+    exhaust_fan,
+    light,
+    portable_ac,
+    security_system,
+)
 from aioafero.v1.models.resource import ResourceTypes
 
 from .. import utils
@@ -31,6 +37,7 @@ async def test_properties(bridge):
     assert stream.registered_multiple_devices == {
         "exhaust-fan": exhaust_fan.exhaust_fan_callback,
         "light": light.light_callback,
+        "portable-air-conditioner": portable_ac.portable_ac_callback,
         "security-system-sensor": security_system.security_system_callback,
     }
 

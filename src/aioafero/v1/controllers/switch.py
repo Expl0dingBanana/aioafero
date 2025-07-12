@@ -20,8 +20,6 @@ class SwitchController(BaseResourcesController[Switch]):
         ResourceTypes.SWITCH,
         ResourceTypes.POWER_OUTLET,
         ResourceTypes.LANDSCAPE_TRANSFORMER,
-        # Portable ACs have On / Off toggle
-        ResourceTypes.PORTABLE_AC,
     ]
     ITEM_CLS = Switch
     ITEM_MAPPING = {}
