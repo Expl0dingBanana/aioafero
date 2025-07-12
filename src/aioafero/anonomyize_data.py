@@ -1,6 +1,6 @@
-"""Provides an interface for anonymizing data"""
+"""Provides an interface for anonymizing data."""
 
-__all__ = ["anonymize_devices", "anonymize_device"]
+__all__ = ["anonymize_device", "anonymize_devices"]
 
 from dataclasses import asdict
 from uuid import uuid4
@@ -15,21 +15,18 @@ FNAME_IND: int = 0
 def anonymize_devices(
     devices: list[AferoDevice], anon_name: bool = False
 ) -> list[dict]:
-    """Remove identifying information from the device
+    """Remove identifying information from the device.
 
     :param devices: List of devices to anonymize
     :param anon_name: If true, give each device a unique name
     """
-    fake_devices = []
     parents = generate_parent_mapping(devices)
     device_links = {}
-    for dev in devices:
-        fake_devices.append(anonymize_device(dev, parents, device_links, anon_name))
-    return fake_devices
+    return [anonymize_device(dev, parents, device_links, anon_name) for dev in devices]
 
 
 def generate_parent_mapping(devices: list[AferoDevice]) -> dict:
-    """Generate anonymize links between parents and children
+    """Generate anonymize links between parents and children.
 
     :param devices: List of devices to anonymize
     """
@@ -52,9 +49,10 @@ def anonymize_device(
     device_links: dict,
     anon_name: bool,
 ) -> dict:
+    """Convert an AferoDevice into an anonymized dictionary."""
     fake_dev = asdict(dev)
     if anon_name:
-        global FNAME_IND
+        global FNAME_IND  # noqa: PLW0603
         fake_dev["friendly_name"] = f"friendly-device-{FNAME_IND}"
         FNAME_IND += 1
     if dev.id in parent_mapping:

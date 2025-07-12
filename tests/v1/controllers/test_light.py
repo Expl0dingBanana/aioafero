@@ -22,7 +22,7 @@ flushmount_light_white_id = f"{flushmount_light.id}-light-white"
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = LightController(mocked_bridge)
-    yield controller
+    return controller
 
 
 def test_generate_split_name():
@@ -718,58 +718,28 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("light-a21.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "color-temperature",
-                "value": "3000K",
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="color-temperature", value="3000K", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "brightness",
-                "value": 40,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="brightness", value=40, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "color-rgb",
-                "value": {
+            functionClass="color-rgb", value={
                     "color-rgb": {
                         "r": 2,
                         "g": 3,
                         "b": 4,
                     }
-                },
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+                }, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "power",
-                "value": "on",
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="power", value="on", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "color-mode",
-                "value": "color",
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="color-mode", value="color", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": True,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=True, lastUpdateTime=0, functionInstance=None
         ),
     ]
     for state in new_states:
@@ -802,39 +772,19 @@ async def test_update_elem_no_updates(mocked_controller):
 
 states_custom = [
     AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "functionInstance": "preset",
-            "lastUpdateTime": 0,
-            "value": "custom",
-        }
+        functionClass="color-sequence", functionInstance="preset", lastUpdateTime=0, value="custom"
     ),
     AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "functionInstance": "custom",
-            "lastUpdateTime": 0,
-            "value": "rainbow",
-        }
+        functionClass="color-sequence", functionInstance="custom", lastUpdateTime=0, value="rainbow"
     ),
 ]
 
 states_preset = [
     AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "functionInstance": "preset",
-            "lastUpdateTime": 0,
-            "value": "fade-7",
-        }
+        functionClass="color-sequence", functionInstance="preset", lastUpdateTime=0, value="fade-7"
     ),
     AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "functionInstance": "custom",
-            "lastUpdateTime": 0,
-            "value": "rainbow",
-        },
+        functionClass="color-sequence", functionInstance="custom", lastUpdateTime=0, value="rainbow",
     ),
 ]
 
@@ -908,39 +858,19 @@ async def test_set_state_no_dev(mocked_controller, caplog):
 
 seq_custom = {
     "preset": AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "value": "custom",
-            "lastUpdateTime": 0,
-            "functionInstance": "preset",
-        }
+        functionClass="color-sequence", value="custom", lastUpdateTime=0, functionInstance="preset"
     ),
     "custom": AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "value": "rainbow",
-            "lastUpdateTime": 0,
-            "functionInstance": "custom",
-        }
+        functionClass="color-sequence", value="rainbow", lastUpdateTime=0, functionInstance="custom"
     ),
 }
 
 seq_preset = {
     "preset": AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "value": "fade-3",
-            "lastUpdateTime": 0,
-            "functionInstance": "preset",
-        }
+        functionClass="color-sequence", value="fade-3", lastUpdateTime=0, functionInstance="preset"
     ),
     "custom": AferoState(
-        **{
-            "functionClass": "color-sequence",
-            "value": "rainbow",
-            "lastUpdateTime": 0,
-            "functionInstance": "custom",
-        }
+        functionClass="color-sequence", value="rainbow", lastUpdateTime=0, functionInstance="custom"
     ),
 }
 

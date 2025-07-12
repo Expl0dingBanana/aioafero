@@ -1,14 +1,17 @@
+"""Representation of an Afero Thermostat and its corresponding updates."""
+
 from dataclasses import dataclass, field
 
-from ...util import calculate_hubspace_fahrenheit
-from ..models import features
+from aioafero.util import calculate_hubspace_fahrenheit
+from aioafero.v1.models import features
+
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
 
 
 @dataclass
 class Thermostat:
-    """Representation of an Afero Thermostat"""
+    """Representation of an Afero Thermostat."""
 
     id: str  # ID used when interacting with Afero
     available: bool
@@ -27,14 +30,14 @@ class Thermostat:
     target_temperature_cooling: features.TargetTemperatureFeature | None
 
     # Defined at initialization
-    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+    instances: dict = field(default_factory=dict, repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=lambda: dict())
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=lambda: dict())
+    sensors: dict[str, AferoSensor] = field(default_factory=dict)
+    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.THERMOSTAT
 
-    def __init__(self, functions: list, **kwargs):
+    def __init__(self, functions: list, **kwargs):  # noqa: D107
         for key, value in kwargs.items():
             if key == "instances":
                 continue
@@ -48,6 +51,7 @@ class Thermostat:
 
     @property
     def target_temperature(self) -> float | None:
+        """Temperature which the HVAC will try to achieve."""
         if self.hvac_mode is None or self.hvac_mode.mode not in [
             "cool",
             "heat",
@@ -60,48 +64,43 @@ class Thermostat:
         )
         if celsius is None:
             return None
-        elif self.display_celsius:
+        if self.display_celsius:
             return celsius
-        else:
-            return calculate_hubspace_fahrenheit(celsius)
+        return calculate_hubspace_fahrenheit(celsius)
 
     def get_mode_to_check(self) -> str | None:
+        """Determine the current mode of the thermostat."""
         if not self.hvac_mode:
             return None
         if self.hvac_mode.mode in ["cool", "heat"]:
             return self.hvac_mode.mode
-        elif self.hvac_mode.previous_mode in ["cool", "heat"]:
+        if self.hvac_mode.previous_mode in ["cool", "heat"]:
             return self.hvac_mode.previous_mode
-        else:
-            return None
+        return None
 
     def _get_target_feature(self, mode: str) -> float | None:
         if mode == "cool":
             return self.target_temperature_cooling
-        elif mode == "heat":
+        if mode == "heat":
             return self.target_temperature_heating
-        else:
-            return None
+        return None
 
     @property
     def target_temperature_range(self) -> tuple[float, float]:
+        """Range which the thermostat supports."""
         if self.display_celsius:
             return (
                 self.target_temperature_auto_heating.value,
                 self.target_temperature_auto_cooling.value,
             )
-        else:
-            return (
-                calculate_hubspace_fahrenheit(
-                    self.target_temperature_auto_heating.value
-                ),
-                calculate_hubspace_fahrenheit(
-                    self.target_temperature_auto_cooling.value
-                ),
-            )
+        return (
+            calculate_hubspace_fahrenheit(self.target_temperature_auto_heating.value),
+            calculate_hubspace_fahrenheit(self.target_temperature_auto_cooling.value),
+        )
 
     @property
     def target_temperature_step(self) -> float:
+        """Smallest increment for adjusting the temperature."""
         set_mode = self.get_mode_to_check()
         if not set_mode:
             val = 0.5  # Default from Hubspace
@@ -111,11 +110,11 @@ class Thermostat:
             )
         if self.display_celsius:
             return val
-        else:
-            return 1
+        return 1
 
     @property
     def target_temperature_max(self) -> float:
+        """Maximum target temperature."""
         set_mode = self.get_mode_to_check()
         if not set_mode or self.hvac_mode.mode == "auto":
             val = self.target_temperature_auto_cooling.max
@@ -123,11 +122,11 @@ class Thermostat:
             val = getattr(self._get_target_feature(set_mode), "max", None)
         if self.display_celsius:
             return val
-        else:
-            return calculate_hubspace_fahrenheit(val)
+        return calculate_hubspace_fahrenheit(val)
 
     @property
     def target_temperature_min(self) -> float:
+        """Minimum target temperature."""
         set_mode = self.get_mode_to_check()
         if not set_mode or self.hvac_mode.mode == "auto":
             val = self.target_temperature_auto_heating.min
@@ -137,15 +136,16 @@ class Thermostat:
             )
         if self.display_celsius:
             return val
-        else:
-            return calculate_hubspace_fahrenheit(val)
+        return calculate_hubspace_fahrenheit(val)
 
     @property
     def supports_fan_mode(self) -> bool:
+        """Can enable fan-only mode."""
         return self.fan_mode is not None
 
     @property
     def supports_temperature_range(self) -> bool:
+        """Range which the thermostat will heat / cool."""
         if not self.hvac_mode or "auto" not in self.hvac_mode.supported_modes:
             return False
         return (
@@ -155,19 +155,19 @@ class Thermostat:
 
     @property
     def temperature(self) -> float | None:
+        """Current temperature of the selected mode."""
         if self.display_celsius:
             return self.current_temperature.temperature
-        else:
-            return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
+        return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
 
     def get_instance(self, elem):
-        """Lookup the instance associated with the elem"""
+        """Lookup the instance associated with the elem."""
         return self.instances.get(elem, None)
 
 
 @dataclass
 class ThermostatPut:
-    """States that can be updated for a Thermostat"""
+    """States that can be updated for a Thermostat."""
 
     fan_mode: features.ModeFeature | None = None
     hvac_mode: features.HVACModeFeature | None = None

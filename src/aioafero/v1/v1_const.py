@@ -1,3 +1,5 @@
+"""Constants for accessing Afero API."""
+
 from typing import Final
 
 AFERO_CLIENTS: Final[dict[str, dict[str, str]]] = {

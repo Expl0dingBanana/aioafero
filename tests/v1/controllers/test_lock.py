@@ -15,7 +15,7 @@ lock = utils.create_devices_from_data("door-lock-TBD.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = LockController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.mark.asyncio
@@ -91,20 +91,10 @@ async def test_update_elem(value, expected, expected_updates, mocked_controller)
     dev_update = utils.create_devices_from_data("door-lock-TBD.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "lock-control",
-                "value": value,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="lock-control", value=value, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
     ]
     expected_updates.add("available")

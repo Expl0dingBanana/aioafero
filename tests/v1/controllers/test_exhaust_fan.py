@@ -25,7 +25,7 @@ a21_light = utils.create_devices_from_data("light-a21.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = ExhaustFanController(mocked_bridge)
-    yield controller
+    return controller
 
 
 def test_generate_split_name():
@@ -95,7 +95,7 @@ async def test_initialize(mocked_controller):
         "humidity-threshold-met|humidity-threshold-met": AferoBinarySensor(
             id="humidity-threshold-met|humidity-threshold-met",
             owner="7475607b-c3ea-4afe-a465-1c11c5c09985",
-            _value="below-threshold",
+            current_value="below-threshold",
             _error="above-threshold",
             unit=None,
             instance="humidity-threshold-met",
@@ -103,7 +103,7 @@ async def test_initialize(mocked_controller):
         "motion-detection|motion-detection": AferoBinarySensor(
             id="motion-detection|motion-detection",
             owner="7475607b-c3ea-4afe-a465-1c11c5c09985",
-            _value="motion-detected",
+            current_value="motion-detected",
             _error="motion-detected",
             unit=None,
             instance="motion-detection",
@@ -141,36 +141,16 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("exhaust-fan.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "humidity-threshold-met",
-                "value": "above-threshold",
-                "lastUpdateTime": 0,
-                "functionInstance": "humidity-threshold-met",
-            }
+            functionClass="humidity-threshold-met", value="above-threshold", lastUpdateTime=0, functionInstance="humidity-threshold-met"
         ),
         AferoState(
-            **{
-                "functionClass": "auto-off-timer",
-                "value": 120,
-                "lastUpdateTime": 0,
-                "functionInstance": "auto-off",
-            }
+            functionClass="auto-off-timer", value=120, lastUpdateTime=0, functionInstance="auto-off"
         ),
         AferoState(
-            **{
-                "functionClass": "motion-action",
-                "value": "both",
-                "lastUpdateTime": 0,
-                "functionInstance": "exhaust-fan",
-            }
+            functionClass="motion-action", value="both", lastUpdateTime=0, functionInstance="exhaust-fan"
         ),
     ]
     for state in new_states:
@@ -179,7 +159,7 @@ async def test_update_elem(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.available is False
     assert (
-        dev.binary_sensors["humidity-threshold-met|humidity-threshold-met"]._value
+        dev.binary_sensors["humidity-threshold-met|humidity-threshold-met"].current_value
         == "above-threshold"
     )
     assert dev.numbers[("auto-off-timer", "auto-off")].value == 120
@@ -201,12 +181,7 @@ async def test_update_state_no_change(mocked_controller):
     dev_update = utils.create_devices_from_data("exhaust-fan.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": True,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=True, lastUpdateTime=0, functionInstance=None
         ),
     ]
     for state in new_states:

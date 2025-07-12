@@ -1,11 +1,11 @@
 """Controller holding and managing Afero IoT resources of type `fan`."""
 
-from ... import device
-from ...device import AferoDevice
-from ...util import ordered_list_item_to_percentage
-from ..models import features
-from ..models.fan import Fan, FanPut
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero.device import AferoDevice, get_function_from_device
+from aioafero.util import ordered_list_item_to_percentage
+from aioafero.v1.models import features
+from aioafero.v1.models.fan import Fan, FanPut
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 KNOWN_PRESETS = {"comfort-breeze"}
@@ -53,7 +53,12 @@ class FanController(BaseResourcesController[Fan]):
         await self.set_state(device_id, on=True, preset=preset)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Fan:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         on: features.OnFeature | None = None
         speed: features.SpeedFeature | None = None
@@ -65,14 +70,14 @@ class FanController(BaseResourcesController[Fan]):
             if state.functionClass == "power":
                 on = features.OnFeature(on=state.value == "on")
             elif state.functionClass == "fan-speed":
-                speeds = device.get_function_from_device(
+                speeds = get_function_from_device(
                     afero_device.functions, state.functionClass, state.functionInstance
                 )
                 tmp_speed = set()
                 for value in speeds["values"]:
                     if not value["name"].endswith("-000"):
                         tmp_speed.add(value["name"])
-                speeds = list(sorted(tmp_speed))
+                speeds = sorted(tmp_speed)
                 percentage = ordered_list_item_to_percentage(speeds, state.value)
                 speed = features.SpeedFeature(speed=percentage, speeds=speeds)
             elif state.functionClass == "fan-reverse":
@@ -118,6 +123,12 @@ class FanController(BaseResourcesController[Fan]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Fan with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         updated_keys = set()
         cur_item = self.get_device(afero_device.id)
         for state in afero_device.states:

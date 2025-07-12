@@ -17,7 +17,7 @@ zandra_fan = utils.create_devices_from_data("fan-ZandraFan.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = FanController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.mark.asyncio
@@ -206,52 +206,22 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("fan-ZandraFan.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "toggle",
-                "value": "disabled",
-                "lastUpdateTime": 0,
-                "functionInstance": "comfort-breeze",
-            }
+            functionClass="toggle", value="disabled", lastUpdateTime=0, functionInstance="comfort-breeze"
         ),
         AferoState(
-            **{
-                "functionClass": "fan-speed",
-                "value": "fan-speed-6-016",
-                "lastUpdateTime": 0,
-                "functionInstance": "fan-speed",
-            }
+            functionClass="fan-speed", value="fan-speed-6-016", lastUpdateTime=0, functionInstance="fan-speed"
         ),
         AferoState(
-            **{
-                "functionClass": "fan-reverse",
-                "value": "forward",
-                "lastUpdateTime": 0,
-                "functionInstance": "fan-reverse",
-            }
+            functionClass="fan-reverse", value="forward", lastUpdateTime=0, functionInstance="fan-reverse"
         ),
         AferoState(
-            **{
-                "functionClass": "power",
-                "value": "off",
-                "lastUpdateTime": 0,
-                "functionInstance": "fan-power",
-            }
+            functionClass="power", value="off", lastUpdateTime=0, functionInstance="fan-power"
         ),
         AferoState(
-            **{
-                "functionClass": "toggle",
-                "value": "disabled",
-                "lastUpdateTime": 0,
-                "functionInstance": "comfort-breeze",
-            }
+            functionClass="toggle", value="disabled", lastUpdateTime=0, functionInstance="comfort-breeze"
         ),
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
     ]
     for state in new_states:

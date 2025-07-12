@@ -1,14 +1,16 @@
+"""aioafero API."""
+
 __all__ = [
+    "AferoDevice",
     "AferoError",
+    "AferoState",
+    "EventType",
     "InvalidAuth",
     "InvalidResponse",
-    "AferoDevice",
-    "AferoState",
-    "get_afero_device",
     "anonymize_device",
     "anonymize_devices",
+    "get_afero_device",
     "v1",
-    "EventType",
 ]
 
 

@@ -1,4 +1,6 @@
-from typing import Any, Optional
+"""Generic utils for interacting with Afero IoT API or the responses."""
+
+from typing import Any
 
 
 def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int) -> _T:
@@ -51,7 +53,7 @@ def ordered_list_item_to_percentage[_T](ordered_list: list[_T], item: _T) -> int
 
 
 def process_range(range_vals: dict) -> list[Any]:
-    """Process a range to determine what's supported
+    """Process a range to determine what's supported.
 
     :param range_vals: Result from functions["values"][x]
     """
@@ -62,23 +64,23 @@ def process_range(range_vals: dict) -> list[Any]:
     if range_min == range_max:
         supported_range.append(range_max)
     else:
-        for val in float_range(range_min, range_max, range_step):
-            supported_range.append(val)
+        supported_range = list(float_range(range_min, range_max, range_step))
     if range_max not in supported_range:
         supported_range.append(range_max)
     return supported_range
 
 
 def float_range(start, stop, step):
+    """Create a generator that yields a range as float."""
     while start < stop:
         yield start
         start += step
 
 
 def process_function(
-    functions: list[dict], func_class: str, func_instance: Optional[str] = None
+    functions: list[dict], func_class: str, func_instance: str | None = None
 ) -> list[Any]:
-    """Generates a list of whatever you are searching for
+    """Generate a list of whatever you are searching for.
 
     :param functions: List of functions for the given device
     :param func_class: functionClass to search
@@ -100,7 +102,7 @@ def process_function(
 
 
 def calculate_hubspace_fahrenheit(temperature: float) -> float:
-    """Calculate the temperature in F based on Hubspace rounding
+    """Calculate the temperature in F based on Hubspace rounding.
 
     :param temperature: Temperature in C
     :return: Temperature in F
@@ -110,7 +112,7 @@ def calculate_hubspace_fahrenheit(temperature: float) -> float:
 
 
 def calculate_hubspace_celsius(temperature: float) -> float:
-    """Calculate the temperature in C based on Hubspace rounding
+    """Calculate the temperature in C based on Hubspace rounding.
 
     :param temperature: Temperature in F
     :return: Temperature in C

@@ -43,7 +43,7 @@ async def build_url(base_url: str, qs: dict[str, str]) -> str:
 )
 async def test_is_expired(time_offset, is_expired, hs_auth):
     if time_offset:
-        hs_auth._token_data = auth.token_data(
+        hs_auth._token_data = auth.TokenData(
             "token", None, None, time.time() + time_offset
         )
     assert await hs_auth.is_expired == is_expired
@@ -57,7 +57,7 @@ async def test_is_expired(time_offset, is_expired, hs_auth):
         (
             "auth_webapp_login.html",
             None,
-            auth.auth_sess_data("url_sess_code", "url_exec_code", "url_tab_id"),
+            auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id"),
         ),
         # page is missing expected id
         (
@@ -80,7 +80,7 @@ async def test_is_expired(time_offset, is_expired, hs_auth):
     ],
 )
 async def test_extract_login_data(page_filename, err_msg, expected):
-    with open(os.path.join(current_path, "data", page_filename), "r") as f:
+    with open(os.path.join(current_path, "data", page_filename)) as f:
         page_data = f.read()
     if expected:
         assert await auth.extract_login_data(page_data) == expected
@@ -135,7 +135,7 @@ async def test_webapp_login(
     mocker,
 ):
     if page_filename:
-        with open(os.path.join(current_path, "data", page_filename), "r") as f:
+        with open(os.path.join(current_path, "data", page_filename)) as f:
             response["body"] = f.read()
     challenge = await hs_auth.generate_challenge_data()
     generate_code = mocker.patch.object(hs_auth, "generate_code")
@@ -437,7 +437,7 @@ async def test_generate_refresh_token_from_refresh(
     caplog.set_level(logging.DEBUG)
     if not secure_mode:
         hs_auth.secret_logger = auth.passthrough
-    hs_auth._token_data = auth.token_data(
+    hs_auth._token_data = auth.TokenData(
         None, None, refresh_token, datetime.datetime.now()
     )
     aioresponses.post(v1_const.AFERO_CLIENTS["hubspace"]["TOKEN_URL"], **response)
@@ -497,7 +497,7 @@ async def test_AferoAuth_init(hide_secrets, refresh_token, mocker):
     else:
         assert test_auth.secret_logger == auth.passthrough
     if refresh_token:
-        assert test_auth._token_data == auth.token_data(
+        assert test_auth._token_data == auth.TokenData(
             None, None, refresh_token, mocker.ANY
         )
     else:
@@ -506,7 +506,7 @@ async def test_AferoAuth_init(hide_secrets, refresh_token, mocker):
 
 def bad_refresh_token(*args, **kwargs):
     yield auth.InvalidAuth()
-    yield auth.token_data(
+    yield auth.TokenData(
         "token",
         "access_token",
         "refresh_token",
@@ -526,7 +526,7 @@ def bad_refresh_token_invalid(*args, **kwargs):
         # Perform full login
         (
             None,
-            auth.token_data(
+            auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
@@ -539,13 +539,13 @@ def bad_refresh_token_invalid(*args, **kwargs):
         # Previously logged in but expired
         (
             None,
-            auth.token_data(
+            auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
                 datetime.datetime.now().timestamp() - 120,
             ),
-            auth.token_data(
+            auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
@@ -559,7 +559,7 @@ def bad_refresh_token_invalid(*args, **kwargs):
         # Invalid refresh token
         (
             None,
-            auth.token_data(
+            auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
@@ -576,7 +576,7 @@ def bad_refresh_token_invalid(*args, **kwargs):
         # Invalid refresh token and bad login
         (
             None,
-            auth.token_data(
+            auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
@@ -610,7 +610,7 @@ async def test_token(
         "perform_initial_login",
         mocker.AsyncMock(return_value=results_perform_initial_login),
     )
-    if isinstance(results_generate_refresh_token, auth.token_data):
+    if isinstance(results_generate_refresh_token, auth.TokenData):
         mocker.patch.object(
             test_auth,
             "generate_refresh_token",
@@ -633,7 +633,7 @@ async def test_token(
 
 
 def test_set_token_data(hs_auth):
-    data = auth.token_data(
+    data = auth.TokenData(
         "token",
         "access_token",
         "refresh_token",

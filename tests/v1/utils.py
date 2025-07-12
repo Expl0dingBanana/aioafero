@@ -12,7 +12,7 @@ def get_device_dump(file_name: str) -> Any:
 
     :param file_name: Name of the file to load
     """
-    with open(os.path.join(current_path, "device_dumps", file_name), "r") as fh:
+    with open(os.path.join(current_path, "device_dumps", file_name)) as fh:
         return json.load(fh)
 
 
@@ -21,7 +21,7 @@ def get_raw_dump(file_name: str) -> Any:
 
     :param file_name: Name of the file to load
     """
-    with open(os.path.join(current_path, "data", file_name), "r") as fh:
+    with open(os.path.join(current_path, "data", file_name)) as fh:
         return json.load(fh)
 
 

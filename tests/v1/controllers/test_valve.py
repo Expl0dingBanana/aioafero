@@ -15,7 +15,7 @@ valve = utils.create_devices_from_data("water-timer.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = ValveController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.mark.asyncio
@@ -107,28 +107,13 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("water-timer.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "toggle",
-                "value": "on",
-                "lastUpdateTime": 0,
-                "functionInstance": "spigot-1",
-            }
+            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="spigot-1"
         ),
         AferoState(
-            **{
-                "functionClass": "toggle",
-                "value": "off",
-                "lastUpdateTime": 0,
-                "functionInstance": "spigot-2",
-            }
+            functionClass="toggle", value="off", lastUpdateTime=0, functionInstance="spigot-2"
         ),
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
     ]
     for state in new_states:

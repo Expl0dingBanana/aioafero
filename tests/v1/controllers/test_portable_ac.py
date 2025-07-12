@@ -22,7 +22,7 @@ portable_ac_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = PortableACController(mocked_bridge)
-    yield controller
+    return controller
 
 
 def test_generate_split_name():
@@ -33,7 +33,7 @@ def test_generate_split_name():
 
 
 def test_get_valid_states():
-    assert get_valid_states(portable_ac, "power") == [
+    assert get_valid_states(portable_ac) == [
         AferoState(
             functionClass="power",
             value="off",
@@ -113,36 +113,16 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("portable-ac.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "temperature",
-                "value": 19,
-                "lastUpdateTime": 0,
-                "functionInstance": "current-temp",
-            }
+            functionClass="temperature", value=19, lastUpdateTime=0, functionInstance="current-temp"
         ),
         AferoState(
-            **{
-                "functionClass": "temperature",
-                "value": 18,
-                "lastUpdateTime": 0,
-                "functionInstance": "cooling-target",
-            }
+            functionClass="temperature", value=18, lastUpdateTime=0, functionInstance="cooling-target"
         ),
         AferoState(
-            **{
-                "functionClass": "mode",
-                "value": "cool",
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="mode", value="cool", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
             functionClass="fan-speed",

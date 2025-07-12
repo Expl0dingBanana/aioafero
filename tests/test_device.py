@@ -30,17 +30,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "model",
-                    "device_class": "device_class",
-                    "default_name": "default_name",
-                    "default_image": "default_image",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", model="model", device_class="device_class", default_name="default_name", default_image="default_image", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
         # DriskolFan
@@ -57,17 +47,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "Driskol",
-                    "device_class": "fan",
-                    "default_name": "default_name",
-                    "default_image": "ceiling-fan-snyder-park-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", model="Driskol", device_class="fan", default_name="default_name", default_image="ceiling-fan-snyder-park-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
         # VinwoodFan
@@ -84,17 +64,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "Vinwood",
-                    "device_class": "fan",
-                    "default_name": "default_name",
-                    "default_image": "ceiling-fan-vinings-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", model="Vinwood", device_class="fan", default_name="default_name", default_image="ceiling-fan-vinings-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
         # ZandraFan
@@ -111,17 +81,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "Zandra",
-                    "device_class": "fan",
-                    "default_name": "default_name",
-                    "default_image": "ceiling-fan-chandra-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", model="Zandra", device_class="fan", default_name="default_name", default_image="ceiling-fan-chandra-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
         # NevaliFan
@@ -138,17 +98,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "Nevali",
-                    "device_class": "fan",
-                    "default_name": "default_name",
-                    "default_image": "ceiling-fan-ac-cct-dardanus-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", model="Nevali", device_class="fan", default_name="default_name", default_image="ceiling-fan-ac-cct-dardanus-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
         # TagerFan
@@ -165,17 +115,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "Tager",
-                    "device_class": "fan",
-                    "default_name": "default_name",
-                    "default_image": "ceiling-fan-slender-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", model="Tager", device_class="fan", default_name="default_name", default_image="ceiling-fan-slender-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
         # Dimmer switch
@@ -191,36 +131,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        **{
-                            "functionClass": "brightness",
-                            "functionInstance": None,
-                            "lastUpdateTime": 1668551478232,
-                            "value": 40,
-                        }
+                        functionClass="brightness", functionInstance=None, lastUpdateTime=1668551478232, value=40
                     )
                 ],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "dimmer",
-                    "device_class": "light",
-                    "default_name": "default_name",
-                    "default_image": "ceiling-fan-slender-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [
+                id="id", device_id="device_id", model="dimmer", device_class="light", default_name="default_name", default_image="ceiling-fan-slender-icon", friendly_name="friendly_name", functions=["functions!"], states=[
                         device.AferoState(
-                            **{
-                                "functionClass": "brightness",
-                                "functionInstance": None,
-                                "lastUpdateTime": 1668551478232,
-                                "value": 40,
-                            }
+                            functionClass="brightness", functionInstance=None, lastUpdateTime=1668551478232, value=40
                         )
-                    ],
-                }
+                    ]
             ),
         ),
         # Glass door
@@ -236,37 +156,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        **{
-                            "functionClass": "power",
-                            "functionInstance": None,
-                            "lastUpdateTime": 1668551478232,
-                            "value": "off",
-                        }
+                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                     )
                 ],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "glass-door",
-                    "device_class": "switch",
-                    "default_name": "default_name",
-                    "default_image": "glass-door-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [
+                id="id", device_id="device_id", model="glass-door", device_class="switch", default_name="default_name", default_image="glass-door-icon", friendly_name="friendly_name", functions=["functions!"], states=[
                         device.AferoState(
-                            **{
-                                "functionClass": "power",
-                                "functionInstance": None,
-                                "lastUpdateTime": 1668551478232,
-                                "value": "off",
-                            }
+                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                         )
-                    ],
-                    "manufacturerName": "Feather River Doors",
-                }
+                    ], manufacturerName="Feather River Doors"
             ),
         ),
         # Exhaust fan
@@ -282,37 +181,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        **{
-                            "functionClass": "power",
-                            "functionInstance": None,
-                            "lastUpdateTime": 1668551478232,
-                            "value": "off",
-                        }
+                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                     )
                 ],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "BF1112",
-                    "device_class": "exhaust-fan",
-                    "default_name": "default_name",
-                    "default_image": "fan-exhaust-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [
+                id="id", device_id="device_id", model="BF1112", device_class="exhaust-fan", default_name="default_name", default_image="fan-exhaust-icon", friendly_name="friendly_name", functions=["functions!"], states=[
                         device.AferoState(
-                            **{
-                                "functionClass": "power",
-                                "functionInstance": None,
-                                "lastUpdateTime": 1668551478232,
-                                "value": "off",
-                            }
+                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                         )
-                    ],
-                    "manufacturerName": None,
-                }
+                    ], manufacturerName=None
             ),
         ),
         # 12A19060WRGBWH2
@@ -328,37 +206,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        **{
-                            "functionClass": "power",
-                            "functionInstance": None,
-                            "lastUpdateTime": 1668551478232,
-                            "value": "off",
-                        }
+                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                     )
                 ],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "12A19060WRGBWH2",
-                    "device_class": "light",
-                    "default_name": "default_name",
-                    "default_image": "a19-e26-color-cct-60w-smd-frosted-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [
+                id="id", device_id="device_id", model="12A19060WRGBWH2", device_class="light", default_name="default_name", default_image="a19-e26-color-cct-60w-smd-frosted-icon", friendly_name="friendly_name", functions=["functions!"], states=[
                         device.AferoState(
-                            **{
-                                "functionClass": "power",
-                                "functionInstance": None,
-                                "lastUpdateTime": 1668551478232,
-                                "value": "off",
-                            }
+                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                         )
-                    ],
-                    "manufacturerName": None,
-                }
+                    ], manufacturerName=None
             ),
         ),
         (
@@ -373,37 +230,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        **{
-                            "functionClass": "power",
-                            "functionInstance": None,
-                            "lastUpdateTime": 1668551478232,
-                            "value": "off",
-                        }
+                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                     )
                 ],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "HPDA110NWBP",
-                    "device_class": "light",
-                    "default_name": "default_name",
-                    "default_image": "slide-dimmer-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [
+                id="id", device_id="device_id", model="HPDA110NWBP", device_class="light", default_name="default_name", default_image="slide-dimmer-icon", friendly_name="friendly_name", functions=["functions!"], states=[
                         device.AferoState(
-                            **{
-                                "functionClass": "power",
-                                "functionInstance": None,
-                                "lastUpdateTime": 1668551478232,
-                                "value": "off",
-                            }
+                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                         )
-                    ],
-                    "manufacturerName": None,
-                }
+                    ], manufacturerName=None
             ),
         ),
         (
@@ -418,37 +254,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        **{
-                            "functionClass": "power",
-                            "functionInstance": None,
-                            "lastUpdateTime": 1668551478232,
-                            "value": "off",
-                        }
+                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                     )
                 ],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "model": "HPSA11CWB",
-                    "device_class": "switch",
-                    "default_name": "default_name",
-                    "default_image": "smart-switch-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [
+                id="id", device_id="device_id", model="HPSA11CWB", device_class="switch", default_name="default_name", default_image="smart-switch-icon", friendly_name="friendly_name", functions=["functions!"], states=[
                         device.AferoState(
-                            **{
-                                "functionClass": "power",
-                                "functionInstance": None,
-                                "lastUpdateTime": 1668551478232,
-                                "value": "off",
-                            }
+                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
                         )
-                    ],
-                    "manufacturerName": None,
-                }
+                    ], manufacturerName=None
             ),
         ),
         # LCN3002LM-01 WH
@@ -465,18 +280,7 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                **{
-                    "id": "id",
-                    "device_id": "device_id",
-                    "manufacturerName": "Commercial-Electric",
-                    "model": "LCN3002LM-01 WH",
-                    "device_class": "light",
-                    "default_name": "default_name",
-                    "default_image": "bright-edgelit-flushmount-light-icon",
-                    "friendly_name": "friendly_name",
-                    "functions": ["functions!"],
-                    "states": [],
-                }
+                id="id", device_id="device_id", manufacturerName="Commercial-Electric", model="LCN3002LM-01 WH", device_class="light", default_name="default_name", default_image="bright-edgelit-flushmount-light-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
             ),
         ),
     ],

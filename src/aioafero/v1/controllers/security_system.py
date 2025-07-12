@@ -2,11 +2,12 @@
 
 import copy
 
-from ...device import AferoDevice, get_function_from_device
-from ...errors import DeviceNotFound
-from ...util import process_function
-from ..models import SecuritySystem, SecuritySystemPut, features
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero.device import AferoDevice, get_function_from_device
+from aioafero.errors import DeviceNotFound
+from aioafero.util import process_function
+from aioafero.v1.models import SecuritySystem, SecuritySystemPut, features
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
 from .event import CallbackResponse
 
@@ -14,7 +15,7 @@ SENSOR_SPLIT_IDENTIFIER = "sensor"
 
 
 def get_sensor_ids(device) -> set[int]:
-    """Determine available sensors from the states"""
+    """Determine available sensors from the states."""
     sensor_ids = set()
     for state in device.states:
         if state.functionInstance is None:
@@ -26,11 +27,12 @@ def get_sensor_ids(device) -> set[int]:
 
 
 def generate_sensor_name(afero_device, sensor_id: int) -> str:
+    """Generate the name for an instanced element."""
     return f"{afero_device.id}-{SENSOR_SPLIT_IDENTIFIER}-{sensor_id}"
 
 
 def get_valid_states(afero_states: list, sensor_id: int) -> list:
-    """Find states associated with the specific sensor"""
+    """Find states associated with the specific sensor."""
     valid_states: list = []
     for state in afero_states:
         if (
@@ -47,6 +49,7 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
 
 
 def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
+    """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
     if afero_device.device_class == "security-system":
         for sensor_id in get_sensor_ids(afero_device):
@@ -118,23 +121,28 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
     }
 
     async def disarm(self, device_id: str) -> None:
-        """Disarm the system"""
+        """Disarm the system."""
         await self.set_state(device_id, mode="disarmed")
 
     async def arm_home(self, device_id: str) -> None:
-        """Arms the system while someone is home"""
+        """Arms the system while someone is home."""
         await self.set_state(device_id, mode="arm-started-stay")
 
     async def arm_away(self, device_id: str) -> None:
-        """Arms the system while no one is home"""
+        """Arms the system while no one is home."""
         await self.set_state(device_id, mode="arm-started-away")
 
     async def alarm_trigger(self, device_id: str) -> None:
-        """Manually trigger the alarm"""
+        """Manually trigger the alarm."""
         await self.set_state(device_id, mode="alarming-sos")
 
     async def initialize_elem(self, afero_device: AferoDevice) -> SecuritySystem:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         alarm_state: features.ModeFeature | None = None
         siren_action: features.SecuritySensorSirenFeature | None = None
@@ -199,6 +207,12 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Security System with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         for state in afero_device.states:
@@ -210,11 +224,11 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 if cur_item.alarm_state.mode != state.value:
                     updated_keys.add(state.functionClass)
                 cur_item.alarm_state.mode = state.value
-            elif update_key := await self.update_sensor(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_number(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_select(state, cur_item):
+            elif (
+                (update_key := await self.update_sensor(state, cur_item))
+                or (update_key := await self.update_number(state, cur_item))
+                or (update_key := await self.update_select(state, cur_item))
+            ):
                 updated_keys.add(update_key)
             elif state.functionClass == "siren-action":
                 try:
@@ -240,7 +254,7 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         numbers: dict[tuple[str, str | None], float] | None = None,
         selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Set supported feature(s) to Security System resource."""
         update_obj = SecuritySystemPut()
         try:
             cur_item = self.get_device(device_id)

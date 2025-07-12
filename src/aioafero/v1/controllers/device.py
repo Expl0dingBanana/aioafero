@@ -1,8 +1,9 @@
-"""Controller that holds top-level devices"""
+"""Controller that holds top-level devices."""
 
-from ...device import AferoDevice
-from ..models.device import Device
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero.device import AferoDevice
+from aioafero.v1.models.device import Device
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .event import AferoEvent, EventType
 
@@ -25,7 +26,12 @@ class DeviceController(BaseResourcesController[Device]):
     _known_parents: dict[str, str] = {}
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Device:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
@@ -78,7 +84,7 @@ class DeviceController(BaseResourcesController[Device]):
     async def _process_polled_devices(
         self, evt_type: EventType, evt_data: AferoEvent | None
     ) -> None:
-        """Finds all top-level devices within the payload"""
+        """Find all top-level devices within the payload."""
         devices: list[AferoDevice] = evt_data["polled_devices"]
         parent_devices: list[AferoDevice] = self.get_filtered_devices(devices)
         processed: set[str] = set()
@@ -105,7 +111,7 @@ class DeviceController(BaseResourcesController[Device]):
                 await self._handle_event(evt["type"], evt)
 
     def get_filtered_devices(self, devices: list[AferoDevice]) -> list[AferoDevice]:
-        """Find parent devices"""
+        """Find parent devices."""
         parents: dict = {}
         potential_parents: dict = {}
         for device in devices:
@@ -123,10 +129,16 @@ class DeviceController(BaseResourcesController[Device]):
                 parents[potential_parent.device_id] = potential_parent
         return list(parents.values())
 
-    async def update_elem(self, device: AferoDevice) -> set:
-        cur_item = self.get_device(device.id)
+    async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Device with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
+        cur_item = self.get_device(afero_device.id)
         updated_keys = set()
-        for state in device.states:
+        for state in afero_device.states:
             if state.functionClass == "available":
                 if cur_item.available != state.value:
                     cur_item.available = state.value

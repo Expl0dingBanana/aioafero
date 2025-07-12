@@ -1,5 +1,5 @@
-import logging
 from dataclasses import dataclass, field, fields, replace
+import logging
 
 import pytest
 
@@ -427,11 +427,7 @@ class Example1ResourceController(BaseResourcesController):
                 if cur_item.beans[state.functionInstance].on != new_val:
                     updated_keys.add("on")
                     cur_item.beans[state.functionInstance].on = state.value == "on"
-            elif update_key := await self.update_sensor(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_number(state, cur_item):
-                updated_keys.add(update_key)
-            elif update_key := await self.update_select(state, cur_item):
+            elif (update_key := await self.update_sensor(state, cur_item)) or (update_key := await self.update_number(state, cur_item)) or (update_key := await self.update_select(state, cur_item)):
                 updated_keys.add(update_key)
         return updated_keys
 
@@ -471,12 +467,12 @@ class Example2ResourceController(BaseResourcesController):
 
 @pytest.fixture
 def ex1_rc(mocked_bridge_req):
-    yield Example1ResourceController(mocked_bridge_req)
+    return Example1ResourceController(mocked_bridge_req)
 
 
 @pytest.fixture
 def ex2_rc(mocked_bridge_req):
-    yield Example2ResourceController(mocked_bridge_req)
+    return Example2ResourceController(mocked_bridge_req)
 
 
 def test_init(ex1_rc):
@@ -645,7 +641,6 @@ async def test_emit_to_subscribers(
         callback.assert_called_once()
     else:
         callback.assert_not_called()
-    pass
 
 
 @pytest.mark.asyncio
@@ -1340,7 +1335,7 @@ def test_update_dataclass(resource, update, expected):
                 },
             ],
         ),
-        # Testing when a value doesnt change
+        # Testing when a value does not change
         (
             TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
             TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),

@@ -2,13 +2,10 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class ResourceTypes(Enum):
-    """
-    Type of the supported resources
-    """
+    """Type of the supported resources."""
 
     DEVICE = "metadevice.device"
     HOME = "metadata.home"
@@ -29,20 +26,21 @@ class ResourceTypes(Enum):
     WATER_TIMER = "water-timer"
 
     @classmethod
-    def _missing_(cls: type, value: object):  # noqa: ARG003
+    def _missing_(cls: type, value: object):
         """Set default enum member if an unknown value is provided."""
         return ResourceTypes.UNKNOWN
 
 
 @dataclass
 class DeviceInformation:
+    """Generic Device Information."""
 
-    device_class: Optional[str] = None
-    default_image: Optional[str] = None
-    default_name: Optional[str] = None
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
-    name: Optional[str] = None
-    parent_id: Optional[str] = None
-    wifi_mac: Optional[str] = None
-    ble_mac: Optional[str] = None
+    device_class: str | None = None
+    default_image: str | None = None
+    default_name: str | None = None
+    manufacturer: str | None = None
+    model: str | None = None
+    name: str | None = None
+    parent_id: str | None = None
+    wifi_mac: str | None = None
+    ble_mac: str | None = None

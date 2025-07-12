@@ -1,9 +1,10 @@
 """Controller holding and managing Afero IoT resources of type `lock`."""
 
-from ...device import AferoDevice
-from ..models import features
-from ..models.lock import Lock, LockPut
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero.device import AferoDevice
+from aioafero.v1.models import features
+from aioafero.v1.models.lock import Lock, LockPut
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
@@ -20,19 +21,24 @@ class LockController(BaseResourcesController[Lock]):
     ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def lock(self, device_id: str) -> None:
-        """Engage the lock"""
+        """Engage the lock."""
         await self.set_state(
             device_id, lock_position=features.CurrentPositionEnum.LOCKING
         )
 
     async def unlock(self, device_id: str) -> None:
-        """Disengage the lock"""
+        """Disengage the lock."""
         await self.set_state(
             device_id, lock_position=features.CurrentPositionEnum.UNLOCKING
         )
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Lock:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         current_position: features.CurrentPositionFeature | None = None
         sensors: dict[str, AferoSensor] = {}
@@ -70,6 +76,12 @@ class LockController(BaseResourcesController[Lock]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Lock with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         for state in afero_device.states:
@@ -92,7 +104,7 @@ class LockController(BaseResourcesController[Lock]):
         device_id: str,
         lock_position: features.CurrentPositionEnum | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Set supported feature(s) to lock resource."""
         update_obj = LockPut()
         if lock_position is not None:
             update_obj.position = features.CurrentPositionFeature(

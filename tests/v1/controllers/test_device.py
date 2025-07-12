@@ -20,7 +20,7 @@ door_lock = utils.create_devices_from_data("door-lock-TBD.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = DeviceController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def security_system_devices():
         multi_devs.extend(security_system_callback(dev).split_devices)
     devices.extend(multi_devs)
     assert len(devices) == 5
-    yield devices
+    return devices
 
 
 @pytest.mark.asyncio
@@ -64,7 +64,7 @@ async def test_initialize_a21(mocked_controller):
         "wifi-rssi": AferoSensor(
             id="wifi-rssi",
             owner="dd883754-e9f2-4c48-b755-09bf6ce776be",
-            _value=-50,
+            value=-50,
             instance=None,
             unit="dB",
         )
@@ -94,7 +94,7 @@ async def test_initialize_door_lock(mocked_controller):
         "battery-level": AferoSensor(
             id="battery-level",
             owner="698e8a63-e8cb-4335-ba6b-83ca69d378f2",
-            _value=80,
+            value=80,
             unit="%",
             instance=None,
         ),
@@ -124,7 +124,7 @@ async def test_initialize_binary_sensors(mocked_controller):
         "wifi-rssi": AferoSensor(
             id="wifi-rssi",
             owner="eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7",
-            _value=-71,
+            value=-71,
             instance=None,
             unit="dB",
         )
@@ -133,28 +133,28 @@ async def test_initialize_binary_sensors(mocked_controller):
         "error|freezer-high-temperature-alert": AferoBinarySensor(
             id="error|freezer-high-temperature-alert",
             owner="eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7",
-            _value="normal",
+            current_value="normal",
             _error="alerting",
             instance="freezer-high-temperature-alert",
         ),
         "error|fridge-high-temperature-alert": AferoBinarySensor(
             id="error|fridge-high-temperature-alert",
             owner="eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7",
-            _value="alerting",
+            current_value="alerting",
             _error="alerting",
             instance="fridge-high-temperature-alert",
         ),
         "error|mcu-communication-failure": AferoBinarySensor(
             id="error|mcu-communication-failure",
             owner="eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7",
-            _value="normal",
+            current_value="normal",
             _error="alerting",
             instance="mcu-communication-failure",
         ),
         "error|temperature-sensor-failure": AferoBinarySensor(
             id="error|temperature-sensor-failure",
             owner="eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7",
-            _value="normal",
+            current_value="normal",
             _error="alerting",
             instance="temperature-sensor-failure",
         ),
@@ -314,7 +314,7 @@ async def test_update_lifecycle(bridge, caplog):
     dev = bridge.devices["eacfca4b-4f4b-4ee2-aa64-e1052fa9cea7"]
     assert not dev.available
     assert dev.sensors["wifi-rssi"].value == -42
-    assert dev.binary_sensors["error|temperature-sensor-failure"].value
+    assert dev.binary_sensors["error|temperature-sensor-failure"].current_value
     # Simulate removal
     polled_devices_event = event.AferoEvent(
         type=event.EventType.POLLED_DEVICES,
