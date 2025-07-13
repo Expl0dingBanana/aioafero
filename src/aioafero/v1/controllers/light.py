@@ -344,9 +344,12 @@ class LightController(BaseResourcesController[Light]):
         color_mode: str | None = None,
         color: tuple[int, int, int] | None = None,
         effect: str | None = None,
-        force_white_mode: int | bool = False,
+        force_white_mode: int | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Set supported feature(s) to fan resource.
+
+        force_white_mode's value should be the brightness percentage after switching to white
+        """
         update_obj = LightPut()
         try:
             cur_item = self.get_device(device_id)
@@ -360,7 +363,7 @@ class LightController(BaseResourcesController[Light]):
                 func_instance=cur_item.on.func_instance,
             )
         send_duplicate_states = False
-        if force_white_mode is not False:
+        if force_white_mode is not None:
             send_duplicate_states = True
             update_obj.color_mode = features.ColorModeFeature(mode="white")
             update_obj.dimming = features.DimmingFeature(
