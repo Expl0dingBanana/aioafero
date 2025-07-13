@@ -3,8 +3,8 @@ import copy
 import logging
 from unittest.mock import AsyncMock
 
-import pytest
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
+import pytest
 
 from aioafero import InvalidAuth
 from aioafero.v1.controllers import (
@@ -139,7 +139,7 @@ def gather_data_happy_path():
 
 
 def gather_data_timeout_gen():
-    yield asyncio.TimeoutError("blah blah blah")
+    yield TimeoutError("blah blah blah")
     yield []
 
 
@@ -155,7 +155,7 @@ def gather_data_multi_error_gen():
 
 
 def gather_data_bad_collection():
-    yield ValueError(["bad data"])
+    yield TypeError(["bad data"])
     yield []
 
 

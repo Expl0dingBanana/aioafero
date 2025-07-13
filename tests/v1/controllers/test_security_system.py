@@ -28,7 +28,7 @@ def get_alarm_panel_with_siren() -> AferoDevice:
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = SecuritySystemController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.mark.asyncio
@@ -269,44 +269,19 @@ async def test_update_elem(mocked_controller):
     update = utils.create_devices_from_data("security-system.json")[1]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "alarm-state",
-                "value": "triggered",
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="alarm-state", value="triggered", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "battery-powered",
-                "value": "battery-powered",
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="battery-powered", value="battery-powered", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            **{
-                "functionClass": "arm-exit-delay",
-                "value": 300,
-                "lastUpdateTime": 0,
-                "functionInstance": "away",
-            }
+            functionClass="arm-exit-delay", value=300, lastUpdateTime=0, functionInstance="away"
         ),
         AferoState(
-            **{
-                "functionClass": "song-id",
-                "value": "preset-12",
-                "lastUpdateTime": 0,
-                "functionInstance": "alarm",
-            }
+            functionClass="song-id", value="preset-12", lastUpdateTime=0, functionInstance="alarm"
         ),
         AferoState(
             functionClass="siren-action",
@@ -329,7 +304,7 @@ async def test_update_elem(mocked_controller):
     assert dev.alarm_state.mode == "triggered"
     assert dev.numbers[("arm-exit-delay", "away")].value == 300
     assert dev.selects[("song-id", "alarm")].selected == "preset-12"
-    assert dev.binary_sensors["battery-powered|None"]._value == "battery-powered"
+    assert dev.binary_sensors["battery-powered|None"].current_value == "battery-powered"
     assert dev.binary_sensors["battery-powered|None"].value is True
     assert dev.siren_action.result_code == 0
     assert dev.siren_action.command == 4

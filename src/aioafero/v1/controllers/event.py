@@ -1,9 +1,9 @@
 """Handle connecting to Afero IoT and distribute events."""
 
 import asyncio
-import contextlib
 from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable
+import contextlib
 from enum import Enum
 from types import NoneType
 from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
@@ -11,23 +11,21 @@ from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
 from aiohttp.client_exceptions import ClientError
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 
-from ...device import AferoDevice, get_afero_device
-from ...errors import InvalidAuth
-from ...types import EventType
-from ..models import ResourceTypes
+from aioafero.device import AferoDevice, get_afero_device
+from aioafero.errors import InvalidAuth
+from aioafero.types import EventType
+from aioafero.v1.models import ResourceTypes
 
 if TYPE_CHECKING:  # pragma: no cover
-    from .. import AferoBridgeV1
+    from aioafero.v1 import AferoBridgeV1
 
 
 class BackoffException(Exception):
     """Exception raised when a backoff is required."""
 
-    pass
-
 
 class CallbackResponse(NamedTuple):
-    """Callback response for DEVICE_SPLIT_CALLBACKS
+    """Callback response for DEVICE_SPLIT_CALLBACKS.
 
     :param split_devices: New devices that should be added to the overall list
     :param remove_original: Remove the original device from the list of devices
@@ -65,6 +63,11 @@ EventSubscriptionType = tuple[
 
 
 class EventStream:
+    """Data gatherer and eventer.
+
+    Polls Afero IoT API, converts the response into devices, and notifies subscribers
+    of the event.
+    """
 
     def __init__(self, bridge: "AferoBridgeV1", polling_interval: int) -> None:
         """Initialize instance."""
@@ -90,30 +93,35 @@ class EventStream:
 
     @property
     def registered_multiple_devices(self) -> dict[str, Callable]:
+        """Get all registered callbacks for splitting devices."""
         return self._multiple_device_finder
 
     @property
     def polling_interval(self) -> int:
+        """Number of seconds between polling."""
         return self._polling_interval
 
     @polling_interval.setter
     def polling_interval(self, polling_interval: int) -> None:
+        """Set the time between polling Afero API."""
         self._polling_interval = polling_interval
 
     async def initialize(self) -> None:
-        """Start the polling processes"""
+        """Start the polling processes."""
         if len(self._scheduled_tasks) == 0:
             await self.initialize_reader()
             await self.initialize_processor()
 
     async def initialize_reader(self) -> None:
+        """Initialize gathering data from Afero API."""
         self._scheduled_tasks.append(asyncio.create_task(self.__event_reader()))
 
     async def initialize_processor(self) -> None:
+        """Initialize the processor."""
         self._scheduled_tasks.append(asyncio.create_task(self.__event_processor()))
 
     def register_multi_device(self, name: str, generate_devices: callable):
-        """Register a callable to find multi-devices within the payload
+        """Register a callable to find multi-devices within the payload.
 
         The callable must return a list of tracked AferoDevices
         """
@@ -133,16 +141,15 @@ class EventStream:
         event_filter: EventType | tuple[EventType] | None = None,
         resource_filter: tuple[str] | None = None,
     ) -> Callable:
-        """
-        Subscribe to events emitted
+        """Subscribe to events emitted.
 
-        Parameters:
-            - `callback` - callback function to call when an event emits.
-            - `event_filter` - Optionally provide an EventType as filter.
-            - `resource_filter` - Optionally provide a ResourceType as filter.
+        :param callback: callback function to call when an event emits.
+        :param event_filter:  Optionally provide an EventType as filter.
+        :param resource_filter: Optionally provide a ResourceType as filter.
 
         Returns:
             function to unsubscribe.
+
         """
         if not isinstance(event_filter, NoneType | tuple):
             event_filter = (event_filter,)
@@ -161,6 +168,7 @@ class EventStream:
         self._event_queue.put_nowait(event)
 
     async def async_block_until_done(self):
+        """Blocking call until everything has finished."""
         attempt = 0
         while not self._event_queue.empty():
             self._logger.debug(
@@ -203,7 +211,7 @@ class EventStream:
                 self._logger.exception("Unhandled exception. Please open a bug report")
 
     async def process_backoff(self, attempt: int) -> None:
-        """Handle backoff timer for Afero IoT API
+        """Handle backoff timer for Afero IoT API.
 
         :param attempt: Number of attempts
         :param reason: Reason why the backoff is occurring
@@ -219,12 +227,12 @@ class EventStream:
         await asyncio.sleep(backoff_time)
 
     async def gather_data(self) -> list[dict[Any, str]]:
-        """Gather all data from the Afero IoT API"""
+        """Gather all data from the Afero IoT API."""
         consecutive_http_errors = 0
         while True:
             try:
                 data = await self._bridge.fetch_data()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._logger.warning("Timeout when contacting Afero IoT API.")
                 await self.process_backoff(consecutive_http_errors)
             except InvalidAuth:
@@ -234,17 +242,17 @@ class EventStream:
             except (HTTPForbidden, HTTPTooManyRequests, ClientError):
                 consecutive_http_errors += 1
                 await self.process_backoff(consecutive_http_errors)
-            except ValueError as err:
+            except TypeError as err:
                 self._logger.warning(
                     "Unexpected data from Afero IoT API, %s.", err.args[0]
                 )
                 consecutive_http_errors += 1
                 await self.process_backoff(consecutive_http_errors)
-            except Exception as err:
+            except Exception:
                 self._logger.exception(
                     "Unknown error occurred. Please open a bug report."
                 )
-                raise err
+                raise
             else:
                 # Successful connection
                 if consecutive_http_errors > 0:
@@ -258,6 +266,11 @@ class EventStream:
     async def generate_devices_from_data(
         self, data: list[dict[Any, str]]
     ) -> list[AferoDevice]:
+        """Generate all devices from a given payload.
+
+        Generating devices will attempt to split devices where required and remove
+        devices that are no longer needed, as identified by the callback.
+        """
         devices = [
             get_afero_device(dev)
             for dev in data
@@ -281,7 +294,7 @@ class EventStream:
         return devices
 
     async def generate_events_from_data(self, data: list[dict[Any, str]]) -> None:
-        """Process the raw Afero IoT data for emitting
+        """Process the raw Afero IoT data for emitting.
 
         :param data: Raw data from Afero IoT
         """
@@ -324,10 +337,10 @@ class EventStream:
                 self._bridge.remove_device(dev_id)
 
     async def perform_poll(self) -> None:
-        """Poll Afero IoT and generate the required events"""
+        """Poll Afero IoT and generate the required events."""
         try:
             data = await self.gather_data()
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._status = EventStreamStatus.DISCONNECTED
             self.emit(EventType.DISCONNECTED)
         else:
@@ -337,13 +350,14 @@ class EventStream:
                 self._logger.exception("Unable to process Afero IoT data. %s", data)
 
     async def __event_reader(self) -> None:
-        """Poll the current states"""
+        """Poll the current states."""
         self._status = EventStreamStatus.CONNECTING
         while True:
             await self.perform_poll()
             await asyncio.sleep(self._polling_interval)
 
     async def process_event(self):
+        """Process a single event in the queue."""
         try:
             event: AferoEvent = await self._event_queue.get()
             self.emit(event["type"], event)
@@ -351,6 +365,6 @@ class EventStream:
             self._logger.exception("Unhandled exception. Please open a bug report")
 
     async def __event_processor(self) -> None:
-        """Process the Afero IoT devices"""
+        """Process the Afero IoT devices."""
         while True:
             await self.process_event()

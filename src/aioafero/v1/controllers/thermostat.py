@@ -2,12 +2,13 @@
 
 import copy
 
-from ... import device
-from ...device import AferoDevice, AferoState
-from ...util import calculate_hubspace_celsius, process_function
-from ..models import features
-from ..models.resource import DeviceInformation, ResourceTypes
-from ..models.thermostat import Thermostat, ThermostatPut
+from aioafero import device
+from aioafero.device import AferoDevice, AferoState
+from aioafero.util import calculate_hubspace_celsius, process_function
+from aioafero.v1.models import features
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+from aioafero.v1.models.thermostat import Thermostat, ThermostatPut
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
@@ -31,7 +32,12 @@ class ThermostatController(BaseResourcesController[Thermostat]):
     }
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Thermostat:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         # Afero reports in Celsius by default
         display_celsius: bool = True
@@ -146,6 +152,12 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Thermostat with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         updated_keys = set()
         cur_item = self.get_device(afero_device.id)
         temperature_mapping = {
@@ -180,7 +192,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                     if temp_value != rounded_val:
                         cur_item.current_temperature.temperature = rounded_val
                         updated_keys.add(f"temperature-{state.functionInstance}")
-                elif state.functionInstance in temperature_mapping.keys():
+                elif state.functionInstance in temperature_mapping:
                     temp_item = getattr(
                         cur_item, temperature_mapping.get(state.functionInstance), None
                     )
@@ -205,19 +217,23 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         return updated_keys
 
     async def set_fan_mode(self, device_id: str, fan_mode: str) -> None:
+        """Enable or disable fan mode."""
         return await self.set_state(device_id, fan_mode=fan_mode)
 
     async def set_hvac_mode(self, device_id: str, hvac_mode: str) -> None:
+        """Set the current mode of the HVAC system."""
         return await self.set_state(device_id, hvac_mode=hvac_mode)
 
     async def set_target_temperature(
         self, device_id: str, target_temperature: float
     ) -> None:
+        """Set the target temperature."""
         return await self.set_state(device_id, target_temperature=target_temperature)
 
     async def set_temperature_range(
         self, device_id: str, temp_low: float, temp_high: float
     ) -> None:
+        """Set the temperature range for the thermostat."""
         return await self.set_state(
             device_id,
             target_temperature_auto_heating=temp_low,
@@ -236,7 +252,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
         target_temperature_heating: float | None = None,
         target_temperature_cooling: float | None = None,
         target_temperature: float | None = None,
-        is_celsius: bool = None,
+        is_celsius: bool | None = None,
     ) -> None:
         """Set supported feature(s) to fan resource."""
         update_obj = ThermostatPut()
@@ -364,15 +380,16 @@ class ThermostatController(BaseResourcesController[Thermostat]):
     async def get_hubspace_temp(
         self, resource: Thermostat, temperature: float, is_celsius: bool
     ) -> float:
+        """Determine the temperature for the Afero state."""
         if resource.display_celsius or is_celsius:
             return temperature
-        else:
-            return calculate_hubspace_celsius(temperature)
+        return calculate_hubspace_celsius(temperature)
 
 
 def generate_target_temp(
     func_def: dict, state: AferoState
 ) -> features.TargetTemperatureFeature:
+    """Determine the target temp based on the function definition."""
     return features.TargetTemperatureFeature(
         value=round(state.value, 2),
         step=func_def["range"]["step"],

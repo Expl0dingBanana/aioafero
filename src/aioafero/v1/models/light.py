@@ -1,13 +1,16 @@
+"""Representation of an Afero Light and its corresponding updates."""
+
 from dataclasses import dataclass, field
 
-from ..models import features
+from aioafero.v1.models import features
+
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
 
 
 @dataclass
 class Light:
-    """Representation of an Afero Light"""
+    """Representation of an Afero Light."""
 
     id: str  # ID used when interacting with Afero
     available: bool
@@ -22,14 +25,14 @@ class Light:
 
     # Defined at initialization
     split_identifier: str | None = None
-    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+    instances: dict = field(default_factory=dict, repr=False, init=False)
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=lambda: dict())
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=lambda: dict())
+    sensors: dict[str, AferoSensor] = field(default_factory=dict)
+    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.LIGHT
 
-    def __init__(self, functions: list, **kwargs):
+    def __init__(self, functions: list, **kwargs):  # noqa: D107
         for key, value in kwargs.items():
             if key == "instances":
                 continue
@@ -42,22 +45,22 @@ class Light:
         self.instances = instances
 
     def get_instance(self, elem):
-        """Lookup the instance associated with the elem"""
+        """Lookup the instance associated with the elem."""
         return self.instances.get(elem, None)
 
     @property
     def instance(self):
+        """Instance for the split device."""
         if self.split_identifier:
             return self.id.rsplit(f"-{self.split_identifier}-", 1)[1]
-        else:
-            return None
+        return None
 
     @property
     def update_id(self) -> str:
+        """ID used when sending updates to Afero API."""
         if self.split_identifier:
             return self.id.rsplit(f"-{self.split_identifier}-", 1)[0]
-        else:
-            return self.id
+        return self.id
 
     @property
     def supports_color(self) -> bool:
@@ -71,7 +74,7 @@ class Light:
 
     @property
     def supports_color_white(self) -> bool:
-        """Return if this light supports setting white"""
+        """Return if this light supports setting white."""
         return self.color_modes is not None and "white" in self.color_modes
 
     @property
@@ -86,6 +89,7 @@ class Light:
 
     @property
     def supports_on(self):
+        """If the light can be toggled on or off."""
         return self.on is not None
 
     @property
@@ -105,7 +109,7 @@ class Light:
 
 @dataclass
 class LightPut[AferoResource]:
-    """States that can be updated for a light"""
+    """States that can be updated for a light."""
 
     on: features.OnFeature | None = None
     color: features.ColorFeature | None = None

@@ -131,7 +131,7 @@ Version 2.0.0
 Version 1.2.0
 =============
 
- * Enable auth to re-use a previously generated token
+ * Enable auth to reuse a previously generated token
 
 Version 1.1.3
 =============
@@ -230,7 +230,7 @@ Version 0.6.0
 Version 0.5.1
 =============
 
- * Fixed an issue where the account ID wouldnt be set during a partial initialization
+ * Fixed an issue where the account ID would not be set during a partial initialization
 
 
 Version 0.5.0

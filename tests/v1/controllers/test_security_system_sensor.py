@@ -28,7 +28,7 @@ security_system_sensor_2 = security_system_sensors[1]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = SecuritySystemSensorController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.mark.asyncio
@@ -44,7 +44,7 @@ async def test_initialize(mocked_controller):
         "battery-level": AferoSensor(
             id="sensor-state",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            _value=100,
+            value=100,
             unit="%",
             instance=None,
         ),
@@ -53,7 +53,7 @@ async def test_initialize(mocked_controller):
         "tampered": AferoBinarySensor(
             id="tampered",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            _value=0,
+            current_value=0,
             _error=1,
             unit=None,
             instance="tampered",
@@ -61,7 +61,7 @@ async def test_initialize(mocked_controller):
         "triggered": AferoBinarySensor(
             id="triggered",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            _value=1,
+            current_value=1,
             _error=1,
             unit=None,
             instance="triggered",
@@ -151,7 +151,7 @@ async def test_update_elem(mocked_controller):
         "battery-level": AferoSensor(
             id="sensor-state",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            _value=95,
+            value=95,
             unit="%",
             instance=None,
         ),
@@ -160,7 +160,7 @@ async def test_update_elem(mocked_controller):
         "tampered": AferoBinarySensor(
             id="tampered",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            _value=1,
+            current_value=1,
             _error=1,
             unit=None,
             instance="tampered",
@@ -168,7 +168,7 @@ async def test_update_elem(mocked_controller):
         "triggered": AferoBinarySensor(
             id="triggered",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            _value=0,
+            current_value=0,
             _error=1,
             unit=None,
             instance="triggered",

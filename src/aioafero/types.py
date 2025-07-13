@@ -1,3 +1,5 @@
+"""Types used by the bridge and supporting elements."""
+
 from enum import Enum
 
 

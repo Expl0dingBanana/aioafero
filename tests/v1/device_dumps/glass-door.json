@@ -1,360 +1,360 @@
 [
-    {
-        "id": "89d12e53-2c38-46b3-af2a-ced1ccc04c39",
-        "device_id": "61ff8f9c-0176-4a77-a73a-b74195d4ca5c",
-        "model": "TBD",
-        "device_class": "glass-door",
-        "default_name": "Smart Door",
-        "default_image": "glass-door-icon",
-        "friendly_name": "Front Door",
-        "functions": [
-            {
-                "id": "2dd9f525-e641-4829-94df-d381aae91a90",
-                "createdTimestampMs": 1717114543278,
-                "updatedTimestampMs": 1717114543278,
-                "functionClass": "abc-receiver-keys",
-                "type": "object",
-                "schedulable": false,
-                "values": [
-                    {
-                        "id": "d7ffd1cc-b728-4491-a653-743126d1ab77",
-                        "createdTimestampMs": 1717114543295,
-                        "updatedTimestampMs": 1717114543295,
-                        "name": "abc-receiver-keys",
-                        "deviceValues": [
-                            {
-                                "id": "409226ac-19c1-41a5-bb9d-aaa56a6cc047",
-                                "createdTimestampMs": 1717114543313,
-                                "updatedTimestampMs": 1717114543313,
-                                "type": "attribute",
-                                "key": "65080",
-                                "format": "abc-manager-key-array"
-                            }
-                        ],
-                        "range": {}
-                    }
-                ]
-            },
-            {
-                "id": "f3217df5-00f7-4a21-97a2-b9dfd5eba828",
-                "createdTimestampMs": 1717114543032,
-                "updatedTimestampMs": 1717114543032,
-                "functionClass": "micro-hub-soul-mates",
-                "type": "string",
-                "schedulable": false,
-                "values": [
-                    {
-                        "id": "bdaa9fe9-962f-49fe-8846-fc0c5db55fbe",
-                        "createdTimestampMs": 1717114543051,
-                        "updatedTimestampMs": 1717114543051,
-                        "name": "soul-mate",
-                        "deviceValues": [
-                            {
-                                "id": "c9147000-ae84-40ea-8a61-b4175d5aff1c",
-                                "createdTimestampMs": 1717114543069,
-                                "updatedTimestampMs": 1717114543069,
-                                "type": "attribute",
-                                "key": "65073",
-                                "format": "string"
-                            }
-                        ],
-                        "range": {}
-                    }
-                ]
-            },
-            {
-                "id": "c3e9c594-bb65-44cf-9501-8ca15923d113",
-                "createdTimestampMs": 1717114543083,
-                "updatedTimestampMs": 1717114543083,
-                "functionClass": "abc-state",
-                "type": "category",
-                "schedulable": false,
-                "values": [
-                    {
-                        "id": "2aaf302c-6da9-4104-9277-b5a16e313820",
-                        "createdTimestampMs": 1717114543197,
-                        "updatedTimestampMs": 1717114543197,
-                        "name": "receiver-key-mismatch",
-                        "deviceValues": [
-                            {
-                                "id": "8d692311-0133-42f5-bf67-4452c8512379",
-                                "createdTimestampMs": 1717114543215,
-                                "updatedTimestampMs": 1717114543215,
-                                "type": "attribute",
-                                "key": "65076",
-                                "value": "3"
-                            }
-                        ],
-                        "range": {}
-                    },
-                    {
-                        "id": "2b9c0bdf-8ecf-42ae-9d4d-718561b34d43",
-                        "createdTimestampMs": 1717114543102,
-                        "updatedTimestampMs": 1717114543102,
-                        "name": "uninitialized",
-                        "deviceValues": [
-                            {
-                                "id": "78201fcb-39bb-4843-acc8-4a2fe7f8fde4",
-                                "createdTimestampMs": 1717114543122,
-                                "updatedTimestampMs": 1717114543122,
-                                "type": "attribute",
-                                "key": "65076",
-                                "value": "0"
-                            }
-                        ],
-                        "range": {}
-                    },
-                    {
-                        "id": "51de8773-df30-4fb0-a206-cd34f99898e7",
-                        "createdTimestampMs": 1717114543167,
-                        "updatedTimestampMs": 1717114543167,
-                        "name": "receiver-initialized",
-                        "deviceValues": [
-                            {
-                                "id": "96c3e3c6-6c45-41a1-8d17-bd02b6781463",
-                                "createdTimestampMs": 1717114543185,
-                                "updatedTimestampMs": 1717114543185,
-                                "type": "attribute",
-                                "key": "65076",
-                                "value": "2"
-                            }
-                        ],
-                        "range": {}
-                    },
-                    {
-                        "id": "8f7b271c-aa15-4e4a-946a-073ec3a9651f",
-                        "createdTimestampMs": 1717114543135,
-                        "updatedTimestampMs": 1717114543135,
-                        "name": "transmitter-initialized",
-                        "deviceValues": [
-                            {
-                                "id": "34523328-d304-41de-99a2-5a43189e3431",
-                                "createdTimestampMs": 1717114543154,
-                                "updatedTimestampMs": 1717114543154,
-                                "type": "attribute",
-                                "key": "65076",
-                                "value": "1"
-                            }
-                        ],
-                        "range": {}
-                    }
-                ]
-            },
-            {
-                "id": "1dc00878-e607-4860-9467-c5c9336923e3",
-                "createdTimestampMs": 1717114542860,
-                "updatedTimestampMs": 1717114542860,
-                "functionClass": "power",
-                "type": "category",
-                "schedulable": true,
-                "values": [
-                    {
-                        "id": "e4093816-34e8-402e-9cef-9ab62c2904c0",
-                        "createdTimestampMs": 1717114542897,
-                        "updatedTimestampMs": 1717114542897,
-                        "name": "off",
-                        "deviceValues": [
-                            {
-                                "id": "c3eadbb2-98e6-42d5-9f40-56a1113fb9a8",
-                                "createdTimestampMs": 1717114542928,
-                                "updatedTimestampMs": 1717114542928,
-                                "type": "attribute",
-                                "key": "2",
-                                "value": "0"
-                            }
-                        ],
-                        "range": {}
-                    },
-                    {
-                        "id": "c1a0d1e5-2da7-4b26-a17e-44fed1f5784e",
-                        "createdTimestampMs": 1717114542950,
-                        "updatedTimestampMs": 1717114542950,
-                        "name": "on",
-                        "deviceValues": [
-                            {
-                                "id": "f068241f-cddb-49d3-9e65-f96c1e487358",
-                                "createdTimestampMs": 1717114542968,
-                                "updatedTimestampMs": 1717114542968,
-                                "type": "attribute",
-                                "key": "2",
-                                "value": "1"
-                            }
-                        ],
-                        "range": {}
-                    }
-                ]
-            },
-            {
-                "id": "786d661e-3b22-44cc-90ec-1dc6f3c2c720",
-                "createdTimestampMs": 1717114542982,
-                "updatedTimestampMs": 1717114542982,
-                "functionClass": "timer",
-                "type": "numeric",
-                "schedulable": false,
-                "values": [
-                    {
-                        "id": "9120a959-8b63-4af0-a438-c6541a154913",
-                        "createdTimestampMs": 1717114543001,
-                        "updatedTimestampMs": 1717114543001,
-                        "name": "timer",
-                        "deviceValues": [
-                            {
-                                "id": "f9c4f9c0-7a44-48ba-8028-67350ccfa771",
-                                "createdTimestampMs": 1717114543020,
-                                "updatedTimestampMs": 1717114543020,
-                                "type": "attribute",
-                                "key": "50"
-                            }
-                        ],
-                        "range": {
-                            "min": 0,
-                            "max": 1440,
-                            "step": 1
-                        }
-                    }
-                ]
-            },
-            {
-                "id": "0f08aacb-b9f1-4002-b15d-c74b0bbc3131",
-                "createdTimestampMs": 1717114543228,
-                "updatedTimestampMs": 1717114543228,
-                "functionClass": "battery-level",
-                "type": "numeric",
-                "schedulable": false,
-                "values": [
-                    {
-                        "id": "c04943b6-d5c4-4410-b5ca-02a683d82ac6",
-                        "createdTimestampMs": 1717114543246,
-                        "updatedTimestampMs": 1717114543246,
-                        "name": "battery-level",
-                        "deviceValues": [
-                            {
-                                "id": "1f405110-88a9-4ea6-9eca-3631537111b4",
-                                "createdTimestampMs": 1717114543265,
-                                "updatedTimestampMs": 1717114543265,
-                                "type": "attribute",
-                                "key": "65079"
-                            }
-                        ],
-                        "range": {
-                            "min": 0,
-                            "max": 100,
-                            "step": 1
-                        }
-                    }
-                ]
+  {
+    "id": "89d12e53-2c38-46b3-af2a-ced1ccc04c39",
+    "device_id": "61ff8f9c-0176-4a77-a73a-b74195d4ca5c",
+    "model": "TBD",
+    "device_class": "glass-door",
+    "default_name": "Smart Door",
+    "default_image": "glass-door-icon",
+    "friendly_name": "Front Door",
+    "functions": [
+      {
+        "id": "2dd9f525-e641-4829-94df-d381aae91a90",
+        "createdTimestampMs": 1717114543278,
+        "updatedTimestampMs": 1717114543278,
+        "functionClass": "abc-receiver-keys",
+        "type": "object",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "d7ffd1cc-b728-4491-a653-743126d1ab77",
+            "createdTimestampMs": 1717114543295,
+            "updatedTimestampMs": 1717114543295,
+            "name": "abc-receiver-keys",
+            "deviceValues": [
+              {
+                "id": "409226ac-19c1-41a5-bb9d-aaa56a6cc047",
+                "createdTimestampMs": 1717114543313,
+                "updatedTimestampMs": 1717114543313,
+                "type": "attribute",
+                "key": "65080",
+                "format": "abc-manager-key-array"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "f3217df5-00f7-4a21-97a2-b9dfd5eba828",
+        "createdTimestampMs": 1717114543032,
+        "updatedTimestampMs": 1717114543032,
+        "functionClass": "micro-hub-soul-mates",
+        "type": "string",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "bdaa9fe9-962f-49fe-8846-fc0c5db55fbe",
+            "createdTimestampMs": 1717114543051,
+            "updatedTimestampMs": 1717114543051,
+            "name": "soul-mate",
+            "deviceValues": [
+              {
+                "id": "c9147000-ae84-40ea-8a61-b4175d5aff1c",
+                "createdTimestampMs": 1717114543069,
+                "updatedTimestampMs": 1717114543069,
+                "type": "attribute",
+                "key": "65073",
+                "format": "string"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "c3e9c594-bb65-44cf-9501-8ca15923d113",
+        "createdTimestampMs": 1717114543083,
+        "updatedTimestampMs": 1717114543083,
+        "functionClass": "abc-state",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "2aaf302c-6da9-4104-9277-b5a16e313820",
+            "createdTimestampMs": 1717114543197,
+            "updatedTimestampMs": 1717114543197,
+            "name": "receiver-key-mismatch",
+            "deviceValues": [
+              {
+                "id": "8d692311-0133-42f5-bf67-4452c8512379",
+                "createdTimestampMs": 1717114543215,
+                "updatedTimestampMs": 1717114543215,
+                "type": "attribute",
+                "key": "65076",
+                "value": "3"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "2b9c0bdf-8ecf-42ae-9d4d-718561b34d43",
+            "createdTimestampMs": 1717114543102,
+            "updatedTimestampMs": 1717114543102,
+            "name": "uninitialized",
+            "deviceValues": [
+              {
+                "id": "78201fcb-39bb-4843-acc8-4a2fe7f8fde4",
+                "createdTimestampMs": 1717114543122,
+                "updatedTimestampMs": 1717114543122,
+                "type": "attribute",
+                "key": "65076",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "51de8773-df30-4fb0-a206-cd34f99898e7",
+            "createdTimestampMs": 1717114543167,
+            "updatedTimestampMs": 1717114543167,
+            "name": "receiver-initialized",
+            "deviceValues": [
+              {
+                "id": "96c3e3c6-6c45-41a1-8d17-bd02b6781463",
+                "createdTimestampMs": 1717114543185,
+                "updatedTimestampMs": 1717114543185,
+                "type": "attribute",
+                "key": "65076",
+                "value": "2"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "8f7b271c-aa15-4e4a-946a-073ec3a9651f",
+            "createdTimestampMs": 1717114543135,
+            "updatedTimestampMs": 1717114543135,
+            "name": "transmitter-initialized",
+            "deviceValues": [
+              {
+                "id": "34523328-d304-41de-99a2-5a43189e3431",
+                "createdTimestampMs": 1717114543154,
+                "updatedTimestampMs": 1717114543154,
+                "type": "attribute",
+                "key": "65076",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "1dc00878-e607-4860-9467-c5c9336923e3",
+        "createdTimestampMs": 1717114542860,
+        "updatedTimestampMs": 1717114542860,
+        "functionClass": "power",
+        "type": "category",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "e4093816-34e8-402e-9cef-9ab62c2904c0",
+            "createdTimestampMs": 1717114542897,
+            "updatedTimestampMs": 1717114542897,
+            "name": "off",
+            "deviceValues": [
+              {
+                "id": "c3eadbb2-98e6-42d5-9f40-56a1113fb9a8",
+                "createdTimestampMs": 1717114542928,
+                "updatedTimestampMs": 1717114542928,
+                "type": "attribute",
+                "key": "2",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "c1a0d1e5-2da7-4b26-a17e-44fed1f5784e",
+            "createdTimestampMs": 1717114542950,
+            "updatedTimestampMs": 1717114542950,
+            "name": "on",
+            "deviceValues": [
+              {
+                "id": "f068241f-cddb-49d3-9e65-f96c1e487358",
+                "createdTimestampMs": 1717114542968,
+                "updatedTimestampMs": 1717114542968,
+                "type": "attribute",
+                "key": "2",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "786d661e-3b22-44cc-90ec-1dc6f3c2c720",
+        "createdTimestampMs": 1717114542982,
+        "updatedTimestampMs": 1717114542982,
+        "functionClass": "timer",
+        "type": "numeric",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "9120a959-8b63-4af0-a438-c6541a154913",
+            "createdTimestampMs": 1717114543001,
+            "updatedTimestampMs": 1717114543001,
+            "name": "timer",
+            "deviceValues": [
+              {
+                "id": "f9c4f9c0-7a44-48ba-8028-67350ccfa771",
+                "createdTimestampMs": 1717114543020,
+                "updatedTimestampMs": 1717114543020,
+                "type": "attribute",
+                "key": "50"
+              }
+            ],
+            "range": {
+              "min": 0,
+              "max": 1440,
+              "step": 1
             }
-        ],
-        "states": [
-            {
-                "functionClass": "power",
-                "value": "off",
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "abc-receiver-keys",
-                "value": null,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "max-on-time",
-                "value": 60,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "battery-level",
-                "value": 100,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "abc-state",
-                "value": "uninitialized",
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "timer",
-                "value": 0,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "wifi-ssid",
-                "value": "ec4d51ff-c493-47f4-b363-7b2255acea49",
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "wifi-rssi",
-                "value": -20,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "wifi-steady-state",
-                "value": "connected",
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "wifi-setup-state",
-                "value": "connected",
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "wifi-mac-address",
-                "value": "82008abe-0a22-4818-a8c1-046d9531a3c1",
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "geo-coordinates",
-                "value": {
-                    "geo-coordinates": {
-                        "latitude": "0",
-                        "longitude": "0"
-                    }
-                },
-                "lastUpdateTime": 0,
-                "functionInstance": "system-device-location"
-            },
-            {
-                "functionClass": "scheduler-flags",
-                "value": 0,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "available",
-                "value": true,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "visible",
-                "value": true,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "direct",
-                "value": true,
-                "lastUpdateTime": 0,
-                "functionInstance": null
-            },
-            {
-                "functionClass": "ble-mac-address",
-                "value": "6443f66c-b092-4894-89a1-24339244c588",
-                "lastUpdateTime": 0,
-                "functionInstance": null
+          }
+        ]
+      },
+      {
+        "id": "0f08aacb-b9f1-4002-b15d-c74b0bbc3131",
+        "createdTimestampMs": 1717114543228,
+        "updatedTimestampMs": 1717114543228,
+        "functionClass": "battery-level",
+        "type": "numeric",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "c04943b6-d5c4-4410-b5ca-02a683d82ac6",
+            "createdTimestampMs": 1717114543246,
+            "updatedTimestampMs": 1717114543246,
+            "name": "battery-level",
+            "deviceValues": [
+              {
+                "id": "1f405110-88a9-4ea6-9eca-3631537111b4",
+                "createdTimestampMs": 1717114543265,
+                "updatedTimestampMs": 1717114543265,
+                "type": "attribute",
+                "key": "65079"
+              }
+            ],
+            "range": {
+              "min": 0,
+              "max": 100,
+              "step": 1
             }
-        ],
-        "children": [],
-        "manufacturerName": "TBD"
-    }
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "functionClass": "power",
+        "value": "off",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "abc-receiver-keys",
+        "value": null,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "max-on-time",
+        "value": 60,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "battery-level",
+        "value": 100,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "abc-state",
+        "value": "uninitialized",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "timer",
+        "value": 0,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-ssid",
+        "value": "ec4d51ff-c493-47f4-b363-7b2255acea49",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-rssi",
+        "value": -20,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-steady-state",
+        "value": "connected",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-setup-state",
+        "value": "connected",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-mac-address",
+        "value": "82008abe-0a22-4818-a8c1-046d9531a3c1",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "geo-coordinates",
+        "value": {
+          "geo-coordinates": {
+            "latitude": "0",
+            "longitude": "0"
+          }
+        },
+        "lastUpdateTime": 0,
+        "functionInstance": "system-device-location"
+      },
+      {
+        "functionClass": "scheduler-flags",
+        "value": 0,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "available",
+        "value": true,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "visible",
+        "value": true,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "direct",
+        "value": true,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "ble-mac-address",
+        "value": "6443f66c-b092-4894-89a1-24339244c588",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      }
+    ],
+    "children": [],
+    "manufacturerName": "TBD"
+  }
 ]

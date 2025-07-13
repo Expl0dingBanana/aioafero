@@ -84,8 +84,7 @@ def mock_uuid(mocker):
         calls += 1
         if calls % 2:
             return "its-a-1"
-        else:
-            return "its-a-2"
+        return "its-a-2"
 
     mocker.patch.object(anonomyize_data, "uuid4", side_effect=get_uuid)
 

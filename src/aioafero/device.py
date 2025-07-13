@@ -1,20 +1,22 @@
+"""Devices and States for API responses."""
+
 __all__ = [
-    "AferoResource",
     "AferoDevice",
+    "AferoResource",
     "AferoState",
     "get_afero_device",
     "get_function_from_device",
 ]
-import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar
+import logging
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class AferoState:
-    """State of a given function
+    """State of a given function.
 
     :param functionClass: Function class for the state (ie, power)
     :param value: Value to set for the function_class
@@ -23,14 +25,16 @@ class AferoState:
         Default: None
     """
 
-    functionClass: str
+    functionClass: str  # noqa: N815
     value: Any
-    lastUpdateTime: Optional[int] = None
-    functionInstance: Optional[str] = None
+    lastUpdateTime: int | None = None  # noqa: N815
+    functionInstance: str | None = None  # noqa: N815
 
 
 @dataclass
 class AferoDevice:
+    """Mapped Device from an API response."""
+
     id: str
     device_id: str
     model: str
@@ -41,16 +45,18 @@ class AferoDevice:
     functions: list[dict] = field(default=list)
     states: list[AferoState] = field(default=list)
     children: list[str] = field(default=list)
-    manufacturerName: Optional[str] = field(default=None)
+    manufacturerName: str | None = field(default=None)  # noqa: N815
     split_identifier: str | None = field(default=None, repr=False)
 
     def __hash__(self):
+        """Hash."""
         return hash((self.id, self.friendly_name))
 
     def __post_init__(self):
+        """Post init."""
         # Dimmer Switch fix - A switch cannot dim, but a light can
         if self.device_class == "switch" and any(
-            [state.functionClass == "brightness" for state in self.states]
+            state.functionClass == "brightness" for state in self.states
         ):
             self.device_class = "light"
         # Fix exhaust fans
@@ -99,19 +105,19 @@ class AferoDevice:
 
 
 def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
-    """Convert the Afero device definition into a AferoDevice"""
+    """Convert the Afero device definition into a AferoDevice."""
     description = afero_device.get("description", {})
     device = description.get("device", {})
     processed_states: list[AferoState] = []
-    for state in afero_device.get("state", {}).get("values", []):
-        processed_states.append(
-            AferoState(
-                functionClass=state.get("functionClass"),
-                value=state.get("value"),
-                lastUpdateTime=state.get("lastUpdateTime"),
-                functionInstance=state.get("functionInstance"),
-            )
+    processed_states = [
+        AferoState(
+            functionClass=state.get("functionClass"),
+            value=state.get("value"),
+            lastUpdateTime=state.get("lastUpdateTime"),
+            functionInstance=state.get("functionInstance"),
         )
+        for state in afero_device.get("state", {}).get("values", [])
+    ]
     dev_dict = {
         "id": afero_device.get("id"),
         "device_id": afero_device.get("deviceId"),
@@ -131,7 +137,7 @@ def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
 def get_function_from_device(
     functions: list[dict], function_class: str, function_instance: str | None = None
 ) -> dict | None:
-    """Find a function from a device
+    """Find a function from a device.
 
     :param functions: List of functions to search through
     :param function_class: Function class to find

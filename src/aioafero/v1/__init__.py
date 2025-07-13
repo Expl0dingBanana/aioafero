@@ -1,39 +1,40 @@
-"""Controls Hubspace devices on v1 API"""
+"""Controls Hubspace devices on v1 API."""
 
 __all__ = [
     "AferoBridgeV1",
     "AferoController",
     "AferoModelResource",
-    "models",
     "BaseResourcesController",
     "DeviceController",
     "FanController",
     "LightController",
     "LockController",
-    "SwitchController",
-    "ThermostatController",
-    "ValveController",
-    "token_data",
     "PortableACController",
     "SecuritySystemController",
     "SecuritySystemSensorController",
+    "SwitchController",
+    "ThermostatController",
+    "TokenData",
+    "ValveController",
+    "models",
 ]
 
 import asyncio
+from collections.abc import Callable, Generator
 import contextlib
-import logging
 from contextlib import asynccontextmanager
-from types import TracebackType
-from typing import Any, Callable, Generator, Optional
+import logging
+from typing import Any
 
 import aiohttp
 from aiohttp import web_exceptions
 from securelogging import LogRedactorMessage, add_secret
 
-from ..device import AferoResource
-from ..errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
+from aioafero.device import AferoResource
+from aioafero.errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
+
 from . import models, v1_const
-from .auth import AferoAuth, passthrough, token_data
+from .auth import AferoAuth, TokenData, passthrough
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
@@ -81,27 +82,28 @@ type AferoController = (
 
 
 class AferoBridgeV1:
-    """Controls Afero IoT devices on v1 API"""
+    """Controls Afero IoT devices on v1 API."""
 
-    _web_session: Optional[aiohttp.ClientSession] = None
+    _web_session: aiohttp.ClientSession | None = None
 
     def __init__(
         self,
         username: str,
         password: str,
-        refresh_token: Optional[str] = None,
-        session: Optional[aiohttp.ClientSession] = None,
+        refresh_token: str | None = None,
+        session: aiohttp.ClientSession | None = None,
         polling_interval: int = 30,
-        afero_client: Optional[str] = "hubspace",
+        afero_client: str | None = "hubspace",
         hide_secrets: bool = True,
     ):
+        """Create a bridge that communicates with Afero IoT API."""
         if hide_secrets:
             self.secret_logger = LogRedactorMessage
         else:
             self.secret_logger = passthrough
         self._close_session: bool = session is None
         self._web_session: aiohttp.ClientSession = session
-        self._account_id: Optional[str] = None
+        self._account_id: str | None = None
         self._afero_client: str = afero_client
         self._auth = AferoAuth(
             username,
@@ -136,79 +138,74 @@ class AferoBridgeV1:
         self._thermostats: ThermostatController = ThermostatController(self)
         self._valves: ValveController = ValveController(self)
 
-    async def __aenter__(self) -> "AferoBridgeV1":
-        """Return Context manager."""
-        await self.initialize()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException],
-        exc_val: BaseException,
-        exc_tb: TracebackType,
-    ) -> bool | None:
-        """Exit context manager."""
-        await self.close()
-        if exc_val:
-            raise exc_val
-        return exc_type
-
     @property
     def refresh_token(self) -> str | None:
-        """Get the current sessions refresh token"""
+        """Get the current sessions refresh token."""
         return self._auth.refresh_token
 
     @property
     def devices(self) -> DeviceController:
+        """Get the controller related to Top Level Devices."""
         return self._devices
 
     @property
     def events(self) -> EventStream:
+        """Get the class that handles getting new data and notifying controllers."""
         return self._events
 
     @property
     def exhaust_fans(self) -> ExhaustFanController:
+        """Get the controller related to Exhaust Fans."""
         return self._exhaust_fans
 
     @property
     def fans(self) -> FanController:
+        """Get the controller related to Fans."""
         return self._fans
 
     @property
     def lights(self) -> LightController:
+        """Get the controller related to Lights."""
         return self._lights
 
     @property
     def locks(self) -> LockController:
+        """Get the controller related to Locks."""
         return self._locks
 
     @property
     def portable_acs(self) -> PortableACController:
+        """Get the controller related to Portable ACs."""
         return self._portable_acs
 
     @property
     def security_systems(self) -> SecuritySystemController:
+        """Get the controller related to Security Systems."""
         return self._security_system
 
     @property
     def security_systems_sensors(self) -> SecuritySystemSensorController:
+        """Get the controller related to Security System Sensors."""
         return self._security_system_sensors
 
     @property
     def switches(self) -> SwitchController:
+        """Get the controller related to Switches."""
         return self._switches
 
     @property
     def thermostats(self) -> ThermostatController:
+        """Get the controller related to Thermostats."""
         return self._thermostats
 
     @property
     def valves(self) -> ValveController:
+        """Get the controller related to Valves."""
         return self._valves
 
     @property
     def _controllers(self) -> list:
-        dev_controllers = [
+        return [
             self._devices,
             self._exhaust_fans,
             self._fans,
@@ -221,43 +218,46 @@ class AferoBridgeV1:
             self._thermostats,
             self._valves,
         ]
-        return dev_controllers
 
     @property
     def controllers(self) -> list:
-        initialized = []
-        for controller in self._controllers:
-            if controller and controller.initialized:
-                initialized.append(controller)
-        return initialized
+        """Get a list of initialized controllers."""
+        return [
+            controller for controller in self._controllers if controller.initialized
+        ]
 
     @property
     def tracked_devices(self) -> set:
+        """Get all tracked devices."""
         return set(self._known_devs.keys())
 
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
     ) -> None:
+        """Add a device to the list of known devices."""
         self._known_devs[device_id] = controller
 
     def remove_device(self, device_id: str) -> None:
+        """Remove a device from the list of known devices."""
         with contextlib.suppress(KeyError):
             self._known_devs.pop(device_id)
 
     @property
     def account_id(self) -> str:
-        """Get the account ID for the Afero IoT account"""
+        """Get the account ID for the Afero IoT account."""
         return self._account_id
 
     @property
     def afero_client(self) -> str:
-        """Get identifier for Afero system"""
+        """Get identifier for Afero system."""
         return self._afero_client
 
-    def set_token_data(self, data: token_data) -> None:
+    def set_token_data(self, data: TokenData) -> None:
+        """Set TokenData used for querying the API."""
         self._auth.set_token_data(data)
 
     def set_polling_interval(self, polling_interval: int) -> None:
+        """Set the time between polling Afero API."""
         self._events.polling_interval = polling_interval
 
     async def close(self) -> None:
@@ -275,11 +275,11 @@ class AferoBridgeV1:
         self,
         callback: EventCallBackType,
     ) -> Callable:
-        """
-        Subscribe to status changes for all resources.
+        """Subscribe to status changes for all resources.
 
         Returns:
             function to unsubscribe.
+
         """
         unsubscribes = [
             controller.subscribe(callback) for controller in self.controllers
@@ -292,7 +292,7 @@ class AferoBridgeV1:
         return unsubscribe
 
     async def get_account_id(self) -> str:
-        """Lookup the account ID associated with the login"""
+        """Lookup the account ID associated with the login."""
         if not self._account_id:
             self.logger.debug("Querying API for account id")
             headers = {"host": v1_const.AFERO_CLIENTS[self._afero_client]["API_HOST"]}
@@ -317,7 +317,7 @@ class AferoBridgeV1:
         return self._account_id
 
     async def initialize(self) -> None:
-        """Query Afero API for all data"""
+        """Initialize the bridge for communication with Afero API."""
         if len(self._scheduled_tasks) == 0:
             await self.initialize_cleanup()
             await self.get_account_id()
@@ -331,7 +331,7 @@ class AferoBridgeV1:
             await self._events.initialize()
 
     async def fetch_data(self) -> list[dict[Any, str]]:
-        """Query the API"""
+        """Query the API."""
         self.logger.debug("Querying API for all data")
         headers = {
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["DATA_HOST"],
@@ -348,15 +348,14 @@ class AferoBridgeV1:
         res.raise_for_status()
         data = await res.json()
         if not isinstance(data, list):
-            raise ValueError(data)
+            raise TypeError(data)
         return data
 
     @asynccontextmanager
     async def create_request(
         self, method: str, url: str, **kwargs
     ) -> Generator[aiohttp.ClientResponse, None, None]:
-        """
-        Make a request to any path with V2 request method (auth in header).
+        """Make a request to any path with V2 request method (auth in header).
 
         Returns a generator with aiohttp ClientResponse.
         """
@@ -372,11 +371,7 @@ class AferoBridgeV1:
             self.events.emit(EventType.INVALID_AUTH)
             raise
         else:
-            headers = self.get_headers(
-                **{
-                    "authorization": f"Bearer {token}",
-                }
-            )
+            headers = self.get_headers(authorization=f"Bearer {token}")
             headers.update(kwargs.get("headers", {}))
             kwargs["headers"] = headers
             kwargs["ssl"] = True
@@ -399,14 +394,14 @@ class AferoBridgeV1:
                 if resp.status in [429, 503]:
                     continue
                 # 403 is bad auth
-                elif resp.status == 403:
-                    raise web_exceptions.HTTPForbidden()
+                if resp.status == 403:
+                    raise web_exceptions.HTTPForbidden
                 await resp.read()
                 return resp
         raise ExceededMaximumRetries("Exceeded maximum number of retries")
 
     async def send_service_request(self, device_id: str, states: list[dict[str, Any]]):
-        """Manually send state requests to Afero IoT
+        """Manually send state requests to Afero IoT.
 
         :param device_id: ID for the device
         :param states: List of states to send
@@ -417,6 +412,7 @@ class AferoBridgeV1:
         await controller.update(device_id, states=states)
 
     def get_headers(self, **kwargs):
+        """Get default headers for an API call."""
         headers: dict[str, str] = {
             "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
                 "DEFAULT_USERAGENT"
@@ -428,17 +424,20 @@ class AferoBridgeV1:
 
     # Task management enables us to block until finished
     def add_job(self, task: asyncio.Task) -> None:
+        """Add a job to be processed."""
         self._adhoc_tasks.append(task)
 
     async def async_block_until_done(self):
+        """Sync call for ensuring all processing is done."""
         await asyncio.gather(*self._adhoc_tasks)
         await self.events.async_block_until_done()
 
     async def initialize_cleanup(self) -> None:
+        """Create the job that removes finished tasks."""
         self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
 
     async def __cleanup_processor(self) -> None:
-        """Removes finished tasks"""
+        """Remove finished tasks."""
         with contextlib.suppress(asyncio.CancelledError):
             while True:
                 for task in self._adhoc_tasks[:]:

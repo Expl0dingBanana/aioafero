@@ -1,14 +1,15 @@
 """Controller holding and managing Hubspace resources of type `light`."""
 
-import copy
 from contextlib import suppress
+import copy
 
-from ... import device, errors
-from ...device import AferoDevice, AferoState
-from ...util import process_range
-from ..models import features
-from ..models.light import Light, LightPut
-from ..models.resource import DeviceInformation, ResourceTypes
+from aioafero import device, errors
+from aioafero.device import AferoDevice, AferoState
+from aioafero.util import process_range
+from aioafero.v1.models import features
+from aioafero.v1.models.light import Light, LightPut
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .event import CallbackResponse
 
@@ -16,6 +17,7 @@ SPLIT_IDENTIFIER: str = "light"
 
 
 def process_names(values: list[dict]) -> set[str]:
+    """Extract unique names from the elements."""
     vals = set()
     for val in values:
         vals.add(val["name"])
@@ -23,11 +25,12 @@ def process_names(values: list[dict]) -> set[str]:
 
 
 def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
+    """Generate the name for an instanced element."""
     return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
 
 
 def get_split_instances(afero_dev: AferoDevice) -> list[str]:
-    """Determine available sensors from the states"""
+    """Determine available instances from the states."""
     instances = set()
     for state in afero_dev.states:
         if (
@@ -45,25 +48,22 @@ def get_split_instances(afero_dev: AferoDevice) -> list[str]:
 
 
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
-    """Find states associated with the specific sensor"""
+    """Find states associated with the specific instance."""
     valid_states: list = []
     for state in afero_dev.states:
         if afero_dev.model == "LCN3002LM-01 WH":
             if state.functionInstance == "primary":
                 continue
-            elif state.functionClass == "available":
-                valid_states.append(state)
-            elif (
-                instance == "white"
-                and state.functionInstance == instance
-                or instance != "white"
-                and state.functionInstance != "white"
+            if state.functionClass == "available" or (
+                (instance == "white" and state.functionInstance == instance)
+                or (instance != "white" and state.functionInstance != "white")
             ):
                 valid_states.append(state)
     return valid_states
 
 
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:
+    """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
     if afero_device.device_class == ResourceTypes.LIGHT.value:
         children = []
@@ -80,9 +80,11 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
             children.append(cloned.id)
         if afero_device.model == "LCN3002LM-01 WH":
             cloned = copy.deepcopy(afero_device)
-            valid_states = []
-            for state in afero_device.states:
-                if state.functionClass in [
+            valid_states = [
+                state
+                for state in afero_device.states
+                if state.functionClass
+                in [
                     "available",
                     "wifi-ssid",
                     "wifi-rssi",
@@ -90,8 +92,8 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
                     "wifi-setup-state",
                     "wifi-mac-address",
                     "ble-mac-address",
-                ]:
-                    valid_states.append(state)
+                ]
+            ]
             cloned.states = valid_states
             cloned.children = children
             cloned.device_class = "parent-device"
@@ -153,7 +155,12 @@ class LightController(BaseResourcesController[Light]):
         await self.set_state(device_id, on=True, effect=effect, color_mode="sequence")
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Light:
-        """Initialize the element"""
+        """Initialize the element.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: Newly initialized resource
+        """
         available: bool = False
         on: features.OnFeature | None = None
         color_temp: features.ColorTemperatureFeature | None = None
@@ -216,8 +223,10 @@ class LightController(BaseResourcesController[Light]):
         for function in afero_device.functions:
             if function["functionClass"] != "color-mode":
                 continue
-            for supported_color_mode in function["values"]:
-                supported_color_modes.append(supported_color_mode["name"])
+            supported_color_modes = [
+                supported_color_mode["name"]
+                for supported_color_mode in function["values"]
+            ]
             break
 
         self._items[afero_device.id] = Light(
@@ -247,6 +256,12 @@ class LightController(BaseResourcesController[Light]):
         return self._items[afero_device.id]
 
     async def update_elem(self, afero_device: AferoDevice) -> set:
+        """Update the Light with the latest API data.
+
+        :param afero_device: Afero Device that contains the updated states
+
+        :return: States that have been modified
+        """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
         color_seq_states: dict[str, AferoState] = {}
@@ -298,12 +313,12 @@ class LightController(BaseResourcesController[Light]):
                 updated_keys.add(update_key)
 
         # Several states hold the effect, but its always derived from the preset functionInstance
-        updated_keys = updated_keys.union(
+        return updated_keys.union(
             await self.update_elem_color(cur_item, color_seq_states)
         )
-        return updated_keys
 
     async def update_elem_color(self, cur_item: Light, color_seq_states: dict) -> set:
+        """Perform the update for effects."""
         updated_keys = set()
         if color_seq_states and "preset" in color_seq_states:
             preset_val = color_seq_states["preset"].value
@@ -371,7 +386,7 @@ class LightController(BaseResourcesController[Light]):
 
 
 def process_color_temps(color_temps: dict) -> list[int]:
-    """Determine the supported color temps
+    """Determine the supported color temps.
 
     :param color_temps: Result from functions["values"]
     """
@@ -385,14 +400,14 @@ def process_color_temps(color_temps: dict) -> list[int]:
 
 
 def process_effects(functions: list[dict]) -> dict[str, set]:
-    """Determine the supported effects"""
+    """Determine the supported effects."""
     supported_effects = {}
     for function in functions:
         if function["functionClass"] == "color-sequence":
             supported_effects[function["functionInstance"]] = set(
                 process_names(function["values"])
             )
-    # custom shouldnt be a value in preset
+    # custom shouldn't be a value in preset
     with suppress(KeyError):
         supported_effects["preset"].remove("custom")
     return supported_effects

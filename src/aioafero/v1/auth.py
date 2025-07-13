@@ -1,15 +1,16 @@
-__all__ = ["AferoAuth", "passthrough", "token_data"]
+"""Handle authentication to Afero API."""
+
+__all__ = ["AferoAuth", "TokenData", "passthrough"]
 
 import asyncio
 import base64
+from contextlib import contextmanager
 import datetime
 import hashlib
 import logging
 import os
 import re
-from collections import namedtuple
-from contextlib import contextmanager
-from typing import Final, Optional
+from typing import Final, NamedTuple
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
@@ -17,7 +18,8 @@ from aiohttp import ClientSession, ContentTypeError
 from bs4 import BeautifulSoup
 from securelogging import LogRedactorMessage, add_secret, remove_secret
 
-from ..errors import InvalidAuth, InvalidResponse
+from aioafero.errors import InvalidAuth, InvalidResponse
+
 from . import v1_const
 
 logger = logging.getLogger(__name__)
@@ -25,20 +27,39 @@ logger = logging.getLogger(__name__)
 TOKEN_TIMEOUT: Final[int] = 118
 STATUS_CODE: Final[str] = "Status Code: %s"
 
-auth_challenge = namedtuple("AuthChallenge", ["challenge", "verifier"])
-token_data = namedtuple(
-    "TokenData", ["token", "access_token", "refresh_token", "expiration"]
-)
-auth_sess_data = namedtuple("AuthSessionData", ["session_code", "execution", "tab_id"])
+
+class AuthChallenge(NamedTuple):
+    """Data used to perform the initial authentication."""
+
+    challenge: str
+    verifier: str
+
+
+class TokenData(NamedTuple):
+    """Data related to the current token."""
+
+    token: str
+    access_token: str
+    refresh_token: str
+    expiration: datetime.datetime
+
+
+class AuthSessionData(NamedTuple):
+    """Data related to current attempt to login."""
+
+    session_code: str
+    execution: str
+    tab_id: str
 
 
 @contextmanager
 def passthrough():
+    """Do nothing."""
     yield
 
 
 class AferoAuth:
-    """Authentication against the Afero IoT API
+    """Authentication against the Afero IoT API.
 
     This class follows the Afero IoT authentication workflow and utilizes
     refresh tokens.
@@ -49,9 +70,10 @@ class AferoAuth:
         username,
         password,
         hide_secrets: bool = True,
-        refresh_token: Optional[str] = None,
-        afero_client: Optional[str] = "hubspace",
+        refresh_token: str | None = None,
+        afero_client: str | None = "hubspace",
     ):
+        """Create a class to handle authentication with Afero IoT API."""
         self.logger = logging.getLogger(f"{__package__}[{username}]")
         if hide_secrets:
             self.secret_logger = LogRedactorMessage
@@ -61,10 +83,10 @@ class AferoAuth:
         self._async_lock: asyncio.Lock = asyncio.Lock()
         self._username: str = username
         self._password: str = password
-        self._token_data: Optional[token_data] = None
+        self._token_data: TokenData | None = None
         if refresh_token:
             add_secret(refresh_token)
-            self._token_data = token_data(
+            self._token_data = TokenData(
                 None, None, refresh_token, datetime.datetime.now().timestamp()
             )
         self._afero_client: str = afero_client
@@ -78,22 +100,24 @@ class AferoAuth:
 
     @property
     async def is_expired(self) -> bool:
-        """Determine if the token is expired"""
+        """Determine if the token is expired."""
         if not self._token_data:
             return True
         return datetime.datetime.now().timestamp() >= self._token_data.expiration
 
     @property
     def refresh_token(self) -> str | None:
+        """Set the current refresh token."""
         return self._token_data.refresh_token
 
-    def set_token_data(self, data: token_data) -> None:
+    def set_token_data(self, data: TokenData) -> None:
+        """Set the current taken data."""
         self._token_data = data
 
     async def webapp_login(
-        self, challenge: auth_challenge, client: ClientSession
+        self, challenge: AuthChallenge, client: ClientSession
     ) -> str:
-        """Perform login to the webapp for a code
+        """Perform login to the webapp for a code.
 
         Login to the webapp and generate a code used for generating tokens.
 
@@ -128,12 +152,7 @@ class AferoAuth:
                 contents = await response.text()
                 login_data = await extract_login_data(contents)
                 self.logger.debug(
-                    (
-                        "WebApp Login:"
-                        "\n\tSession Code: %s"
-                        "\n\tExecution: %s"
-                        "\n\tTab ID:%s"
-                    ),
+                    ("WebApp Login:\n\tSession Code: %s\n\tExecution: %s\n\tTab ID:%s"),
                     login_data.session_code,
                     login_data.execution,
                     login_data.tab_id,
@@ -144,27 +163,27 @@ class AferoAuth:
                     login_data.tab_id,
                     client,
                 )
-            elif response.status == 302:
+            if response.status == 302:
                 self.logger.debug("Hubspace returned an active session")
                 return await AferoAuth.parse_code(response)
-            else:
-                raise InvalidResponse("Unable to query login page")
+            raise InvalidResponse("Unable to query login page")
 
     @staticmethod
-    async def generate_challenge_data() -> auth_challenge:
+    async def generate_challenge_data() -> AuthChallenge:
+        """Generate data to send to Afero API when logging into the system."""
         code_verifier = base64.urlsafe_b64encode(os.urandom(40)).decode("utf-8")
         code_verifier = re.sub("[^a-zA-Z0-9]+", "", code_verifier)
         code_challenge = hashlib.sha256(code_verifier.encode("utf-8")).digest()
         code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
         code_challenge = code_challenge.replace("=", "")
-        chal = auth_challenge(code_challenge, code_verifier)
+        chal = AuthChallenge(code_challenge, code_verifier)
         logger.debug("Challenge information: %s", chal)
         return chal
 
     async def generate_code(
         self, session_code: str, execution: str, tab_id: str, client: ClientSession
     ) -> str:
-        """Finalize login to Afero IoT page
+        """Finalize login to Afero IoT page.
 
         :param session_code: Session code during form interaction
         :param execution: Session code during form interaction
@@ -215,25 +234,25 @@ class AferoAuth:
 
     @staticmethod
     async def parse_code(response: aiohttp.ClientResponse) -> str:
-        """Parses the code for generating tokens"""
+        """Parse the code for generating tokens."""
         try:
             parsed_url = urlparse(response.headers["location"])
             code = parse_qs(parsed_url.query)["code"][0]
             logger.debug("Location: %s", response.headers.get("location"))
             logger.debug("Code: %s", code)
-        except KeyError:
+        except KeyError as err:
             raise InvalidResponse(
                 f"Unable to process the result from {response.url}: {response.status}"
-            )
+            ) from err
         return code
 
     async def generate_refresh_token(
         self,
         client: ClientSession,
-        challenge: auth_challenge | None = None,
+        challenge: AuthChallenge | None = None,
         code: str | None = None,
-    ) -> token_data:
-        """Generate a refresh token
+    ) -> TokenData:
+        """Generate a refresh token.
 
         If a challenge is provided, it will send the correct data. If no challenge is required,
         it will use the existing token
@@ -281,32 +300,34 @@ class AferoAuth:
             self.logger.debug(STATUS_CODE, response.status)
             try:
                 resp_json = await response.json()
-            except (ValueError, ContentTypeError):
-                raise InvalidResponse("Unexpected data returned during token refresh")
+            except (ValueError, ContentTypeError) as err:
+                raise InvalidResponse(
+                    "Unexpected data returned during token refresh"
+                ) from err
             if response.status != 200:
                 if resp_json and resp_json.get("error") == "invalid_grant":
-                    raise InvalidAuth()
+                    raise InvalidAuth
                 response.raise_for_status()
             try:
                 refresh_token = resp_json["refresh_token"]
                 access_token = resp_json["access_token"]
                 id_token = resp_json["id_token"]
-            except KeyError:
-                raise InvalidResponse("Unable to extract refresh token")
+            except KeyError as err:
+                raise InvalidResponse("Unable to extract refresh token") from err
             add_secret(refresh_token)
             add_secret(access_token)
             add_secret(id_token)
             with self.secret_logger():
                 self.logger.debug("JSON response: %s", resp_json)
-            return token_data(
+            return TokenData(
                 id_token,
                 access_token,
                 refresh_token,
                 datetime.datetime.now().timestamp() + TOKEN_TIMEOUT,
             )
 
-    async def perform_initial_login(self, client: ClientSession) -> token_data:
-        """Login to generate a refresh token
+    async def perform_initial_login(self, client: ClientSession) -> TokenData:
+        """Login to generate a refresh token.
 
         :param client: async client for making request
 
@@ -322,6 +343,7 @@ class AferoAuth:
         return refresh_token
 
     async def token(self, client: ClientSession, retry: bool = True) -> str:
+        """Generate the token required to make Afero API calls."""
         invalidate_refresh_token = False
         async with self._async_lock:
             if not self._token_data:
@@ -349,8 +371,8 @@ class AferoAuth:
         return self._token_data.token
 
 
-async def extract_login_data(page: str) -> auth_sess_data:
-    """Extract the required login data from the auth page
+async def extract_login_data(page: str) -> AuthSessionData:
+    """Extract the required login data from the auth page.
 
     :param page: the response from performing a GET against
     v1_const.AFERO_CLIENTS[self._afero_client]['OPENID_URL']
@@ -361,12 +383,12 @@ async def extract_login_data(page: str) -> auth_sess_data:
         raise InvalidResponse("Unable to parse login page")
     try:
         login_url: str = login_form.attrs["action"]
-    except KeyError:
-        raise InvalidResponse("Unable to extract login url")
+    except KeyError as err:
+        raise InvalidResponse("Unable to extract login url") from err
     parsed_url = urlparse(login_url)
     login_data = parse_qs(parsed_url.query)
     try:
-        return auth_sess_data(
+        return AuthSessionData(
             login_data["session_code"][0],
             login_data["execution"][0],
             login_data["tab_id"][0],

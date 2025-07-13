@@ -5,7 +5,7 @@ import pytest
 
 from aioafero import EventType, InvalidAuth
 from aioafero.errors import DeviceNotFound
-from aioafero.v1 import AferoBridgeV1, add_secret, token_data
+from aioafero.v1 import AferoBridgeV1, TokenData, add_secret
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -144,7 +144,7 @@ async def test_fetch_data(expected_val, error, mocked_bridge_req, mocker):
     if not error:
         assert await mocked_bridge_req.fetch_data() == expected_val
     else:
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             await mocked_bridge_req.fetch_data()
 
 
@@ -205,7 +205,7 @@ class DummyResponse:
 
 
 def test_set_token_data(mocked_bridge):
-    data = token_data(
+    data = TokenData(
         "token",
         "access_token",
         "refresh_token",

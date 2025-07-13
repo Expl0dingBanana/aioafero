@@ -1,22 +1,25 @@
+"""Errors used through aioafero."""
+
+
 class AferoError(Exception):
-    pass
+    """Generic exception for Afero API or the responses."""
 
 
 class DeviceNotFound(AferoError):
-    pass
+    """Device not found within the controller."""
 
 
 class DeviceUpdateError(AferoError):
-    pass
+    """Unable to send a device update to Afero API."""
 
 
 class ExceededMaximumRetries(AferoError):
-    pass
+    """Maximum retries exceeded when contacting Afero API."""
 
 
 class InvalidAuth(AferoError):
-    pass
+    """Invalid credentials supplied during authentication."""
 
 
 class InvalidResponse(AferoError):
-    pass
+    """An invalid response was received from Afero API."""

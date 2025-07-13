@@ -20,7 +20,7 @@ portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     controller = SwitchController(mocked_bridge)
-    yield controller
+    return controller
 
 
 @pytest.mark.asyncio
@@ -58,14 +58,14 @@ async def test_initialize_multi(mocked_controller):
         "output-voltage-switch": AferoSensor(
             id="output-voltage-switch",
             owner="1a6ac487-63bd-42a3-927d-66866eb641ac",
-            _value=12,
+            value=12,
             unit="V",
             instance=None,
         ),
         "watts": AferoSensor(
             id="watts",
             owner="1a6ac487-63bd-42a3-927d-66866eb641ac",
-            _value=0,
+            value=0,
             unit="W",
             instance=None,
         ),
@@ -276,28 +276,13 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("transformer.json")[0]
     new_states = [
         AferoState(
-            **{
-                "functionClass": "toggle",
-                "value": "on",
-                "lastUpdateTime": 0,
-                "functionInstance": "zone-1",
-            }
+            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="zone-1"
         ),
         AferoState(
-            **{
-                "functionClass": "toggle",
-                "value": "off",
-                "lastUpdateTime": 0,
-                "functionInstance": "zone-2",
-            }
+            functionClass="toggle", value="off", lastUpdateTime=0, functionInstance="zone-2"
         ),
         AferoState(
-            **{
-                "functionClass": "available",
-                "value": False,
-                "lastUpdateTime": 0,
-                "functionInstance": None,
-            }
+            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
             functionClass="watts",
@@ -336,7 +321,7 @@ async def test_switch_emit_update(bridge):
     bridge.events.emit(event.EventType.RESOURCE_ADDED, add_event)
     await bridge.async_block_until_done()
     assert len(bridge.switches._items) == 1
-    bridge.switches._items[transformer.id].sensors["watts"]._value = 0
+    bridge.switches._items[transformer.id].sensors["watts"].value = 0
     # Simulate an update
     transformer_update = utils.create_devices_from_data("transformer.json")[0]
     utils.modify_state(
