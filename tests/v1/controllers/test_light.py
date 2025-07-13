@@ -7,7 +7,7 @@ from aioafero.v1.controllers import event, light
 from aioafero.v1.controllers.light import LightController, features, process_color_temps
 from aioafero.v1.models.features import EffectFeature
 from aioafero.v1.models.light import Light
-from aioafero.v1.models.resource import ResourceTypes
+from aioafero.v1.models.resource import ResourceTypes, DeviceInformation
 
 from .. import utils
 
@@ -919,18 +919,21 @@ light1 = Light(
     id="test-light-1",
     available=True,
     effect=EffectFeature(effect="getting-ready", effects=light1_effects),
+    device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update = Light(
     [],
     id="test-light-1",
     available=True,
     effect=EffectFeature(effect="rainbow", effects=light1_effects),
+device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update_preset = Light(
     [],
     id="test-light-1",
     available=True,
     effect=EffectFeature(effect="fade-3", effects=light1_effects),
+device_information=DeviceInformation(model="TBD"),
 )
 
 
