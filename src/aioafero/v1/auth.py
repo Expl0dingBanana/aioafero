@@ -41,7 +41,7 @@ class TokenData(NamedTuple):
     token: str
     access_token: str
     refresh_token: str
-    expiration: datetime.datetime
+    expiration: float
 
 
 class AuthSessionData(NamedTuple):
