@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.1.0
+=============
+
+ * Add support for white LEDs
+
 Version 5.0.0
 =============
 
