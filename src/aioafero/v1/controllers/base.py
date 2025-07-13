@@ -468,12 +468,14 @@ class BaseResourcesController(Generic[AferoResource]):
         device_id: str,
         obj_in: AferoResource | None = None,
         states: list[dict] | None = None,
+        send_duplicate_states: bool = False,
     ) -> None:
         """Update Afero IoT with the new data.
 
         :param device_id: Afero IoT Device ID
         :param obj_in: Afero IoT Resource elements to change
         :param states: States to manually set
+        :param send_duplicate_states: Send all states, regardless if there's been a change
         """
         try:
             cur_item = self.get_device(device_id)
@@ -488,7 +490,9 @@ class BaseResourcesController(Generic[AferoResource]):
         # Make a clone to restore if the update fails
         fallback = copy.deepcopy(cur_item)
         if obj_in:
-            device_states = dataclass_to_afero(cur_item, obj_in, self.ITEM_MAPPING)
+            device_states = dataclass_to_afero(
+                cur_item, obj_in, self.ITEM_MAPPING, send_duplicate_states
+            )
             if not device_states:
                 self._logger.debug("No states to send. Skipping")
                 return
@@ -532,7 +536,7 @@ def update_dataclass(elem: AferoResource, update_vals: dataclass):
 
 
 def dataclass_to_afero(
-    elem: AferoResource, cls: dataclass, mapping: dict
+    elem: AferoResource, cls: dataclass, mapping: dict, send_duplicate_states: bool
 ) -> list[dict]:
     """Convert the current state to be consumed by Afero IoT."""
     states = []
@@ -550,12 +554,19 @@ def dataclass_to_afero(
             is_tuple_key = isinstance(list(current_feature.keys())[0], tuple)
         # Tuple keys signify (func_class / func_instance).
         if field_is_dict and is_tuple_key:
-            states.extend(get_afero_states_from_mapped(elem, f.name, current_feature))
+            states.extend(
+                get_afero_states_from_mapped(
+                    elem, f.name, current_feature, send_duplicate_states
+                )
+            )
         elif field_is_dict and not current_feature:
             continue
         else:
             # We need to determine funcClass / funcInstance when we dump our data
-            if current_feature == getattr(elem, f.name, None):
+            if (
+                current_feature == getattr(elem, f.name, None)
+                and not send_duplicate_states
+            ):
                 continue
             current_feature_value = current_feature
             if hasattr(current_feature, "api_value"):
@@ -575,13 +586,16 @@ def dataclass_to_afero(
 
 
 def get_afero_states_from_mapped(
-    element: AferoResource, field_name: str, update_vals: dict
+    element: AferoResource,
+    field_name: str,
+    update_vals: dict,
+    send_duplicate_states: bool,
 ) -> list[dict]:
     """Convert an update element to dict to be consumed by Afero API."""
     states = []
     current_elems = getattr(element, field_name, None)
     for key, val in update_vals.items():
-        if val == current_elems.get(key, None):
+        if val == current_elems.get(key, None) and not send_duplicate_states:
             continue
         states.append(
             {
