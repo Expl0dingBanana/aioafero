@@ -59,7 +59,7 @@ testpaths = [
 
 [tool.ruff]
 required-version = ">=0.11.0"
-extend-exclude = [".github", "docs"]
+extend-exclude = ["tests", ".github", "docs"]
 
 [tool.ruff.lint]
 select = [
