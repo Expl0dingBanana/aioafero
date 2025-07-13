@@ -1226,13 +1226,14 @@ def test_update_dataclass(resource, update, expected):
 
 
 @pytest.mark.parametrize(
-    "elem, update_obj, mapping, expected",
+    ("elem", "update_obj", "mapping", "send_duplicate_states", "expected"),
     [
         # Empty
         (
             replace(test_res_default_dict),
             TestResourceDictPut(selects={}),
             {},
+            False,
             [],
         ),
         # Dont match each other - test continue
@@ -1240,6 +1241,7 @@ def test_update_dataclass(resource, update, expected):
             replace(test_res_default_dict),
             TestResourcePut(on=None, beans=None),
             {},
+            False,
             [],
         ),
         # No updates
@@ -1253,6 +1255,7 @@ def test_update_dataclass(resource, update, expected):
                 }
             ),
             {},
+            False,
             [],
         ),
         # Test dict mapping
@@ -1272,6 +1275,7 @@ def test_update_dataclass(resource, update, expected):
                 },
             ),
             {},
+            False,
             [
                 {
                     "functionClass": "b1",
@@ -1300,6 +1304,7 @@ def test_update_dataclass(resource, update, expected):
                 on=False, beans=TestFeatureInstance(on=True, func_instance="bean2")
             ),
             {"on": "power"},
+            False,
             [
                 {
                     "functionClass": "power",
@@ -1320,6 +1325,7 @@ def test_update_dataclass(resource, update, expected):
             TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
             TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=False)),
             {},
+            False,
             [
                 {
                     "value": "cool",
@@ -1340,18 +1346,41 @@ def test_update_dataclass(resource, update, expected):
             TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
             TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),
             {},
+False,
             [],
+        ),
+        # Test duplicates
+        (
+            replace(test_res_default_dict),
+            TestResourceDictPut(
+                selects={
+                    ("b2", "two"): SelectFeature(
+                        selected="cool", selects={"beans", "cool"}, name="b2-2"
+                    ),
+                }
+            ),
+            {},
+            True,
+             [
+                 {
+                     'functionClass': 'b2',
+                     'functionInstance': 'two',
+                     'lastUpdateTime': 12345,
+                     'value': 'cool',
+                    },
+                ]
         ),
     ],
 )
-def test_dataclass_to_afero(elem, update_obj, mapping, expected, mocker):
+def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, expected, mocker):
     mocker.patch("time.time", return_value=12345)
-    assert dataclass_to_afero(elem, update_obj, mapping) == expected
+    assert dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states) == expected
 
 
 @pytest.mark.parametrize(
-    "element, field_name, update_vals, expected",
+    ("element", "field_name", "update_vals", "send_duplicate_states", "expected"),
     [
+        # Dont send dupes
         (
             replace(test_res_default_dict),
             "selects",
@@ -1366,6 +1395,7 @@ def test_dataclass_to_afero(elem, update_obj, mapping, expected, mocker):
                     selected="beans", selects={"beans", "cool"}, name="b2-2"
                 ),
             },
+            False,
             [
                 {
                     "functionClass": "b1",
@@ -1380,14 +1410,51 @@ def test_dataclass_to_afero(elem, update_obj, mapping, expected, mocker):
                     "lastUpdateTime": 12345,
                 },
             ],
+        ),
+        # Send dupes
+(
+            replace(test_res_default_dict),
+            "selects",
+            {
+                ("b1", None): SelectFeature(
+                    selected="False", selects={"True", "False"}, name="b1"
+                ),
+                ("b2", "one"): SelectFeature(
+                    selected="beans", selects={"beans", "cool"}, name="b2-1"
+                ),
+                ("b2", "two"): SelectFeature(
+                    selected="beans", selects={"beans", "cool"}, name="b2-2"
+                ),
+            },
+            True,
+            [
+                {
+                    "functionClass": "b1",
+                    "functionInstance": None,
+                    "value": "False",
+                    "lastUpdateTime": 12345,
+                },
+{
+                    "functionClass": "b2",
+                    "functionInstance": "one",
+                    "value": "beans",
+                    "lastUpdateTime": 12345,
+                },
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "two",
+                    "value": "beans",
+                    "lastUpdateTime": 12345,
+                },
+            ],
         )
     ],
 )
 def test_get_afero_states_from_mapped(
-    element, field_name, update_vals, expected, mocker
+    element, field_name, update_vals, send_duplicate_states, expected, mocker
 ):
     mocker.patch("time.time", return_value=12345)
-    assert get_afero_states_from_mapped(element, field_name, update_vals) == expected
+    assert get_afero_states_from_mapped(element, field_name, update_vals, send_duplicate_states) == expected
 
 
 @pytest.mark.parametrize(

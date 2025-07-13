@@ -344,6 +344,7 @@ class LightController(BaseResourcesController[Light]):
         color_mode: str | None = None,
         color: tuple[int, int, int] | None = None,
         effect: str | None = None,
+        force_white_mode: int | bool = False,
     ) -> None:
         """Set supported feature(s) to fan resource."""
         update_obj = LightPut()
@@ -358,31 +359,41 @@ class LightController(BaseResourcesController[Light]):
                 func_class=cur_item.on.func_class,
                 func_instance=cur_item.on.func_instance,
             )
-        if temperature is not None and cur_item.color_temperature is not None:
-            adjusted_temp = min(
-                cur_item.color_temperature.supported,
-                key=lambda x: abs(x - temperature),
-            )
-            update_obj.color_temperature = features.ColorTemperatureFeature(
-                temperature=adjusted_temp,
-                supported=cur_item.color_temperature.supported,
-                prefix=cur_item.color_temperature.prefix,
-            )
-        if brightness is not None and cur_item.dimming is not None:
+        send_duplicate_states = False
+        if force_white_mode is not False:
+            send_duplicate_states = True
+            update_obj.color_mode = features.ColorModeFeature(mode="white")
             update_obj.dimming = features.DimmingFeature(
-                brightness=brightness, supported=cur_item.dimming.supported
+                brightness=force_white_mode, supported=cur_item.dimming.supported
             )
-        if color is not None and cur_item.color is not None:
-            update_obj.color = features.ColorFeature(
-                red=color[0], green=color[1], blue=color[2]
-            )
-        if color_mode is not None and cur_item.color_mode is not None:
-            update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
-        if effect is not None and cur_item.effect is not None:
-            update_obj.effect = features.EffectFeature(
-                effect=effect, effects=cur_item.effect.effects
-            )
-        await self.update(device_id, obj_in=update_obj)
+        else:
+            if temperature is not None and cur_item.color_temperature is not None:
+                adjusted_temp = min(
+                    cur_item.color_temperature.supported,
+                    key=lambda x: abs(x - temperature),
+                )
+                update_obj.color_temperature = features.ColorTemperatureFeature(
+                    temperature=adjusted_temp,
+                    supported=cur_item.color_temperature.supported,
+                    prefix=cur_item.color_temperature.prefix,
+                )
+            if brightness is not None and cur_item.dimming is not None:
+                update_obj.dimming = features.DimmingFeature(
+                    brightness=brightness, supported=cur_item.dimming.supported
+                )
+            if color is not None and cur_item.color is not None:
+                update_obj.color = features.ColorFeature(
+                    red=color[0], green=color[1], blue=color[2]
+                )
+            if color_mode is not None and cur_item.color_mode is not None:
+                update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
+            if effect is not None and cur_item.effect is not None:
+                update_obj.effect = features.EffectFeature(
+                    effect=effect, effects=cur_item.effect.effects
+                )
+        await self.update(
+            device_id, obj_in=update_obj, send_duplicate_states=send_duplicate_states
+        )
 
 
 def process_color_temps(color_temps: dict) -> list[int]:

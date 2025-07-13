@@ -1,11 +1,14 @@
 """Representation of an Afero Light and its corresponding updates."""
 
 from dataclasses import dataclass, field
+import re
 
 from aioafero.v1.models import features
 
 from .resource import DeviceInformation, ResourceTypes
 from .sensor import AferoBinarySensor, AferoSensor
+
+rgbw_name_search = re.compile(r"RGB\w*W")
 
 
 @dataclass
@@ -22,6 +25,7 @@ class Light:
     color_temperature: features.ColorTemperatureFeature | None
     dimming: features.DimmingFeature | None
     effect: features.EffectFeature | None
+    supports_white: bool = False
 
     # Defined at initialization
     split_identifier: str | None = None
@@ -43,6 +47,9 @@ class Light:
                 "functionInstance", None
             )
         self.instances = instances
+        self.supports_white = (
+            rgbw_name_search.search(self.device_information.model) is not None
+        )
 
     def get_instance(self, elem):
         """Lookup the instance associated with the elem."""

@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features
+from aioafero.v1.models import features, DeviceInformation
 from aioafero.v1.models.light import Light
 
 
@@ -31,6 +31,9 @@ def populated_light():
             effect="rainbow", effects={"custom": {"rainbow"}}
         ),
         instances="i dont execute",
+        device_information=DeviceInformation(
+            model="AL-TP-RGBICTW-1"
+        )
     )
 
 
@@ -55,6 +58,9 @@ def empty_light():
         dimming=None,
         effect=None,
         instances="i dont execute",
+        device_information=DeviceInformation(
+            model="a21-light"
+        )
     )
 
 
@@ -95,6 +101,7 @@ def test_empty_light(empty_light):
     assert not empty_light.supports_effects
     assert not empty_light.is_on
     assert not empty_light.brightness
+    assert not empty_light.supports_white
 
 
 def test_get_instance(populated_light):
