@@ -1025,3 +1025,32 @@ async def test_emitting(bridge):
     assert bridge.lights[flushmount_light_white_id].brightness == 50
     assert bridge.lights[flushmount_light_white_id].on.on
     assert bridge.devices[flushmount_light.id].available is False
+
+
+@pytest.mark.asyncio
+async def test_set_state_white_light(mocked_controller):
+    await mocked_controller.initialize_elem(speaker_power_light)
+    await mocked_controller.set_state(speaker_power_light.id, on=True, force_white_mode=75)
+    req = utils.get_json_call(mocked_controller)
+    assert req["metadeviceId"] == speaker_power_light.id
+    expected_states = [
+        {
+            "functionClass": "power",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "on",
+        },
+        {
+            "functionClass": "color-mode",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": "white",
+        },
+        {
+            "functionClass": "brightness",
+            "functionInstance": None,
+            "lastUpdateTime": 12345,
+            "value": 75
+        },
+    ]
+    utils.ensure_states_sent(mocked_controller, expected_states)
