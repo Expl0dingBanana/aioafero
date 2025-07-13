@@ -2,11 +2,18 @@
 Changelog
 =========
 
+Version 5.0.0
+=============
+
+ * BREAK: Exhaust Fan device split
+ * BREAK: Portable AC switch split
+ * Lights can now create switches for 'toggles'
+ * Convert to ruff from black
+
 Version 4.2.0
 =============
 
  * Add support for Light LCN3002LM-01 WH
-
 
 Version 4.1.1
 =============
