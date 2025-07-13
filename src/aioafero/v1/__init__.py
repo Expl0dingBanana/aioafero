@@ -24,7 +24,6 @@ from collections.abc import Callable, Generator
 import contextlib
 from contextlib import asynccontextmanager
 import logging
-from types import TracebackType
 from typing import Any
 
 import aiohttp
@@ -138,23 +137,6 @@ class AferoBridgeV1:
         self._switches: SwitchController = SwitchController(self)
         self._thermostats: ThermostatController = ThermostatController(self)
         self._valves: ValveController = ValveController(self)
-
-    async def __aenter__(self) -> "AferoBridgeV1":
-        """Return Context manager."""
-        await self.initialize()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> bool | None:
-        """Exit context manager."""
-        await self.close()
-        if exc_val:
-            raise exc_val
-        return exc_type
 
     @property
     def refresh_token(self) -> str | None:
