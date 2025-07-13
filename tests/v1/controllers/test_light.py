@@ -7,6 +7,7 @@ from aioafero.v1.controllers import event, light
 from aioafero.v1.controllers.light import LightController, features, process_color_temps
 from aioafero.v1.models.features import EffectFeature
 from aioafero.v1.models.light import Light
+from aioafero.v1.models.resource import ResourceTypes
 
 from .. import utils
 
@@ -16,6 +17,9 @@ dimmer_light = utils.create_devices_from_data("dimmer-HPDA1110NWBP.json")[0]
 flushmount_light = utils.create_devices_from_data("light-flushmount.json")[0]
 flushmount_light_color_id = f"{flushmount_light.id}-light-color"
 flushmount_light_white_id = f"{flushmount_light.id}-light-white"
+
+speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
+speaker_power_light_id = f"{speaker_power_light.id}-light-speaker-power"
 
 
 @pytest.fixture
@@ -38,8 +42,8 @@ def test_generate_split_name():
         (
             flushmount_light,
             [
-                "color",
-                "white",
+                ("color", ResourceTypes.LIGHT),
+                ("white", ResourceTypes.LIGHT),
             ],
         ),
         # No splits
@@ -220,6 +224,26 @@ def test_get_split_instances(device, expected):
                 ),
             ],
         ),
+        # Pull out speaker power
+        (
+            speaker_power_light,
+            "speaker-power",
+            [
+                AferoState(
+                    functionClass="toggle",
+                    value="off",
+                    lastUpdateTime=0,
+                    functionInstance="speaker-power",
+                ),
+                AferoState(
+                    functionClass="available",
+                    value=True,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+
+            ]
+        ),
     ],
 )
 def test_get_valid_states(device, instance, expected):
@@ -232,11 +256,23 @@ def test_light_callback():
     assert len(multi_devs) == 3
     assert len(multi_devs[0].states) == 20
     assert multi_devs[0].id == flushmount_light_color_id
+    assert multi_devs[0].device_class == ResourceTypes.LIGHT.value
     assert len(multi_devs[1].states) == 3
     assert multi_devs[1].id == flushmount_light_white_id
     assert multi_devs[1].friendly_name == f"{flushmount_light.friendly_name} - white"
+    assert multi_devs[1].device_class == ResourceTypes.LIGHT.value
     assert multi_devs[2].id == flushmount_light.id
     assert len(multi_devs[2].states) == 7
+    assert multi_devs[2].device_class == "parent-device"
+
+
+def test_light_speaker():
+    multi_devs, remove_dev = light.light_callback(speaker_power_light)
+    assert remove_dev is False
+    assert len(multi_devs) == 1
+    assert len(multi_devs[0].states) == 2
+    assert multi_devs[0].id == speaker_power_light_id
+    assert multi_devs[0].device_class == ResourceTypes.SWITCH.value
 
 
 def test_light_callback_none():
