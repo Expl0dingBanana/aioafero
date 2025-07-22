@@ -4,7 +4,7 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.switch import SwitchController, features
+from aioafero.v1.controllers.switch import features
 from aioafero.v1.models import AferoSensor
 
 from .. import utils
@@ -19,8 +19,7 @@ portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = SwitchController(mocked_bridge)
-    return controller
+    yield mocked_bridge.switches
 
 
 @pytest.mark.asyncio
@@ -114,13 +113,6 @@ async def test_initialize_portable_ac(bridge):
         "8d0414d6-a7f7-4bdb-99d5-d866318ff559-portable-ac-power",
     ]:
         assert controller.get_device(expected_id) is not None
-    # await mocked_controller.initialize_elem(portable_ac)
-    # assert len(mocked_controller.items) == 1
-    # dev = mocked_controller.items[0]
-    # assert dev.id == "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
-    # assert dev.on == {
-    #     None: features.OnFeature(on=False, func_class="power", func_instance=None),
-    # }
 
 
 @pytest.mark.asyncio
@@ -266,6 +258,31 @@ async def test_turn_off_glass_door(mocked_controller):
     utils.ensure_states_sent(mocked_controller, expected_states)
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None)
+    }
+
+
+@pytest.mark.asyncio
+async def test_turn_on_split_device(mocked_bridge):
+    await mocked_bridge.generate_devices_from_data(
+        utils.create_devices_from_data("light-with-speaker.json")
+    )
+    speaker_id = "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f-light-speaker-power"
+    mocked_controller = mocked_bridge.switches
+    dev = mocked_controller[speaker_id]
+    await mocked_controller.turn_on(speaker_id, instance="speaker-power")
+    req = utils.get_json_call(mocked_controller)
+    assert req["metadeviceId"] == "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f"
+    expected_states = [
+        {
+            "functionClass": "toggle",
+            "functionInstance": "speaker-power",
+            "lastUpdateTime": 12345,
+            "value": "on",
+        }
+    ]
+    utils.ensure_states_sent(mocked_controller, expected_states)
+    assert dev.on == {
+        "speaker-power": features.OnFeature(on=True, func_class="toggle", func_instance="speaker-power")
     }
 
 

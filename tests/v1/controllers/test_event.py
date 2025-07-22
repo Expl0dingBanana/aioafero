@@ -80,8 +80,8 @@ async def test_stop(bridge):
         ),
     ],
 )
-async def test_subscribe(call, event_filter, resource_filter, expected, mocked_bridge):
-    events = mocked_bridge.events
+async def test_subscribe(call, event_filter, resource_filter, expected, mocked_bridge_req):
+    events = mocked_bridge_req.events
     unsub = events.subscribe(call, event_filter, resource_filter)
     assert callable(unsub)
     assert len(events._subscribers) == 1

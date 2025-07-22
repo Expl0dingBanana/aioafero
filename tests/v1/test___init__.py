@@ -216,13 +216,13 @@ def test_set_token_data(mocked_bridge):
 
 
 @pytest.mark.asyncio
-async def test_cleanup_process(mocked_bridge):
-    mocked_bridge.add_job(asyncio.create_task(asyncio.sleep(1)))
-    assert len(mocked_bridge._adhoc_tasks) == 1
-    await mocked_bridge.initialize_cleanup()
-    await mocked_bridge.async_block_until_done()
-    assert len(mocked_bridge._adhoc_tasks) == 0
-    await mocked_bridge.close()
+async def test_cleanup_process(mocked_bridge_req):
+    mocked_bridge_req.add_job(asyncio.create_task(asyncio.sleep(1)))
+    assert len(mocked_bridge_req._adhoc_tasks) == 1
+    await mocked_bridge_req.initialize_cleanup()
+    await mocked_bridge_req.async_block_until_done()
+    assert len(mocked_bridge_req._adhoc_tasks) == 0
+    await mocked_bridge_req.close()
 
 
 @pytest.mark.asyncio
