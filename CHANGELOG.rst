@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.1.1
+=============
+
+ * Fix an issue where switches would not send the correct ID during a change
+
 Version 5.1.0
 =============
 
