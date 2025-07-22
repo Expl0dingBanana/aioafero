@@ -68,6 +68,7 @@ class SwitchController(BaseResourcesController[Switch]):
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
+            split_identifier=afero_device.split_identifier,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
