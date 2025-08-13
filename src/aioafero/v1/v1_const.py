@@ -7,7 +7,6 @@ AFERO_CLIENTS: Final[dict[str, dict[str, str]]] = {
         "DEFAULT_USERAGENT": "Dart/2.15 (dart:io)",
         "DOMAIN": "afero.net",
         "API_HOST": "api2.afero.net",
-        "API_BASE_URL": "api2.afero.net",
         "AUTH_BASE_URL": "accounts.hubspaceconnect.com/auth/realms/thd",
         "DEFAULT_ENCODING": "gzip",
         "DATA_URL": "/v1/accounts/{}/metadevices",
