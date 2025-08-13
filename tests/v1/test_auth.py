@@ -219,7 +219,7 @@ async def test_generate_code(
     params = {
         "session_code": session_code,
         "execution": execution,
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_CLIENT_ID"],
         "tab_id": tab_id,
     }
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
