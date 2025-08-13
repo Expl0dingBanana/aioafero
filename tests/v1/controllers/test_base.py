@@ -974,9 +974,9 @@ async def test_update_afero_api(
     caplog,
 ):
     device_id = "cool"
-    url = v1_const.AFERO_CLIENTS["hubspace"]["DEVICE_STATE"].format(
+    url = ex1_rc._bridge.generate_api_url(v1_const.AFERO_GENERICS["DEVICE_STATE_ENDPOINT"].format(
         ex1_rc._bridge.account_id, str(device_id)
-    )
+    ))
     if response:
         mock_aioresponse.put(url, **response)
     if response_err:
