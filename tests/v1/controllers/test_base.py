@@ -889,7 +889,7 @@ async def test__process_state_update(ex1_rc):
                     ],
                 },
                 "headers": {
-                    "host": v1_const.AFERO_CLIENTS["hubspace"]["DATA_HOST"],
+                    "host": v1_const.AFERO_CLIENTS["hubspace"]["API_DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
             },
@@ -921,7 +921,7 @@ async def test__process_state_update(ex1_rc):
                     ],
                 },
                 "headers": {
-                    "host": v1_const.AFERO_CLIENTS["hubspace"]["DATA_HOST"],
+                    "host": v1_const.AFERO_CLIENTS["hubspace"]["API_DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
             },
@@ -953,7 +953,7 @@ async def test__process_state_update(ex1_rc):
                     ],
                 },
                 "headers": {
-                    "host": v1_const.AFERO_CLIENTS["hubspace"]["DATA_HOST"],
+                    "host": v1_const.AFERO_CLIENTS["hubspace"]["API_DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
             },
@@ -974,7 +974,7 @@ async def test_update_afero_api(
     caplog,
 ):
     device_id = "cool"
-    url = ex1_rc._bridge.generate_api_url(v1_const.AFERO_GENERICS["DEVICE_STATE_ENDPOINT"].format(
+    url = ex1_rc._bridge.generate_api_url(v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
         ex1_rc._bridge.account_id, str(device_id)
     ))
     if response:

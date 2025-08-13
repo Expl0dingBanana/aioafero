@@ -142,7 +142,7 @@ async def test_webapp_login(
     parse_code = mocker.patch.object(auth.AferoAuth, "parse_code")
     params: dict[str, str] = {
         "response_type": "code",
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
         "redirect_uri": "hubspace-app%3A%2F%2Floginredirect",
         "code_challenge": challenge.challenge,
         "code_challenge_method": "S256",
@@ -219,7 +219,7 @@ async def test_generate_code(
     params = {
         "session_code": session_code,
         "execution": execution,
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
         "tab_id": tab_id,
     }
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
@@ -348,9 +348,9 @@ async def test_generate_refresh_token(
     assert call_args.kwargs["data"] == {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_REDIRECT_URI"],
+        "redirect_uri": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_REDIRECT_URI"],
         "code_verifier": challenge.verifier,
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["DEFAULT_CLIENT_ID"],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
     }
     if expected_messages:
         for expected_message in expected_messages:
@@ -459,7 +459,7 @@ async def test_generate_refresh_token_from_refresh(
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
         "scope": "openid email offline_access profile",
-        "client_id": "hubspace_android",
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
     }
     if expected_message:
         assert expected_message in caplog.text

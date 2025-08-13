@@ -442,12 +442,12 @@ class BaseResourcesController(Generic[AferoResource]):
         :return: True if successful, False otherwise.
         """
         url = self._bridge.generate_api_url(
-            v1_const.AFERO_GENERICS["DEVICE_STATE_ENDPOINT"].format(
+            v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
                 self._bridge.account_id, str(device_id)
             )
         )
         headers = {
-            "host": v1_const.AFERO_CLIENTS[self._bridge.afero_client]["DATA_HOST"],
+            "host": v1_const.AFERO_CLIENTS[self._bridge.afero_client]["API_DATA_HOST"],
             "content-type": "application/json; charset=utf-8",
         }
         payload = {"metadeviceId": str(device_id), "values": states}

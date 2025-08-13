@@ -346,11 +346,11 @@ class AferoBridgeV1:
         """Query the API."""
         self.logger.debug("Querying API for all data")
         headers = {
-            "host": v1_const.AFERO_CLIENTS[self._afero_client]["DATA_HOST"],
+            "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }
         params = {"expansions": "state"}
         url = self.generate_api_url(
-            v1_const.AFERO_GENERICS["DATA_ENDPOINT"].format(self.account_id)
+            v1_const.AFERO_GENERICS["API_DEVICE_ENDPOINT"].format(self.account_id)
         )
         res = await self.request(
             "get",
@@ -427,9 +427,7 @@ class AferoBridgeV1:
     def get_headers(self, **kwargs):
         """Get default headers for an API call."""
         headers: dict[str, str] = {
-            "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_USERAGENT"
-            ],
+            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "accept-encoding": "gzip",
         }
         headers.update(kwargs)

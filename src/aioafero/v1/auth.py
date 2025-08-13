@@ -14,7 +14,7 @@ from typing import Final, NamedTuple
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
-from aiohttp import ClientSession, ContentTypeError
+from aiohttp import ClientResponseError, ClientSession, ContentTypeError
 from bs4 import BeautifulSoup
 from securelogging import LogRedactorMessage, add_secret, remove_secret
 
@@ -92,10 +92,8 @@ class AferoAuth:
         self._afero_client: str = afero_client
         self._token_headers: dict[str, str] = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_USERAGENT"
-            ],
-            "host": v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_HOST"],
+            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
+            "host": v1_const.AFERO_CLIENTS[self._afero_client]["AUTH_OPENID_HOST"],
         }
 
     @property
@@ -113,7 +111,7 @@ class AferoAuth:
     def generate_auth_url(self, endpoint: str) -> str:
         """Generate an auth URL for the Afero API."""
         endpoint = endpoint.removeprefix("/")
-        return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_BASE_URL']}/{endpoint}"
+        return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_OPENID_HOST']}/auth/realms/{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_REALM']}/{endpoint}"
 
     def set_token_data(self, data: TokenData) -> None:
         """Set the current taken data."""
@@ -134,10 +132,10 @@ class AferoAuth:
         code_params: dict[str, str] = {
             "response_type": "code",
             "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_CLIENT_ID"
+                "AUTH_DEFAULT_CLIENT_ID"
             ],
             "redirect_uri": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_REDIRECT_URI"
+                "AUTH_DEFAULT_REDIRECT_URI"
             ],
             "code_challenge": challenge.challenge,
             "code_challenge_method": "S256",
@@ -172,7 +170,10 @@ class AferoAuth:
             if response.status == 302:
                 self.logger.debug("Hubspace returned an active session")
                 return await AferoAuth.parse_code(response)
-            raise InvalidResponse("Unable to query login page")
+            try:
+                response.raise_for_status()
+            except ClientResponseError as err:
+                raise InvalidResponse("Unable to query login page") from err
 
     @staticmethod
     async def generate_challenge_data() -> AuthChallenge:
@@ -203,15 +204,13 @@ class AferoAuth:
             "session_code": session_code,
             "execution": execution,
             "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_CLIENT_ID"
+                "AUTH_DEFAULT_CLIENT_ID"
             ],
             "tab_id": tab_id,
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_USERAGENT"
-            ],
+            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
         }
         auth_data = {
             "username": self._username,
@@ -276,11 +275,11 @@ class AferoAuth:
                 "grant_type": "authorization_code",
                 "code": code,
                 "redirect_uri": v1_const.AFERO_CLIENTS[self._afero_client][
-                    "DEFAULT_REDIRECT_URI"
+                    "AUTH_DEFAULT_REDIRECT_URI"
                 ],
                 "code_verifier": challenge.verifier,
                 "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                    "DEFAULT_CLIENT_ID"
+                    "AUTH_DEFAULT_CLIENT_ID"
                 ],
             }
         else:
@@ -289,7 +288,7 @@ class AferoAuth:
                 "refresh_token": self._token_data.refresh_token,
                 "scope": "openid email offline_access profile",
                 "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                    "DEFAULT_CLIENT_ID"
+                    "AUTH_DEFAULT_CLIENT_ID"
                 ],
             }
         url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
