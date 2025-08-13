@@ -350,7 +350,7 @@ async def test_generate_refresh_token(
         "code": code,
         "redirect_uri": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_REDIRECT_URI"],
         "code_verifier": challenge.verifier,
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_CLIENT_ID"],
     }
     if expected_messages:
         for expected_message in expected_messages:
