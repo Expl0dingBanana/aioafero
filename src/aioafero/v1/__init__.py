@@ -31,7 +31,12 @@ from aiohttp import web_exceptions
 from securelogging import LogRedactorMessage, add_secret
 
 from aioafero.device import AferoResource
-from aioafero.errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
+from aioafero.errors import (
+    AferoError,
+    DeviceNotFound,
+    ExceededMaximumRetries,
+    InvalidAuth,
+)
 
 from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
@@ -313,11 +318,12 @@ class AferoBridgeV1:
                 url,
                 headers=headers,
             )
+            res.raise_for_status()
+            json_data = await res.json()
+            if len(json_data) == 0 or len(json_data.get("accountAccess", [])) == 0:
+                raise AferoError("No account ID found")
             self._account_id = (
-                (await res.json())
-                .get("accountAccess")[0]
-                .get("account")
-                .get("accountId")
+                json_data.get("accountAccess")[0].get("account").get("accountId")
             )
             add_secret(self._account_id)
         return self._account_id
