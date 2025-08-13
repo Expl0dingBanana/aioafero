@@ -31,7 +31,12 @@ from aiohttp import web_exceptions
 from securelogging import LogRedactorMessage, add_secret
 
 from aioafero.device import AferoResource
-from aioafero.errors import DeviceNotFound, ExceededMaximumRetries, InvalidAuth
+from aioafero.errors import (
+    AferoError,
+    DeviceNotFound,
+    ExceededMaximumRetries,
+    InvalidAuth,
+)
 
 from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
@@ -260,6 +265,11 @@ class AferoBridgeV1:
         """Set the time between polling Afero API."""
         self._events.polling_interval = polling_interval
 
+    def generate_api_url(self, endpoint: str) -> str:
+        """Generate a URL for the Afero API."""
+        endpoint = endpoint.removeprefix("/")
+        return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['API_HOST']}/{endpoint}"
+
     async def close(self) -> None:
         """Close connection and cleanup."""
         for task in self._scheduled_tasks:
@@ -296,22 +306,24 @@ class AferoBridgeV1:
         if not self._account_id:
             self.logger.debug("Querying API for account id")
             headers = {"host": v1_const.AFERO_CLIENTS[self._afero_client]["API_HOST"]}
+            url = self.generate_api_url(v1_const.AFERO_GENERICS["ACCOUNT_ID_ENDPOINT"])
             with self.secret_logger():
                 self.logger.debug(
                     "GETURL: %s, Headers: %s",
-                    v1_const.AFERO_CLIENTS[self._afero_client]["ACCOUNT_ID_URL"],
+                    url,
                     headers,
                 )
             res = await self.request(
                 "GET",
-                v1_const.AFERO_CLIENTS[self._afero_client]["ACCOUNT_ID_URL"],
+                url,
                 headers=headers,
             )
+            res.raise_for_status()
+            json_data = await res.json()
+            if len(json_data) == 0 or len(json_data.get("accountAccess", [])) == 0:
+                raise AferoError("No account ID found")
             self._account_id = (
-                (await res.json())
-                .get("accountAccess")[0]
-                .get("account")
-                .get("accountId")
+                json_data.get("accountAccess")[0].get("account").get("accountId")
             )
             add_secret(self._account_id)
         return self._account_id
@@ -334,14 +346,15 @@ class AferoBridgeV1:
         """Query the API."""
         self.logger.debug("Querying API for all data")
         headers = {
-            "host": v1_const.AFERO_CLIENTS[self._afero_client]["DATA_HOST"],
+            "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }
         params = {"expansions": "state"}
+        url = self.generate_api_url(
+            v1_const.AFERO_GENERICS["API_DEVICE_ENDPOINT"].format(self.account_id)
+        )
         res = await self.request(
             "get",
-            v1_const.AFERO_CLIENTS[self._afero_client]["DATA_URL"].format(
-                self.account_id
-            ),
+            url,
             headers=headers,
             params=params,
         )
@@ -414,9 +427,7 @@ class AferoBridgeV1:
     def get_headers(self, **kwargs):
         """Get default headers for an API call."""
         headers: dict[str, str] = {
-            "user-agent": v1_const.AFERO_CLIENTS[self._afero_client][
-                "DEFAULT_USERAGENT"
-            ],
+            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "accept-encoding": "gzip",
         }
         headers.update(kwargs)

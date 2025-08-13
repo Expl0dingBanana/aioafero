@@ -4,8 +4,8 @@ import logging
 import pytest
 
 from aioafero import EventType, InvalidAuth
-from aioafero.errors import DeviceNotFound
-from aioafero.v1 import AferoBridgeV1, TokenData, add_secret
+from aioafero.errors import DeviceNotFound, AferoError
+from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -13,6 +13,7 @@ from aioafero.v1.controllers.light import LightController
 from aioafero.v1.controllers.lock import LockController
 from aioafero.v1.controllers.switch import SwitchController
 from aioafero.v1.controllers.valve import ValveController
+from aiohttp.client_exceptions import ClientResponseError
 
 from . import utils
 
@@ -115,12 +116,6 @@ def test_subscribe():
 
 @pytest.mark.skip(reason="Not yet implemented")
 @pytest.mark.asyncio
-async def test_get_account_id():
-    pass
-
-
-@pytest.mark.skip(reason="Not yet implemented")
-@pytest.mark.asyncio
 async def test_initialize():
     pass
 
@@ -193,6 +188,83 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
         assert "th***ns" in caplog.text
     else:
         assert secret in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("account_id", "response", "expected", "err"),
+    [
+        # Uninitialized, happy patch
+        (
+            None,
+            {
+                "status": 200,
+                "payload": {
+                    "accountAccess": [
+                        {
+                            "account": {
+                                "accountId": "test_account_id"
+                            }
+                        }
+                    ]
+                }
+            },
+            "test_account_id",
+            None,
+        ),
+        # Uninitialized, bad status
+        (
+            None,
+            {
+                "status": 400,
+                "payload": {
+                    "accountAccess": [
+                        {
+                            "account": {
+                                "accountId": "test_account_id"
+                            }
+                        }
+                    ]
+                }
+            },
+            None,
+            ClientResponseError,
+        ),
+        # Uninitialized, bad response
+        (
+            None,
+            {
+                "status": 200,
+                "payload": {
+                }
+            },
+            None,
+            AferoError,
+        ),
+        # Initialized, dont do anything
+        (
+            "mocked-account-id",
+            None,
+            "mocked-account-id",
+            None,
+        )
+    ]
+)
+async def test_get_account_id(account_id, response, expected, err, mock_aioresponse, bridge_with_acct, mocker):
+    bridge = bridge_with_acct
+    mocker.patch.object(bridge, "_account_id", account_id)
+    if account_id is None:
+        url = bridge.generate_api_url(v1_const.AFERO_GENERICS["ACCOUNT_ID_ENDPOINT"])
+        mock_aioresponse.get(url, payload=response["payload"], status=response["status"])
+        if not err:
+            assert await bridge.get_account_id() == expected
+        else:
+            with pytest.raises(err):
+                await bridge.get_account_id()
+    else:
+        logger = mocker.patch.object(bridge_with_acct, "logger")
+        await bridge.get_account_id()
+        logger.assert_not_called()
 
 
 class DummyResponse:

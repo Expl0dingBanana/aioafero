@@ -107,6 +107,18 @@ async def bridge(mocker):
     await bridge.close()
 
 
+@pytest_asyncio.fixture
+async def bridge_with_acct(mocker):
+    bridge = AferoBridgeV1("user", "passwd")
+    bridge._auth._token_data = TokenData(
+            "mock-token",
+            None,
+            "mock-refresh-token",
+            expiration=datetime.datetime.now().timestamp() + 200,
+        )
+    yield bridge
+
+
 @pytest.fixture
 def mock_aioresponse():
     with aioresponses() as m:
