@@ -110,6 +110,11 @@ class AferoAuth:
         """Set the current refresh token."""
         return self._token_data.refresh_token
 
+    def generate_auth_url(self, endpoint: str) -> str:
+        """Generate an auth URL for the Afero API."""
+        endpoint = endpoint.removeprefix("/")
+        return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_BASE_URL']}/{endpoint}"
+
     def set_token_data(self, data: TokenData) -> None:
         """Set the current taken data."""
         self._token_data = data
@@ -138,13 +143,14 @@ class AferoAuth:
             "code_challenge_method": "S256",
             "scope": "openid offline_access",
         }
+        url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_OPENID_ENDPOINT"])
         self.logger.debug(
             "URL: %s\n\tparams: %s",
-            v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_URL"],
+            url,
             code_params,
         )
         async with client.get(
-            v1_const.AFERO_CLIENTS[self._afero_client]["OPENID_URL"],
+            url,
             params=code_params,
             allow_redirects=False,
         ) as response:
@@ -212,14 +218,15 @@ class AferoAuth:
             "password": self._password,
             "credentialId": "",
         }
+        url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
         self.logger.debug(
             "URL: %s\n\tparams: %s\n\theaders: %s",
-            v1_const.AFERO_CLIENTS[self._afero_client]["CODE_URL"],
+            url,
             params,
             headers,
         )
         async with client.post(
-            v1_const.AFERO_CLIENTS[self._afero_client]["CODE_URL"],
+            url,
             params=params,
             data=auth_data,
             headers=headers,
@@ -285,15 +292,16 @@ class AferoAuth:
                     "DEFAULT_CLIENT_ID"
                 ],
             }
+        url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
         with self.secret_logger():
             self.logger.debug(
                 "URL: %s\n\tdata: %s\n\theaders: %s",
-                v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
+                url,
                 data,
                 self._token_headers,
             )
         async with client.post(
-            v1_const.AFERO_CLIENTS[self._afero_client]["TOKEN_URL"],
+            url,
             headers=self._token_headers,
             data=data,
         ) as response:
