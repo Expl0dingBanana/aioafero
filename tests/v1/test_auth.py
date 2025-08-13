@@ -142,7 +142,7 @@ async def test_webapp_login(
     parse_code = mocker.patch.object(auth.AferoAuth, "parse_code")
     params: dict[str, str] = {
         "response_type": "code",
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_CLIENT_ID"],
         "redirect_uri": "hubspace-app%3A%2F%2Floginredirect",
         "code_challenge": challenge.challenge,
         "code_challenge_method": "S256",
