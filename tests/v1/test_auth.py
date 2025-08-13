@@ -459,7 +459,7 @@ async def test_generate_refresh_token_from_refresh(
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
         "scope": "openid email offline_access profile",
-        "client_id": v1_const.AFERO_CLIENTS["hubspace"]['AUTH_DEFAULT_CLIENT_ID'],
+        "client_id": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_CLIENT_ID"],
     }
     if expected_message:
         assert expected_message in caplog.text
