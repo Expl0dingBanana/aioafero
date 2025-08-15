@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.2.0
+=============
+
+ * Enable version polling once every 6 hours
+
 Version 5.1.1
 =============
 
