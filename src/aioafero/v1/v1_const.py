@@ -28,6 +28,7 @@ AFERO_GENERICS: Final[dict[str, str]] = {
     # API Endpoints
     "API_DEVICE_ENDPOINT": "/v1/accounts/{}/metadevices",
     "API_DEVICE_STATE_ENDPOINT": "/v1/accounts/{}/metadevices/{}/state",
+    "API_DEVICE_VERSIONS_ENDPOINT": "/v1/accounts/{}/devices/{}/versions",
     # Auth endpoints
     "AUTH_OPENID_ENDPOINT": "/protocol/openid-connect/auth",
     "AUTH_CODE_ENDPOINT": "/login-actions/authenticate",
@@ -36,3 +37,6 @@ AFERO_GENERICS: Final[dict[str, str]] = {
 }
 
 MAX_RETRIES: Final[int] = 3
+
+# Version polling interval in seconds (6 hours)
+VERSION_POLL_INTERVAL_SECONDS = 6 * 3600

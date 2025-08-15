@@ -100,6 +100,7 @@ class AferoBridgeV1:
         polling_interval: int = 30,
         afero_client: str | None = "hubspace",
         hide_secrets: bool = True,
+        poll_version: bool = True,
     ):
         """Create a bridge that communicates with Afero IoT API."""
         if hide_secrets:
@@ -125,7 +126,7 @@ class AferoBridgeV1:
         self._scheduled_tasks: list[asyncio.Task] = []
         self._adhoc_tasks: list[asyncio.Task] = []
         # Data Updater
-        self._events: EventStream = EventStream(self, polling_interval)
+        self._events: EventStream = EventStream(self, polling_interval, poll_version)
         # Data Controllers
         self._devices: DeviceController = DeviceController(
             self
@@ -342,7 +343,7 @@ class AferoBridgeV1:
             )
             await self._events.initialize()
 
-    async def fetch_data(self) -> list[dict[Any, str]]:
+    async def fetch_data(self, version_poll=False) -> list[dict[Any, str]]:
         """Query the API."""
         self.logger.debug("Querying API for all data")
         headers = {
@@ -362,7 +363,31 @@ class AferoBridgeV1:
         data = await res.json()
         if not isinstance(data, list):
             raise TypeError(data)
+        if version_poll:
+            devs = {}
+            for dev in data:
+                if dev.get("typeId") != "metadevice.device":
+                    continue
+                dev_id = dev.get("deviceId")
+                if dev_id in devs:
+                    dev["version_data"] = devs[dev_id]
+                    continue
+                dev["version_data"] = await self.get_device_versions(dev_id)
+                devs[dev_id] = dev["version_data"]
+
         return data
+
+    async def get_device_versions(self, device_id: str) -> dict:
+        """Query the API for device version information."""
+        if not self._account_id:
+            await self.get_account_id()
+        endpoint = v1_const.AFERO_GENERICS["API_DEVICE_VERSIONS_ENDPOINT"].format(
+            self.account_id, device_id
+        )
+        url = self.generate_api_url(endpoint)
+        res = await self.request("GET", url)
+        res.raise_for_status()
+        return await res.json()
 
     @asynccontextmanager
     async def create_request(

@@ -4,6 +4,7 @@ import asyncio
 from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable
 import contextlib
+import datetime
 from enum import Enum
 from types import NoneType
 from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
@@ -15,6 +16,7 @@ from aioafero.device import AferoDevice, get_afero_device
 from aioafero.errors import InvalidAuth
 from aioafero.types import EventType
 from aioafero.v1.models import ResourceTypes
+from aioafero.v1.v1_const import VERSION_POLL_INTERVAL_SECONDS
 
 if TYPE_CHECKING:  # pragma: no cover
     from aioafero.v1 import AferoBridgeV1
@@ -49,6 +51,7 @@ class AferoEvent(TypedDict):
     type: EventType  # = EventType (add, update, delete)
     device_id: NotRequired[str]  # ID for interacting with the device
     device: NotRequired[AferoDevice]  # Afero Device
+    version: NotRequired[dict[str, str]]  # Device version information
     polled_data: NotRequired[Any]  # All data polled from the API
     polled_devices: NotRequired[Any]  # All devices after the device split callbacks
     force_forward: NotRequired[bool]
@@ -69,7 +72,9 @@ class EventStream:
     of the event.
     """
 
-    def __init__(self, bridge: "AferoBridgeV1", polling_interval: int) -> None:
+    def __init__(
+        self, bridge: "AferoBridgeV1", polling_interval: int, poll_version: bool
+    ) -> None:
         """Initialize instance."""
         self._bridge = bridge
         self._listeners = set()
@@ -80,6 +85,8 @@ class EventStream:
         self._logger = bridge.logger.getChild("events")
         self._polling_interval: int = polling_interval
         self._multiple_device_finder: dict[str, callable] = {}
+        self._version_poll_time: datetime.datetime | None = None
+        self._version_poll_enabled: bool = poll_version
 
     @property
     def connected(self) -> bool:
@@ -105,6 +112,22 @@ class EventStream:
     def polling_interval(self, polling_interval: int) -> None:
         """Set the time between polling Afero API."""
         self._polling_interval = polling_interval
+
+    @property
+    def poll_version(self) -> bool:
+        """Determine if version polling should occur."""
+        if not self._version_poll_enabled:
+            return False
+        now = datetime.datetime.now(datetime.UTC)
+        if self._version_poll_time is None:
+            self._version_poll_time = now
+            return True
+        if (
+            now - self._version_poll_time
+        ).total_seconds() >= VERSION_POLL_INTERVAL_SECONDS:
+            self._version_poll_time = now
+            return True
+        return False
 
     async def initialize(self) -> None:
         """Start the polling processes."""
@@ -231,7 +254,7 @@ class EventStream:
         consecutive_http_errors = 0
         while True:
             try:
-                data = await self._bridge.fetch_data()
+                data = await self._bridge.fetch_data(version_poll=self.poll_version)
             except TimeoutError:
                 self._logger.warning("Timeout when contacting Afero IoT API.")
                 await self.process_backoff(consecutive_http_errors)

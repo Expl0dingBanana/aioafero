@@ -143,6 +143,48 @@ async def test_fetch_data(expected_val, error, mocked_bridge_req, mocker):
             await mocked_bridge_req.fetch_data()
 
 
+def fake_version_data(*args, **kwargs):
+    yield {"version": "1.0.0"}
+    yield {"version": "2.0.0"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_data_with_version(mocked_bridge_req, mocker):
+    get_device_versions = mocker.patch.object(mocked_bridge_req, "get_device_versions", side_effect=fake_version_data())
+    mocked_response = [
+        {
+            "typeId": "metadevice.room"
+        },
+        {
+            "typeId": "metadevice.device",
+            "deviceId": "test_device_id",
+        },
+        {
+            "typeId": "metadevice.device",
+            "deviceId": "test_device_id2",
+        },
+        {
+            "typeId": "metadevice.device",
+            "deviceId": "test_device_id",
+        },
+    ]
+    expected = mocker.Mock()
+    mocker.patch.object(
+        expected, "json", side_effect=mocker.AsyncMock(return_value=mocked_response)
+    )
+    mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
+    resp = await mocked_bridge_req.fetch_data(version_poll=True)
+    assert get_device_versions.call_count == 2
+    assert get_device_versions.call_args_list[0][0][0] == "test_device_id"
+    assert get_device_versions.call_args_list[1][0][0] == "test_device_id2"
+    assert resp == [
+        {'typeId': 'metadevice.room'},
+        {'typeId': 'metadevice.device', 'deviceId': 'test_device_id', 'version_data': {'version': '1.0.0'}},
+        {'typeId': 'metadevice.device', 'deviceId': 'test_device_id2', 'version_data': {'version': '2.0.0'}},
+        {'typeId': 'metadevice.device', 'deviceId': 'test_device_id', 'version_data': {'version': '1.0.0'}}
+    ]
+
+
 @pytest.mark.asyncio
 async def test_send_service_request_dev_not_found(mocked_bridge):
     with pytest.raises(DeviceNotFound):
