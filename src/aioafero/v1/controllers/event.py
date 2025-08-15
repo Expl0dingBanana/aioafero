@@ -51,7 +51,6 @@ class AferoEvent(TypedDict):
     type: EventType  # = EventType (add, update, delete)
     device_id: NotRequired[str]  # ID for interacting with the device
     device: NotRequired[AferoDevice]  # Afero Device
-    version: NotRequired[dict[str, str]]  # Device version information
     polled_data: NotRequired[Any]  # All data polled from the API
     polled_devices: NotRequired[Any]  # All devices after the device split callbacks
     force_forward: NotRequired[bool]
