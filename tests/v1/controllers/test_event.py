@@ -47,6 +47,10 @@ async def test_properties(bridge):
     assert stream.poll_version is False
     stream._version_poll_time = datetime.now(timezone.utc) - timedelta(seconds=VERSION_POLL_INTERVAL_SECONDS)
     assert stream.poll_version is True
+    stream._version_poll_time = datetime.now(timezone.utc) - timedelta(seconds=VERSION_POLL_INTERVAL_SECONDS)
+    stream._version_poll_enabled = False
+    assert stream.poll_version is False
+
 
 
 

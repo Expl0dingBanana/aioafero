@@ -372,15 +372,13 @@ class AferoBridgeV1:
                 if dev_id in devs:
                     dev["version_data"] = devs[dev_id]
                     continue
-                dev["version_data"] = await self.get_device_versions(dev_id)
+                dev["version_data"] = await self.get_device_version(dev_id)
                 devs[dev_id] = dev["version_data"]
 
         return data
 
-    async def get_device_versions(self, device_id: str) -> dict:
+    async def get_device_version(self, device_id: str) -> dict:
         """Query the API for device version information."""
-        if not self._account_id:
-            await self.get_account_id()
         endpoint = v1_const.AFERO_GENERICS["API_DEVICE_VERSIONS_ENDPOINT"].format(
             self.account_id, device_id
         )

@@ -81,11 +81,6 @@ class DeviceController(BaseResourcesController[Device]):
             self._process_polled_devices,
             event_filter=EventType.POLLED_DEVICES,
         )
-        # Subscribe to version updates
-        self._bridge.events.subscribe(
-            self._process_version_updates,
-            event_filter=EventType.RESOURCE_VERSION,
-        )
         self._initialized = True
 
     async def _process_polled_devices(
@@ -116,11 +111,6 @@ class DeviceController(BaseResourcesController[Device]):
                     device_id=device_id,
                 )
                 await self._handle_event(evt["type"], evt)
-
-    async def _process_version_updates(
-        self, evt_type: EventType, evt_data: AferoEvent | None
-    ) -> None:
-        pass
 
     def get_filtered_devices(self, devices: list[AferoDevice]) -> list[AferoDevice]:
         """Find parent devices."""

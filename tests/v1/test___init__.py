@@ -150,7 +150,7 @@ def fake_version_data(*args, **kwargs):
 
 @pytest.mark.asyncio
 async def test_fetch_data_with_version(mocked_bridge_req, mocker):
-    get_device_versions = mocker.patch.object(mocked_bridge_req, "get_device_versions", side_effect=fake_version_data())
+    get_device_versions = mocker.patch.object(mocked_bridge_req, "get_device_version", side_effect=fake_version_data())
     mocked_response = [
         {
             "typeId": "metadevice.room"
@@ -183,6 +183,13 @@ async def test_fetch_data_with_version(mocked_bridge_req, mocker):
         {'typeId': 'metadevice.device', 'deviceId': 'test_device_id2', 'version_data': {'version': '2.0.0'}},
         {'typeId': 'metadevice.device', 'deviceId': 'test_device_id', 'version_data': {'version': '1.0.0'}}
     ]
+
+
+@pytest.mark.asyncio
+async def test_get_device_versions(mocked_bridge, mocker):
+    req = mocker.patch.object(mocked_bridge, "request")
+    await mocked_bridge.get_device_version("test_device_id")
+    req.assert_called_once_with("GET", "https://api2.afero.net/v1/accounts/mocked-account-id/devices/test_device_id/versions")
 
 
 @pytest.mark.asyncio
