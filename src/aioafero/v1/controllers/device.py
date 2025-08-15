@@ -65,9 +65,7 @@ class DeviceController(BaseResourcesController[Device]):
                 parent_id=afero_device.device_id,
                 wifi_mac=wifi_mac,
                 ble_mac=ble_mac,
-                version_data=afero_device.version_data
-                if hasattr(afero_device, "version_data")
-                else {},
+                version_data=getattr(afero_device, "version_data", {}),
             ),
         )
         return self._items[afero_device.id]
