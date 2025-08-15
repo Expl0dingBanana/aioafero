@@ -44,3 +44,4 @@ class DeviceInformation:
     parent_id: str | None = None
     wifi_mac: str | None = None
     ble_mac: str | None = None
+    version_data: dict | None = None

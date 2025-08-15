@@ -37,7 +37,6 @@ class DeviceController(BaseResourcesController[Device]):
         binary_sensors: dict[str, AferoBinarySensor] = {}
         wifi_mac: str | None = None
         ble_mac: str | None = None
-
         for state in afero_device.states:
             if state.functionClass == "available":
                 available = state.value
@@ -66,6 +65,7 @@ class DeviceController(BaseResourcesController[Device]):
                 parent_id=afero_device.device_id,
                 wifi_mac=wifi_mac,
                 ble_mac=ble_mac,
+                version_data=getattr(afero_device, "version_data", {}),
             ),
         )
         return self._items[afero_device.id]

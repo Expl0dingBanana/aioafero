@@ -47,6 +47,7 @@ class AferoDevice:
     children: list[str] = field(default=list)
     manufacturerName: str | None = field(default=None)  # noqa: N815
     split_identifier: str | None = field(default=None, repr=False)
+    version_data: dict[str, str] | None = field(default=None)
 
     def __hash__(self):
         """Hash."""
@@ -130,6 +131,7 @@ def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
         "states": processed_states,
         "children": afero_device.get("children", []),
         "manufacturerName": device.get("manufacturerName"),
+        "version_data": afero_device.get("version_data"),
     }
     return AferoDevice(**dev_dict)
 

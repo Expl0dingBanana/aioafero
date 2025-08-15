@@ -3,8 +3,10 @@ import copy
 import logging
 from unittest.mock import AsyncMock
 
+from aioafero.v1.v1_const import VERSION_POLL_INTERVAL_SECONDS
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 import pytest
+from datetime import datetime, timedelta, timezone
 
 from aioafero import InvalidAuth
 from aioafero.v1.controllers import (
@@ -40,6 +42,16 @@ async def test_properties(bridge):
         "portable-air-conditioner": portable_ac.portable_ac_callback,
         "security-system-sensor": security_system.security_system_callback,
     }
+    stream._version_poll_time = None
+    assert stream.poll_version is True
+    assert stream.poll_version is False
+    stream._version_poll_time = datetime.now(timezone.utc) - timedelta(seconds=VERSION_POLL_INTERVAL_SECONDS)
+    assert stream.poll_version is True
+    stream._version_poll_time = datetime.now(timezone.utc) - timedelta(seconds=VERSION_POLL_INTERVAL_SECONDS)
+    stream._version_poll_enabled = False
+    assert stream.poll_version is False
+
+
 
 
 @pytest.mark.asyncio

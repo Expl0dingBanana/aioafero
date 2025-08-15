@@ -294,6 +294,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             ],
             "children": ["its-a-2", "its-a-1"],
             "manufacturerName": "test-manuf",
+            'version_data': None,
         },
         {
             "split_identifier": None,
@@ -327,6 +328,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             ],
             "children": [],
             "manufacturerName": "test-manuf",
+            'version_data': None,
         },
         {
             "split_identifier": None,
@@ -360,6 +362,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             ],
             "children": [],
             "manufacturerName": "test-manuf",
+            'version_data': None,
         },
     ]
     if anon_name:

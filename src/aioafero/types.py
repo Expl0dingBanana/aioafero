@@ -9,6 +9,7 @@ class EventType(Enum):
     RESOURCE_ADDED = "add"
     RESOURCE_UPDATED = "update"
     RESOURCE_DELETED = "delete"
+    RESOURCE_VERSION = "version"
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     RECONNECTED = "reconnected"
