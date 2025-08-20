@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.2.1
+=============
+
+ * Fix an issue where checking refresh token could cause an AttributeError
+
 Version 5.2.0
 =============
 
