@@ -106,6 +106,8 @@ class AferoAuth:
     @property
     def refresh_token(self) -> str | None:
         """Set the current refresh token."""
+        if not self._token_data:
+            return None
         return self._token_data.refresh_token
 
     def generate_auth_url(self, endpoint: str) -> str:
