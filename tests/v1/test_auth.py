@@ -645,3 +645,15 @@ def test_set_token_data(hs_auth):
     )
     hs_auth.set_token_data(data)
     assert hs_auth._token_data == data
+
+
+def test_property_refresh_token():
+    _auth = auth.AferoAuth("username", "password")
+    assert _auth.refresh_token is None
+    _auth._token_data = auth.TokenData(
+        "token",
+        "access_token",
+        "refresh_token",
+        datetime.datetime.now().timestamp() + 120,
+    )
+    assert _auth.refresh_token == "refresh_token"
