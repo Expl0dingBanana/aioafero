@@ -112,6 +112,7 @@ class AferoBridgeV1:
         self._account_id: str | None = None
         self._afero_client: str = afero_client
         self._auth = AferoAuth(
+            self,
             username,
             password,
             refresh_token=refresh_token,
@@ -389,7 +390,7 @@ class AferoBridgeV1:
 
     @asynccontextmanager
     async def create_request(
-        self, method: str, url: str, **kwargs
+        self, method: str, url: str, include_token: bool, **kwargs
     ) -> Generator[aiohttp.ClientResponse, None, None]:
         """Make a request to any path with V2 request method (auth in header).
 
@@ -401,20 +402,23 @@ class AferoBridgeV1:
             )
             self._web_session = aiohttp.ClientSession(connector=connector)
 
-        try:
-            token = await self._auth.token(self._web_session)
-        except InvalidAuth:
-            self.events.emit(EventType.INVALID_AUTH)
-            raise
-        else:
-            headers = self.get_headers(authorization=f"Bearer {token}")
-            headers.update(kwargs.get("headers", {}))
-            kwargs["headers"] = headers
-            kwargs["ssl"] = True
-            async with self._web_session.request(method, url, **kwargs) as res:
-                yield res
+        extras = {}
+        if include_token:
+            try:
+                extras["Authorization"] = f"Bearer {await self._auth.token()}"
+            except InvalidAuth:
+                self.events.emit(EventType.INVALID_AUTH)
+                raise
+        headers = self.get_headers(**extras)
+        headers.update(kwargs.get("headers", {}))
+        kwargs["headers"] = headers
+        kwargs["ssl"] = True
+        async with self._web_session.request(method, url, **kwargs) as res:
+            yield res
 
-    async def request(self, method: str, url: str, **kwargs) -> aiohttp.ClientResponse:
+    async def request(
+        self, method: str, url: str, include_token: bool = True, **kwargs
+    ) -> aiohttp.ClientResponse:
         """Make request on the api and return response data."""
         retries = 0
         with self.secret_logger():
@@ -424,10 +428,13 @@ class AferoBridgeV1:
             if retries > 1:
                 retry_wait = 0.25 * retries
                 await asyncio.sleep(retry_wait)
-            async with self.create_request(method, url, **kwargs) as resp:
+            async with self.create_request(
+                method, url, include_token, **kwargs
+            ) as resp:
+                # 504 means the API is overloaded, back off a bit
                 # 503 means the service is temporarily unavailable, back off a bit.
                 # 429 means the bridge is rate limiting/overloaded, we should back off a bit.
-                if resp.status in [429, 503]:
+                if resp.status in [429, 503, 504]:
                     continue
                 # 403 is bad auth
                 if resp.status == 403:

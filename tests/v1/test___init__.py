@@ -216,7 +216,7 @@ async def test_create_request_err(mocked_bridge, mocker):
     mocker.patch.object(mocked_bridge._auth, "token", side_effect=InvalidAuth)
     emit = mocker.patch.object(mocked_bridge.events, "emit")
     with pytest.raises(InvalidAuth):
-        async with mocked_bridge.create_request("get", "https://not-called.io"):
+        async with mocked_bridge.create_request("get", "https://not-called.io", True):
             pass
 
     emit.assert_called_once_with(EventType.INVALID_AUTH)

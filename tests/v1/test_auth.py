@@ -16,13 +16,8 @@ current_path = pathlib.Path(__file__).parent.resolve()
 
 
 @pytest.fixture(scope="function")
-def hs_auth():
-    return auth.AferoAuth("username", "password")
-
-
-@pytest_asyncio.fixture(scope="function")
-async def aio_sess() -> aiohttp.ClientSession:
-    yield aiohttp.ClientSession()
+def hs_auth(mocked_bridge_req):
+    return auth.AferoAuth(mocked_bridge_req, "username", "password")
 
 
 async def build_url(base_url: str, qs: dict[str, str]) -> str:
@@ -103,6 +98,14 @@ async def test_extract_login_data(page_filename, err_msg, expected):
             {"status": 200},
             None,
         ),
+        # Random error
+        (
+            "auth_webapp_login.html",
+            ("url_sess_code", "url_exec_code", "url_tab_id"),
+            False,
+            {"status": 400},
+            auth.InvalidResponse,
+        ),
         # Active session returned
         (
             "auth_webapp_login.html",
@@ -134,6 +137,7 @@ async def test_webapp_login(
     aio_sess,
     mocker,
 ):
+    hs_auth._bridge._web_session = aio_sess
     if page_filename:
         with open(os.path.join(current_path, "data", page_filename)) as f:
             response["body"] = f.read()
@@ -152,18 +156,17 @@ async def test_webapp_login(
     url = await build_url(url, params)
     mock_aioresponse.get(url, **response)
     if not expected_err:
-        await hs_auth.webapp_login(challenge, aio_sess)
+        await hs_auth.webapp_login(challenge)
         if redirect:
             generate_code.asset_not_called()
             parse_code.assert_called_once()
         else:
             exp = list(gc_exp)
-            exp.append(aio_sess)
             generate_code.assert_called_once_with(*exp)
             parse_code.assert_not_called()
     else:
         with pytest.raises(expected_err):
-            await hs_auth.webapp_login(challenge, aio_sess)
+            await hs_auth.webapp_login(challenge)
         generate_code.assert_not_called()
 
 
@@ -227,12 +230,12 @@ async def test_generate_code(
     aioresponses.post(url, **response)
     if not expected_err:
         assert (
-            await hs_auth.generate_code(session_code, execution, tab_id, aio_sess)
+            await hs_auth.generate_code(session_code, execution, tab_id)
             == expected
         )
     else:
         with pytest.raises(expected_err):
-            await hs_auth.generate_code(session_code, execution, tab_id, aio_sess)
+            await hs_auth.generate_code(session_code, execution, tab_id)
 
 
 @pytest.mark.asyncio
@@ -240,7 +243,7 @@ async def test_generate_code(
     "secure_mode,code,response,expected,expected_messages, err",
     [
         # Invalid refresh token
-        (True, "code", {"status": 403}, None, None, aiohttp.ClientError),
+        (True, "code", {"status": 403}, None, None, aiohttp.web_exceptions.HTTPForbidden),
         # Incorrect format
         (
             True,
@@ -317,7 +320,6 @@ async def test_generate_refresh_token(
     err,
     hs_auth,
     aioresponses,
-    aio_sess,
     caplog,
 ):
     caplog.set_level(logging.DEBUG)
@@ -333,14 +335,14 @@ async def test_generate_refresh_token(
             expected
             == (
                 await hs_auth.generate_refresh_token(
-                    aio_sess, code=code, challenge=challenge
+                    code=code, challenge=challenge
                 )
             ).refresh_token
         )
     else:
         with pytest.raises(err):
             await hs_auth.generate_refresh_token(
-                aio_sess, code=code, challenge=challenge
+                code=code, challenge=challenge
             )
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
@@ -371,7 +373,9 @@ async def test_generate_refresh_token(
             auth.InvalidAuth,
         ),
         # Invalid status
-        (True, "code", {"status": 403}, None, None, aiohttp.ClientError),
+        (True, "code", {"status": 403}, None, None, aiohttp.web_exceptions.HTTPForbidden),
+        # Unexpected code returned
+        (True, "code", {"status": 400}, None, None, auth.InvalidResponse),
         # bad response
         (
             True,
@@ -447,11 +451,11 @@ async def test_generate_refresh_token_from_refresh(
     aioresponses.post(url, **response)
     if expected:
         assert (
-            expected == (await hs_auth.generate_refresh_token(aio_sess)).refresh_token
+            expected == (await hs_auth.generate_refresh_token()).refresh_token
         )
     else:
         with pytest.raises(err):
-            await hs_auth.generate_refresh_token(aio_sess)
+            await hs_auth.generate_refresh_token()
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
     assert call_args.kwargs["headers"] == hs_auth._token_headers
@@ -480,7 +484,7 @@ async def test_perform_initial_login(
         hs_auth, "generate_refresh_token", return_value=generate_refresh_token_return
     )
     assert (
-        await hs_auth.perform_initial_login(aio_sess) == generate_refresh_token_return
+        await hs_auth.perform_initial_login() == generate_refresh_token_return
     )
 
 
@@ -492,9 +496,9 @@ async def test_perform_initial_login(
         (False, "yes"),
     ],
 )
-async def test_AferoAuth_init(hide_secrets, refresh_token, mocker):
+async def test_AferoAuth_init(hide_secrets, refresh_token, mocker, bridge):
     test_auth = auth.AferoAuth(
-        "username", "password", hide_secrets=hide_secrets, refresh_token=refresh_token
+        bridge, "username", "password", hide_secrets=hide_secrets, refresh_token=refresh_token
     )
     if hide_secrets:
         assert test_auth.secret_logger == auth.LogRedactorMessage
@@ -604,9 +608,10 @@ async def test_token(
     messages,
     caplog,
     mocker,
+    bridge,
 ):
     caplog.set_level(logging.DEBUG)
-    test_auth = auth.AferoAuth("username", "password")
+    test_auth = auth.AferoAuth(bridge, "username", "password")
     test_auth._token_data = token_data
     sess = mocker.Mock()
     mocker.patch.object(
@@ -647,8 +652,8 @@ def test_set_token_data(hs_auth):
     assert hs_auth._token_data == data
 
 
-def test_property_refresh_token():
-    _auth = auth.AferoAuth("username", "password")
+def test_property_refresh_token(bridge):
+    _auth = auth.AferoAuth(bridge, "username", "password")
     assert _auth.refresh_token is None
     _auth._token_data = auth.TokenData(
         "token",
