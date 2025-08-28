@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.2.2
+=============
+
+ * Fix an issue where auth would not retry on failure
+
 Version 5.2.1
 =============
 
