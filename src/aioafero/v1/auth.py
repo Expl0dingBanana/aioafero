@@ -14,7 +14,7 @@ from typing import Final, NamedTuple
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
-from aiohttp import ClientResponseError, ClientSession, ContentTypeError
+from aiohttp import ClientResponseError, ContentTypeError
 from bs4 import BeautifulSoup
 from securelogging import LogRedactorMessage, add_secret, remove_secret
 
@@ -67,6 +67,7 @@ class AferoAuth:
 
     def __init__(
         self,
+        bridge,
         username,
         password,
         hide_secrets: bool = True,
@@ -84,6 +85,7 @@ class AferoAuth:
         self._username: str = username
         self._password: str = password
         self._token_data: TokenData | None = None
+        self._bridge = bridge
         if refresh_token:
             add_secret(refresh_token)
             self._token_data = TokenData(
@@ -92,6 +94,7 @@ class AferoAuth:
         self._afero_client: str = afero_client
         self._token_headers: dict[str, str] = {
             "Content-Type": "application/x-www-form-urlencoded",
+            "accept-encoding": "gzip",
             "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["AUTH_OPENID_HOST"],
         }
@@ -119,15 +122,12 @@ class AferoAuth:
         """Set the current taken data."""
         self._token_data = data
 
-    async def webapp_login(
-        self, challenge: AuthChallenge, client: ClientSession
-    ) -> str:
+    async def webapp_login(self, challenge: AuthChallenge) -> str:
         """Perform login to the webapp for a code.
 
         Login to the webapp and generate a code used for generating tokens.
 
         :param challenge: Challenge data for connection and approving
-        :param client: async client for making requests
 
         :return: Code used for generating a refresh token
         """
@@ -149,33 +149,37 @@ class AferoAuth:
             url,
             code_params,
         )
-        async with client.get(
-            url,
-            params=code_params,
-            allow_redirects=False,
-        ) as response:
-            if response.status == 200:
-                contents = await response.text()
-                login_data = await extract_login_data(contents)
-                self.logger.debug(
-                    ("WebApp Login:\n\tSession Code: %s\n\tExecution: %s\n\tTab ID:%s"),
-                    login_data.session_code,
-                    login_data.execution,
-                    login_data.tab_id,
-                )
-                return await self.generate_code(
-                    login_data.session_code,
-                    login_data.execution,
-                    login_data.tab_id,
-                    client,
-                )
-            if response.status == 302:
-                self.logger.debug("Hubspace returned an active session")
-                return await AferoAuth.parse_code(response)
-            try:
-                response.raise_for_status()
-            except ClientResponseError as err:
-                raise InvalidResponse("Unable to query login page") from err
+        try:
+            response = await self._bridge.request(
+                "GET",
+                url,
+                include_token=False,
+                params=code_params,
+                allow_redirects=False,
+            )
+        except aiohttp.web_exceptions.HTTPError as err:
+            raise InvalidResponse("Unable to query login page") from err
+        if response.status == 200:
+            contents = await response.text()
+            login_data = await extract_login_data(contents)
+            self.logger.debug(
+                ("WebApp Login:\n\tSession Code: %s\n\tExecution: %s\n\tTab ID:%s"),
+                login_data.session_code,
+                login_data.execution,
+                login_data.tab_id,
+            )
+            return await self.generate_code(
+                login_data.session_code,
+                login_data.execution,
+                login_data.tab_id,
+            )
+        if response.status == 302:
+            self.logger.debug("Hubspace returned an active session")
+            return await AferoAuth.parse_code(response)
+        try:
+            response.raise_for_status()
+        except ClientResponseError as err:
+            raise InvalidResponse("Unable to query login page") from err
 
     @staticmethod
     async def generate_challenge_data() -> AuthChallenge:
@@ -190,15 +194,13 @@ class AferoAuth:
         return chal
 
     async def generate_code(
-        self, session_code: str, execution: str, tab_id: str, client: ClientSession
+        self, session_code: str, execution: str, tab_id: str
     ) -> str:
         """Finalize login to Afero IoT page.
 
         :param session_code: Session code during form interaction
         :param execution: Session code during form interaction
         :param tab_id: Session code during form interaction
-        :param client: async client for making request
-
         :return: code for generating tokens
         """
         self.logger.debug("Generating code")
@@ -226,19 +228,21 @@ class AferoAuth:
             params,
             headers,
         )
-        async with client.post(
+        response = await self._bridge.request(
+            "POST",
             url,
+            include_token=False,
             params=params,
             data=auth_data,
             headers=headers,
             allow_redirects=False,
-        ) as response:
-            self.logger.debug(STATUS_CODE, response.status)
-            if response.status != 302:
-                raise InvalidAuth(
-                    "Unable to authenticate with the supplied username / password"
-                )
-            return await AferoAuth.parse_code(response)
+        )
+        self.logger.debug(STATUS_CODE, response.status)
+        if response.status != 302:
+            raise InvalidAuth(
+                "Unable to authenticate with the supplied username / password"
+            )
+        return await AferoAuth.parse_code(response)
 
     @staticmethod
     async def parse_code(response: aiohttp.ClientResponse) -> str:
@@ -256,7 +260,6 @@ class AferoAuth:
 
     async def generate_refresh_token(
         self,
-        client: ClientSession,
         challenge: AuthChallenge | None = None,
         code: str | None = None,
     ) -> TokenData:
@@ -301,57 +304,62 @@ class AferoAuth:
                 data,
                 self._token_headers,
             )
-        async with client.post(
+        response = await self._bridge.request(
+            "POST",
             url,
             headers=self._token_headers,
+            include_token=False,
             data=data,
-        ) as response:
-            self.logger.debug(STATUS_CODE, response.status)
+        )
+        self.logger.debug(STATUS_CODE, response.status)
+        try:
+            resp_json = await response.json()
+        except (ValueError, ContentTypeError) as err:
+            raise InvalidResponse(
+                "Unexpected data returned during token refresh"
+            ) from err
+        if response.status != 200:
+            if resp_json and resp_json.get("error") == "invalid_grant":
+                raise InvalidAuth
             try:
-                resp_json = await response.json()
-            except (ValueError, ContentTypeError) as err:
+                response.raise_for_status()
+            except ClientResponseError as err:
                 raise InvalidResponse(
                     "Unexpected data returned during token refresh"
                 ) from err
-            if response.status != 200:
-                if resp_json and resp_json.get("error") == "invalid_grant":
-                    raise InvalidAuth
-                response.raise_for_status()
-            try:
-                refresh_token = resp_json["refresh_token"]
-                access_token = resp_json["access_token"]
-                id_token = resp_json["id_token"]
-            except KeyError as err:
-                raise InvalidResponse("Unable to extract refresh token") from err
-            add_secret(refresh_token)
-            add_secret(access_token)
-            add_secret(id_token)
-            with self.secret_logger():
-                self.logger.debug("JSON response: %s", resp_json)
-            return TokenData(
-                id_token,
-                access_token,
-                refresh_token,
-                datetime.datetime.now().timestamp() + TOKEN_TIMEOUT,
-            )
+        try:
+            refresh_token = resp_json["refresh_token"]
+            access_token = resp_json["access_token"]
+            id_token = resp_json["id_token"]
+        except KeyError as err:
+            raise InvalidResponse("Unable to extract refresh token") from err
+        add_secret(refresh_token)
+        add_secret(access_token)
+        add_secret(id_token)
+        with self.secret_logger():
+            self.logger.debug("JSON response: %s", resp_json)
+        return TokenData(
+            id_token,
+            access_token,
+            refresh_token,
+            datetime.datetime.now().timestamp() + TOKEN_TIMEOUT,
+        )
 
-    async def perform_initial_login(self, client: ClientSession) -> TokenData:
+    async def perform_initial_login(self) -> TokenData:
         """Login to generate a refresh token.
-
-        :param client: async client for making request
 
         :return: Refresh token for the auth
         """
         challenge = await AferoAuth.generate_challenge_data()
-        code: str = await self.webapp_login(challenge, client)
+        code: str = await self.webapp_login(challenge)
         self.logger.debug("Successfully generated an auth code")
         refresh_token = await self.generate_refresh_token(
-            client, code=code, challenge=challenge
+            code=code, challenge=challenge
         )
         self.logger.debug("Successfully generated a refresh token")
         return refresh_token
 
-    async def token(self, client: ClientSession, retry: bool = True) -> str:
+    async def token(self, retry: bool = True) -> str:
         """Generate the token required to make Afero API calls."""
         invalidate_refresh_token = False
         async with self._async_lock:
@@ -359,11 +367,11 @@ class AferoAuth:
                 self.logger.debug(
                     "Refresh token not present. Generating a new refresh token"
                 )
-                self._token_data = await self.perform_initial_login(client)
+                self._token_data = await self.perform_initial_login()
             if await self.is_expired:
                 self.logger.debug("Token has not been generated or is expired")
                 try:
-                    new_data = await self.generate_refresh_token(client)
+                    new_data = await self.generate_refresh_token()
                     remove_secret(self._token_data.token)
                     remove_secret(self._token_data.access_token)
                     remove_secret(self._token_data.refresh_token)
@@ -376,7 +384,7 @@ class AferoAuth:
                 else:
                     self.logger.debug("Token has been successfully generated")
         if invalidate_refresh_token:
-            return await self.token(client, retry=False)
+            return await self.token(retry=False)
         return self._token_data.token
 
 

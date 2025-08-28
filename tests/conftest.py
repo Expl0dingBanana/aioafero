@@ -4,6 +4,7 @@ import asyncio
 from aioresponses import aioresponses
 import pytest
 import pytest_asyncio
+import aiohttp
 
 from aioafero.v1 import AferoBridgeV1
 from aioafero import AferoDevice
@@ -12,8 +13,13 @@ from aioafero.v1.controllers.event import EventType
 from tests.v1.utils import create_hs_raw_from_device
 
 
+@pytest_asyncio.fixture(scope="function")
+async def aio_sess() -> aiohttp.ClientSession:
+    yield aiohttp.ClientSession()
+
+
 @pytest_asyncio.fixture
-async def mocked_bridge(mocker) -> AferoBridgeV1:
+async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
     """Create a mocked afero bridge to be used in tests."""
     mocker.patch("time.time", return_value=12345)
     mocker.patch("aioafero.v1.controllers.event.EventStream.gather_data")
@@ -25,6 +31,7 @@ async def mocked_bridge(mocker) -> AferoBridgeV1:
     mocker.patch.object(
         bridge, "fetch_data", side_effect=mocker.AsyncMock(return_value=[])
     )
+    mocker.patch.object(bridge, "_web_session", aio_sess)
 
     bridge.set_token_data(
         TokenData(
@@ -65,7 +72,7 @@ async def mocked_bridge(mocker) -> AferoBridgeV1:
 
 
 @pytest.fixture
-def mocked_bridge_req(mocker):
+def mocked_bridge_req(mocker, aio_sess):
     bridge: AferoBridgeV1 = AferoBridgeV1("username2", "password2")
     mocker.patch.object(
         bridge,
@@ -76,6 +83,7 @@ def mocked_bridge_req(mocker):
     mocker.patch.object(bridge, "initialize", side_effect=mocker.AsyncMock())
     mocker.patch.object(bridge, "fetch_data", side_effect=bridge.fetch_data)
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
+    mocker.patch.object(bridge, "_web_session", aio_sess)
     bridge._auth._token_data = TokenData(
         "mock-token",
         None,

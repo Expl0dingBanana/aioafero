@@ -4,7 +4,7 @@ import logging
 import pytest
 
 from aioafero import EventType, InvalidAuth
-from aioafero.errors import DeviceNotFound, AferoError
+from aioafero.errors import DeviceNotFound, AferoError, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
@@ -216,7 +216,7 @@ async def test_create_request_err(mocked_bridge, mocker):
     mocker.patch.object(mocked_bridge._auth, "token", side_effect=InvalidAuth)
     emit = mocker.patch.object(mocked_bridge.events, "emit")
     with pytest.raises(InvalidAuth):
-        async with mocked_bridge.create_request("get", "https://not-called.io"):
+        async with mocked_bridge.create_request("get", "https://not-called.io", True):
             pass
 
     emit.assert_called_once_with(EventType.INVALID_AUTH)
@@ -353,36 +353,45 @@ async def test_double_initialize(bridge):
     assert len(bridge._scheduled_tasks) == 1
 
 
-# @TODO - Implement these tests
-# def double_429(*args, **kwargs):
-#     yield DummyResponse(status_code=429)
-#     yield DummyResponse(status_code=429)
-#     yield DummyResponse(status_code=200)
-#
-#
-# @pytest.mark.asyncio
-# @pytest.mark.parametrize(
-#     "max_retries, times_to_sleep, response_gen, exp_error", [
-#         # Out of retries
-#         (
-#             0, 0, None, ExceededMaximumRetries
-#         ),
-#         # Double retry
-#         (
-#             None, 2, double_429, None
-#         )
-#     ]
-# )
-# async def test_request(max_retries, times_to_sleep, response_gen, exp_error, mocker):
-#     bridge = AferoBridgeV1("username", "password")
-#     mock_sleep = mocker.patch("asyncio.sleep")
-#     if response_gen:
-#         mocker.patch.object(bridge, "create_request", side_effect=response_gen())
-#     if max_retries is not None:
-#         mocker.patch.object(v1_const, "MAX_RETRIES", max_retries)
-#     if exp_error:
-#         with pytest.raises(exp_error):
-#             await bridge.request("fff", "fff")
-#     if times_to_sleep:
-#         assert mock_sleep.call_count == times_to_sleep
-#
+class AsyncContextManagerMock:
+    def __init__(self):
+        self.total = 0
+
+    async def __aenter__(self):
+        status_code = 429 if self.total < 2 else 200
+        self.total += 1
+        return DummyResponse(status=status_code)
+
+    async def __aexit__(self, exc_type, exc, tb):
+        pass
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "max_retries, times_to_sleep, response_gen, exp_error", [
+        # Out of retries
+        (
+            0, 0, None, ExceededMaximumRetries
+        ),
+        # Double retry
+        (
+            None, 2, True, None
+        )
+    ]
+)
+async def test_request(max_retries, times_to_sleep, response_gen, exp_error, mocker):
+    bridge = AferoBridgeV1("username", "password")
+    mock_sleep = mocker.patch("asyncio.sleep", new=mocker.AsyncMock())
+    if response_gen:
+        async_mock_response = AsyncContextManagerMock()
+        mocker.patch.object(bridge, "create_request", return_value=async_mock_response)
+    if max_retries is not None:
+        mocker.patch.object(v1_const, "MAX_RETRIES", max_retries)
+    if exp_error:
+        with pytest.raises(exp_error):
+            await bridge.request("fff", "fff")
+    else:
+        await bridge.request("fff", "fff")
+    if times_to_sleep:
+        assert mock_sleep.call_count == times_to_sleep
