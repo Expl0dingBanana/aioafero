@@ -30,6 +30,10 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         1: "Motion Sensor",
         2: "Door/Window Sensor",
     }
+    # Sub-items dont render without help
+    ITEM_SENSORS: dict[str, str] = {
+        "battery-level": "%",
+    }
 
     async def initialize_elem(self, device: AferoDevice):
         """Initialize the element.
