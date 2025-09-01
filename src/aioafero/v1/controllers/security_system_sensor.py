@@ -34,6 +34,10 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
     ITEM_SENSORS: dict[str, str] = {
         "battery-level": "%",
     }
+    ITEM_BINARY_SENSORS: dict[str, str] = {
+        "tampered": 1,
+        "triggered": 1,
+    }
 
     async def initialize_elem(self, device: AferoDevice):
         """Initialize the element.
