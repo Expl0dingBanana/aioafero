@@ -4,6 +4,7 @@ import os
 import pytest
 
 from aioafero import device
+from pathlib import Path
 
 current_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -388,3 +389,52 @@ def test_get_function_from_device(functions, func_class, func_instance, expected
         device.get_function_from_device(functions, func_class, func_instance)
         == expected
     )
+
+
+
+@pytest.mark.parametrize(
+        (("capability"), ("expected")), [
+            (
+                {
+                    "functionClass": "sensor-state",
+                    "functionInstance": "sensor-1",
+                    "type": "object",
+                    "schedulable": False,
+                    "name": "Aaaaa",
+                    "locale": "en_US"
+                },
+                device.AferoCapability(
+                    functionClass="sensor-state",
+                    type="object",
+                    schedulable=False,
+                    functionInstance="sensor-1",
+                    _opts={
+                        "name": "Aaaaa",
+                        "locale": "en_US"
+                    }
+                )
+            ),
+            (
+                {
+                    "functionClass": "siren-action",
+                    "type": "object",
+                    "schedulable": False
+                },
+                device.AferoCapability(
+                    functionClass="siren-action",
+                    type="object",
+                    schedulable=False,
+                )
+            )
+        ]
+)
+def test_transform_capability(capability, expected):
+    assert device.transform_capability(capability) == expected
+
+
+def test_get_afero_device():
+    path_to_file: Path = Path(__file__.rsplit(os.sep, 1)[0]) / "v1" / "data" / "device-with-capabilities.json"
+    with path_to_file.open() as fh:
+        data = json.load(fh)
+    dev = device.get_afero_device(data[0])
+    assert len(dev.capabilities) == 102

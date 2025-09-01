@@ -350,7 +350,7 @@ class AferoBridgeV1:
         headers = {
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }
-        params = {"expansions": "state"}
+        params = {"expansions": "state,capabilities,semantics"}
         url = self.generate_api_url(
             v1_const.AFERO_GENERICS["API_DEVICE_ENDPOINT"].format(self.account_id)
         )

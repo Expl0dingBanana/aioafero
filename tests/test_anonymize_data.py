@@ -3,7 +3,7 @@ from dataclasses import replace
 import pytest
 
 from aioafero import anonomyize_data
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice, AferoState, AferoCapability
 
 POWER_STATE = {
     "functionClass": "power",
@@ -64,6 +64,18 @@ parent_dev_1 = AferoDevice(
     default_name="test-dev-1",
     default_image="test-dev-1",
     friendly_name="test-dev-1",
+    capabilities=[
+        AferoCapability(
+            functionClass="sensor-state",
+            type="object",
+            schedulable=False,
+            functionInstance="sensor-1",
+            _opts={
+                "name": "Aaaaa",
+                "locale": "en_US"
+            }
+        )
+    ],
     functions=[],
     states=[
         AferoState(**POWER_STATE),
@@ -271,6 +283,18 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "default_name": "test-dev-1",
             "default_image": "test-dev-1",
             "friendly_name": "test-dev-1",
+            "capabilities": [
+                {
+                '_opts': {
+                    'locale': 'en_US',
+                    'name': 'Aaaaa',
+                },
+                'functionClass': 'sensor-state',
+                'functionInstance': 'sensor-1',
+                'schedulable': False,
+                'type': 'object',
+                },
+            ],
             "functions": [],
             "states": [
                 {
@@ -305,6 +329,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "default_name": "test-c-dev-1",
             "default_image": "test-c-dev-1",
             "friendly_name": "test-c-dev-1",
+            "capabilities": [],
             "functions": [],
             "states": [
                 {
@@ -339,6 +364,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "default_name": "test-c-dev-2",
             "default_image": "test-c-dev-2",
             "friendly_name": "test-c-dev-2",
+            "capabilities": [],
             "functions": [],
             "states": [
                 {
