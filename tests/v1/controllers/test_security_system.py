@@ -527,6 +527,15 @@ capability_device = AferoDevice(
     friendly_name="its fake!",
     capabilities=[
         AferoCapability(
+            functionClass="sensor-state-for-continue",
+            functionInstance="sensor-1",
+            type="object",
+            schedulable=False,
+            _opts={
+                "name": "Aaaaa"
+            }
+        ),
+        AferoCapability(
             functionClass="sensor-state",
             functionInstance="sensor-1",
             type="object",
