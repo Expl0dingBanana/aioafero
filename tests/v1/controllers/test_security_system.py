@@ -9,7 +9,6 @@ from aioafero.v1.controllers.security_system import SecuritySystemController, fe
 from .. import utils
 
 alarm_panel = utils.create_devices_from_data("security-system.json")[1]
-alarm_panel = utils.create_devices_from_data("security-system.json")[1]
 
 
 def get_alarm_panel_with_siren() -> AferoDevice:
