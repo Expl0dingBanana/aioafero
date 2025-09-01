@@ -140,17 +140,20 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
             select_vals = {
                 "chirp_mode": chirp_modes[
                     cur_item.selects.get(
-                        (f"sensor-{cur_item.instance}", "chirpMode")
+                        (f"{SENSOR_SPLIT_IDENTIFIER}-{cur_item.instance}", "chirpMode")
                     ).selected
                 ],
                 "trigger_type": trigger_types[
                     cur_item.selects.get(
-                        (f"sensor-{cur_item.instance}", "chirpMode")
+                        (
+                            f"{SENSOR_SPLIT_IDENTIFIER}-{cur_item.instance}",
+                            "triggerType",
+                        )
                     ).selected
                 ],
                 "bypass_type": bypass_types[
                     cur_item.selects.get(
-                        (f"sensor-{cur_item.instance}", "bypassType")
+                        (f"{SENSOR_SPLIT_IDENTIFIER}-{cur_item.instance}", "bypassType")
                     ).selected
                 ],
             }

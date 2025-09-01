@@ -48,6 +48,20 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
     return valid_states
 
 
+def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
+    """Find states associated with the specific sensor."""
+    valid_functions: list = []
+    for func in afero_functions:
+        if func["functionClass"] not in ["sensor-state", "sensor-config"]:
+            continue
+        sensor_split = func["functionInstance"].rsplit("-", 1)
+        state_sensor_id = int(sensor_split[1])
+        if state_sensor_id != sensor_id:
+            continue
+        valid_functions.append(func)
+    return valid_functions
+
+
 def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
     """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
@@ -60,6 +74,7 @@ def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
             cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
             cloned.friendly_name = f"{afero_device.friendly_name} - Sensor {sensor_id}"
             cloned.states = get_valid_states(afero_device.states, sensor_id)
+            cloned.functions = get_valid_functions(afero_device.functions, sensor_id)
             multi_devs.append(cloned)
     return CallbackResponse(
         split_devices=multi_devs,
