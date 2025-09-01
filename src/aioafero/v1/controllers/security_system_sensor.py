@@ -44,6 +44,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         device_type: int | None = None
+        config_key: str | None = None
         for state in device.states:
             if state.functionClass == "sensor-state":
                 data = state.value["security-sensor-state"]
@@ -70,7 +71,8 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 )
                 available = not bool(data["missing"])
             else:
-                data = state.value["security-sensor-config-v2"]
+                config_key = list(state.value.keys())[0]
+                data = state.value[config_key]
                 selects[(state.functionInstance, "chirpMode")] = features.SelectFeature(
                     selected=self.CHIRP_MODES.get(data["chirpMode"]),
                     selects=set(self.CHIRP_MODES.values()),
@@ -94,6 +96,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
             [],
             _id=device.id,
             split_identifier=SENSOR_SPLIT_IDENTIFIER,
+            config_key=config_key,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
@@ -167,7 +170,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 else:
                     continue
             update_obj.sensor_config = features.SecuritySensorConfigFeature(
-                sensor_id=cur_item.instance, **select_vals
+                sensor_id=cur_item.instance, key_name=cur_item.config_key, **select_vals
             )
             await self.update(cur_item.id, obj_in=update_obj)
 
@@ -193,7 +196,8 @@ def update_from_states(
                 updated_keys.add("available")
                 cur_item.available = not bool(data["missing"])
         else:
-            data = state.value["security-sensor-config-v2"]
+            top_level_key = list(state.value.keys())[0]
+            data = state.value[top_level_key]
             if (
                 SecuritySystemSensorController.CHIRP_MODES.get(data["chirpMode"])
                 != cur_item.selects[(state.functionInstance, "chirpMode")].selected

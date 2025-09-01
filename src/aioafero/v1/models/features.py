@@ -277,6 +277,7 @@ class SecuritySensorConfigFeature:
     chirp_mode: int
     trigger_type: int
     bypass_type: int
+    key_name: str
 
     @property
     def api_value(self):
@@ -284,7 +285,7 @@ class SecuritySensorConfigFeature:
         return {
             "functionClass": "sensor-config",
             "value": {
-                "security-sensor-config-v2": {
+                self.key_name: {
                     "chirpMode": self.chirp_mode,
                     "triggerType": self.trigger_type,
                     "bypassType": self.bypass_type,
