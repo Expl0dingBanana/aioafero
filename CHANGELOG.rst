@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 5.2.3
+=============
+
+ * Fix an issue where the Security Sensor name was not being used
+ * Fix an issue where Security Sensors would reference the incorrect key during an update
+
 Version 5.2.2
 =============
 
