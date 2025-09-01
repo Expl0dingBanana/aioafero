@@ -2,9 +2,9 @@
 
 import pytest
 
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice, AferoState, AferoCapability
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions
+from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions, get_sensor_name
 
 from .. import utils
 
@@ -513,3 +513,55 @@ def test_security_system_callback():
     results = security_system_callback(alarm_panel)
     assert results.remove_original is False
     assert len(results.split_devices) == 3
+
+
+
+capability_device = AferoDevice(
+    id="12345",
+    device_id="123456",
+    model="its fake!",
+    device_class="its fake!",
+    default_name="its fake!",
+    default_image="its fake!",
+    friendly_name="its fake!",
+    capabilities=[
+        AferoCapability(
+            functionClass="sensor-state-for-continue",
+            functionInstance="sensor-1",
+            type="object",
+            schedulable=False,
+            _opts={
+                "name": "Aaaaa"
+            }
+        ),
+        AferoCapability(
+            functionClass="sensor-state",
+            functionInstance="sensor-1",
+            type="object",
+            schedulable=False,
+            _opts={
+                "name": "Aaaaa"
+            }
+        )
+    ]
+)
+
+@pytest.mark.parametrize(
+    (("device", "sensor_id", "expected")),
+    [
+        # No capabilities
+        (
+            alarm_panel,
+            4,
+            "Sensor 4"
+        ),
+        # Capabilities
+        (
+            capability_device,
+            1,
+            "Aaaaa",
+        )
+    ]
+)
+def test_get_sensor_name(device, sensor_id, expected):
+    assert get_sensor_name(device.capabilities, sensor_id) == expected

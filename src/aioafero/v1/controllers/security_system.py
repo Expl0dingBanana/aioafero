@@ -2,7 +2,7 @@
 
 import copy
 
-from aioafero.device import AferoDevice, get_function_from_device
+from aioafero.device import AferoCapability, AferoDevice, get_function_from_device
 from aioafero.errors import DeviceNotFound
 from aioafero.util import process_function
 from aioafero.v1.models import SecuritySystem, SecuritySystemPut, features
@@ -62,6 +62,19 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
     return valid_functions
 
 
+def get_sensor_name(afero_capabilities: list[AferoCapability], sensor_id: int) -> str:
+    """Get the Afero name for a specific sensor."""
+    for capability in afero_capabilities:
+        if (
+            capability.functionClass != "sensor-state"
+            or capability.functionInstance != f"sensor-{sensor_id}"
+            or capability.options.get("name") is None
+        ):
+            continue
+        return capability.options["name"]
+    return f"Sensor {sensor_id}"
+
+
 def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
     """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
@@ -72,7 +85,7 @@ def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
             cloned.id = generate_sensor_name(afero_device, sensor_id)
             cloned.split_identifier = SENSOR_SPLIT_IDENTIFIER
             cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
-            cloned.friendly_name = f"{afero_device.friendly_name} - Sensor {sensor_id}"
+            cloned.friendly_name = f"{afero_device.friendly_name} - {get_sensor_name(afero_device.capabilities, sensor_id)}"
             cloned.states = get_valid_states(afero_device.states, sensor_id)
             cloned.functions = get_valid_functions(afero_device.functions, sensor_id)
             multi_devs.append(cloned)
