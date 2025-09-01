@@ -274,9 +274,10 @@ class SecuritySensorConfigFeature:
     """Represent the current security sensor configuration."""
 
     sensor_id: int
-    chirp_mode: int
-    trigger_type: int
-    bypass_type: int
+    chirpMode: int  # noqa: N815
+    triggerType: int  # noqa: N815
+    bypassType: int  # noqa: N815
+    key_name: str
 
     @property
     def api_value(self):
@@ -284,10 +285,10 @@ class SecuritySensorConfigFeature:
         return {
             "functionClass": "sensor-config",
             "value": {
-                "security-sensor-config-v2": {
-                    "chirpMode": self.chirp_mode,
-                    "triggerType": self.trigger_type,
-                    "bypassType": self.bypass_type,
+                self.key_name: {
+                    "chirpMode": self.chirpMode,
+                    "triggerType": self.triggerType,
+                    "bypassType": self.bypassType,
                 }
             },
             "functionInstance": f"sensor-{self.sensor_id}",

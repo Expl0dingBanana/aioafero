@@ -4,7 +4,7 @@ import pytest
 
 from aioafero.device import AferoDevice, AferoState
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.security_system import SecuritySystemController, features
+from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions
 
 from .. import utils
 
@@ -425,3 +425,91 @@ async def test_emitting(bridge):
     await bridge.async_block_until_done()
     assert len(bridge.security_systems._items) == 1
     assert not bridge.security_systems._items[dev_update.id].available
+
+
+def test_get_sensor_ids():
+    assert get_sensor_ids(alarm_panel) == {1, 2, 4}
+
+
+def test_get_valid_elements_state():
+    assert get_valid_states(alarm_panel.states, 4) == [
+        AferoState(
+            functionClass='sensor-config',
+            value={'security-sensor-config-v2': {'chirpMode': 1, 'triggerType': 3, 'bypassType': 0}},
+            lastUpdateTime=0,
+            functionInstance='sensor-4'
+        ),
+        AferoState(
+            functionClass='sensor-state',
+            value={'security-sensor-state': {'deviceType': 2, 'tampered': 0, 'triggered': 0, 'missing': 0, 'versionBuild': 3, 'versionMajor': 2, 'versionMinor': 0, 'batteryLevel': 100}},
+            lastUpdateTime=0,
+            functionInstance='sensor-4'
+        )
+    ]
+
+
+def test_get_valid_functions():
+    assert get_valid_functions(alarm_panel.functions, 4) == [
+        {
+        "id": "43ff68d1-3a88-4f61-ae7a-a86f15b235bd",
+        "createdTimestampMs": 1737748109846,
+        "updatedTimestampMs": 1743797379096,
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-4",
+        "type": "object",
+        "schedulable": False,
+        "values": [
+          {
+            "id": "d804735f-b7aa-4fc6-82d0-8f8d4f76fad2",
+            "createdTimestampMs": 1737748109856,
+            "updatedTimestampMs": 1743797379106,
+            "name": "sensor-config",
+            "deviceValues": [
+              {
+                "id": "53e96640-d090-4d4c-84f8-efd0ba4dfc8f",
+                "createdTimestampMs": 1737748109867,
+                "updatedTimestampMs": 1743797379115,
+                "type": "attribute",
+                "key": "304",
+                "format": "security-sensor-config-v2"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "4bdfa7c0-1b01-4a3a-a4c0-341762f7bc9b",
+        "createdTimestampMs": 1737748109003,
+        "updatedTimestampMs": 1743797382391,
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-4",
+        "type": "object",
+        "schedulable": False,
+        "values": [
+          {
+            "id": "0733bfc5-f749-41ba-ad6c-d2b933f1d6c8",
+            "createdTimestampMs": 1737748109013,
+            "updatedTimestampMs": 1743797382399,
+            "name": "sensor-state",
+            "deviceValues": [
+              {
+                "id": "bf22481d-df18-4ec0-994e-2ef9590ece8e",
+                "createdTimestampMs": 1737748109023,
+                "updatedTimestampMs": 1743797382407,
+                "type": "attribute",
+                "key": "204",
+                "format": "security-sensor-state"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+    ]
+
+
+def test_security_system_callback():
+    results = security_system_callback(alarm_panel)
+    assert results.remove_original is False
+    assert len(results.split_devices) == 3

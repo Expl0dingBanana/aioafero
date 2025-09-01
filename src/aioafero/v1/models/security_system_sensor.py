@@ -15,6 +15,7 @@ class SecuritySystemSensor:
     _id: str  # ID used when interacting with Afero
     available: bool
     selects: dict[tuple[str, str | None], features.SelectFeature] | None
+    config_key: str | None
     # Security System Sensors are always split devices
     split_identifier: str
 
