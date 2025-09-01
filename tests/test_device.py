@@ -429,11 +429,13 @@ def test_get_function_from_device(functions, func_class, func_instance, expected
         ]
 )
 def test_transform_capability(capability, expected):
-    assert device.transform_capability(capability) == expected
+    actual = device.transform_capability(capability)
+    assert actual == expected
+    assert actual.options == expected._opts
 
 
 def test_get_afero_device():
-    path_to_file: Path = Path(__file__.rsplit(os.sep, 1)[0]) / "v1" / "data" / "device-with-capabilities.json"
+    path_to_file: Path = Path(__file__).parent / "v1" / "data" / "device-with-capabilities.json"
     with path_to_file.open() as fh:
         data = json.load(fh)
     dev = device.get_afero_device(data[0])
