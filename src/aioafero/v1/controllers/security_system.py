@@ -49,7 +49,7 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
 
 
 def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
-    """Find states associated with the specific sensor."""
+    """Find functions associated with the specific sensor."""
     valid_functions: list = []
     for func in afero_functions:
         if func["functionClass"] not in ["sensor-state", "sensor-config"]:
