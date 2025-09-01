@@ -7,7 +7,7 @@ __all__ = [
     "get_afero_device",
     "get_function_from_device",
 ]
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 import logging
 from typing import Any, TypeVar
 
@@ -32,6 +32,22 @@ class AferoState:
 
 
 @dataclass
+class AferoCapability:
+    """Capability of a given device."""
+
+    functionClass: str  # noqa: N815
+    type: str
+    schedulable: bool
+    functionInstance: str | None = None  # noqa: N815
+    _opts: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def options(self) -> dict[str, Any]:
+        """Return the options for the capability."""
+        return self._opts
+
+
+@dataclass
 class AferoDevice:
     """Mapped Device from an API response."""
 
@@ -42,6 +58,7 @@ class AferoDevice:
     default_name: str
     default_image: str
     friendly_name: str
+    capabilities: list[AferoCapability] = field(default_factory=list)
     functions: list[dict] = field(default=list)
     states: list[AferoState] = field(default=list)
     children: list[str] = field(default=list)
@@ -105,6 +122,19 @@ class AferoDevice:
             self.model = self.default_name
 
 
+def transform_capability(capability: dict[str, Any]) -> AferoCapability:
+    """Transform a capability dictionary into an AferoCapability."""
+    top_level_fields = {
+        x.name: capability.get(x.name)
+        for x in fields(AferoCapability)
+        if not x.name.startswith("_")
+    }
+    extra_fields = {
+        key: capability[key] for key in capability if key not in top_level_fields
+    }
+    return AferoCapability(**top_level_fields, _opts=extra_fields)
+
+
 def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
     """Convert the Afero device definition into a AferoDevice."""
     description = afero_device.get("description", {})
@@ -119,6 +149,9 @@ def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
         )
         for state in afero_device.get("state", {}).get("values", [])
     ]
+    processed_capabilities = [
+        transform_capability(cap) for cap in afero_device.get("capabilities", [])
+    ]
     dev_dict = {
         "id": afero_device.get("id"),
         "device_id": afero_device.get("deviceId"),
@@ -129,6 +162,7 @@ def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
         "friendly_name": afero_device.get("friendlyName"),
         "functions": description.get("functions", []),
         "states": processed_states,
+        "capabilities": processed_capabilities,
         "children": afero_device.get("children", []),
         "manufacturerName": device.get("manufacturerName"),
         "version_data": afero_device.get("version_data"),

@@ -1,0 +1,3928 @@
+[
+  {
+    "id": "6073f228-7839-4b3e-8416-950477861cda",
+    "createdTimestampMs": 1756738393365,
+    "updatedTimestampMs": 1756738415009,
+    "version": 1,
+    "typeId": "metadevice.device",
+    "friendlyName": "Whatever",
+    "friendlyDescription": "",
+    "locale": "en_US",
+    "image": "",
+    "tag": "",
+    "description": {
+      "id": "3f86c2b6-5c54-472a-a499-32c905c6653b",
+      "version": 1,
+      "device": {
+        "defaultName": "Security System",
+        "manufacturerName": "Defiant",
+        "model": "TBD",
+        "type": "device",
+        "deviceClass": "security-system",
+        "profileId": "7931728f-54d3-4bfa-8416-8dc6c93dc490"
+      },
+      "defaultImage": "leedarson-security-system-icon",
+      "hints": ["notifications"],
+      "functions": [
+        {
+          "id": "c3c6b9f4-74a8-44b4-a19f-69b2a9e3cfed",
+          "functionClass": "battery-level",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "92f12985-4025-46bd-8d0b-91c939b775d3",
+              "name": "battery-level",
+              "deviceValues": [
+                {
+                  "id": "bb646655-5e69-485d-97a9-2a971f2eee7d",
+                  "type": "attribute",
+                  "key": "65079"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 100,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "a3de5f11-430f-47d6-bcad-ed282cda8110",
+          "functionClass": "disarmed-by",
+          "type": "category",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "8ef3ff90-3bfb-4a3b-8218-69f30a6c7b82",
+              "name": "pin-10",
+              "deviceValues": [
+                {
+                  "id": "30da94a2-ca15-4579-9d50-898e184b8711",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "10"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "61edfa5b-e62c-46fd-9dce-9da6c5f16a91",
+              "name": "pin-9",
+              "deviceValues": [
+                {
+                  "id": "b2fa8508-5b30-4de7-a9e3-f0b39035b559",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "9"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "c5434342-8296-4edd-92f5-98b2a13b7a2e",
+              "name": "pin-8",
+              "deviceValues": [
+                {
+                  "id": "428df3a3-46e8-4d93-8bee-dde0dad4c1aa",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "8"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "753d04bb-b6c1-497b-abc0-aac37c832fe8",
+              "name": "pin-7",
+              "deviceValues": [
+                {
+                  "id": "ad4c9aa9-3b73-45dc-8e32-144720d2e2f8",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "7"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "60be65be-9cd1-4423-8a2c-147046f6c829",
+              "name": "pin-6",
+              "deviceValues": [
+                {
+                  "id": "6fa01c60-99ef-4735-9fd6-1491edbb080c",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "6"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "3fc270ac-de1d-4ae0-89ab-024ca28e0fb9",
+              "name": "pin-5",
+              "deviceValues": [
+                {
+                  "id": "8c021c2c-88e7-4aa0-9bd4-68085ea93d12",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "5"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "79226d84-0bca-4146-846c-88e80c671a5d",
+              "name": "pin-4",
+              "deviceValues": [
+                {
+                  "id": "2ac04faf-7076-4054-b901-75370aed2068",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "4"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "e850da57-2faf-445d-a79d-ba38d76d9a70",
+              "name": "pin-3",
+              "deviceValues": [
+                {
+                  "id": "c7208d7d-ab40-44fc-9a21-3a73277a4a18",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "3"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "82dd30cb-5a19-4780-8b27-05621c5663ec",
+              "name": "pin-2",
+              "deviceValues": [
+                {
+                  "id": "eceb3157-a31b-4e9e-b1c4-67de92fee201",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "2"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "118f0a22-dd09-4977-9ec4-da633d4ebe7e",
+              "name": "pin-1",
+              "deviceValues": [
+                {
+                  "id": "a7bcd0dc-1e42-489b-a43a-1438b3b9b0e4",
+                  "type": "attribute",
+                  "key": "402",
+                  "value": "1"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "06b5711e-01db-499e-ae8e-e66ef98ed97b",
+          "functionClass": "history-event",
+          "type": "category",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "b4605297-1c72-4a8c-af0d-116a08acd82b",
+              "name": "invalid-pin",
+              "deviceValues": [
+                {
+                  "id": "40c2fbd3-7092-4479-a039-da1dd14efba9",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "13"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "ce29c82b-64c3-43f0-a6e1-df1bec4b1112",
+              "name": "arming-failure",
+              "deviceValues": [
+                {
+                  "id": "775b17f1-721a-4286-9aa2-e5f9cd0bd0a1",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "12"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "28addea7-8deb-41be-8b96-1122b36d2fc7",
+              "name": "sensor-removed-door-window",
+              "deviceValues": [
+                {
+                  "id": "a241aa7b-7d62-4d73-9681-b6deff8b5898",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "11"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "fa2d81d5-98c1-40dc-bb3f-ec14961fd923",
+              "name": "sensor-removed-motion",
+              "deviceValues": [
+                {
+                  "id": "5a64b920-aec5-4653-94c9-cdd48baece43",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "10"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "02d9b882-243b-4314-aee3-dbe927cf194b",
+              "name": "sensor-battery-report",
+              "deviceValues": [
+                {
+                  "id": "7a5ca3d6-cb83-44a2-8672-e39168762dec",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "9"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "c307afff-54c7-4f70-ac7c-c39cd9ea010a",
+              "name": "sensor-valid-message",
+              "deviceValues": [
+                {
+                  "id": "12305a42-b700-403d-8734-5c33a7efd5ae",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "8"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "79051abc-8e04-4c16-9138-3103d702c564",
+              "name": "sensor-invalid-message",
+              "deviceValues": [
+                {
+                  "id": "5621ec89-17ad-427b-8135-c3c676ebe176",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "7"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "8625a964-3b2f-4bf9-959c-e106588773c8",
+              "name": "sensor-not-tampered",
+              "deviceValues": [
+                {
+                  "id": "464d6049-cf7b-4949-9815-b3028973b82c",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "6"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "33a28ad1-20ad-4292-b6c5-f8a76caee1a7",
+              "name": "sensor-tampered",
+              "deviceValues": [
+                {
+                  "id": "d3459588-4313-4a06-977c-aa78edd4dcd9",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "5"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "10a56cd6-695d-474a-8f37-131f871d20a3",
+              "name": "sensor-returned",
+              "deviceValues": [
+                {
+                  "id": "6d6d4dcb-ae10-4f30-b1dc-cc5d598efedb",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "4"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "b3b832b7-382c-4285-a8a6-45246a006027",
+              "name": "sensor-missing",
+              "deviceValues": [
+                {
+                  "id": "8e71bfd5-6e1a-4a3a-949f-62b073df08cc",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "3"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "d382a47f-820b-4da9-9ac4-4016c73585ce",
+              "name": "sensor-not-triggered",
+              "deviceValues": [
+                {
+                  "id": "28c3699a-047b-48d9-ac7f-63494bc589fb",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "2"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "58325586-a577-4b7c-beee-34cbfb3c4711",
+              "name": "sensor-triggered",
+              "deviceValues": [
+                {
+                  "id": "569da836-b0b5-4504-b2d7-516e88d4f5d9",
+                  "type": "attribute",
+                  "key": "401",
+                  "value": "1"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "e2110ccd-7227-4beb-99c7-d7a302c6598f",
+          "functionClass": "battery-powered",
+          "type": "category",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "8d344490-e24d-48f7-8672-2fcf89d64f82",
+              "name": "battery-powered",
+              "deviceValues": [
+                {
+                  "id": "8cf04046-e691-4ad6-80d3-a9407595066f",
+                  "type": "attribute",
+                  "key": "400",
+                  "value": "1"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "5a73df7a-1df6-4bce-9010-1293ea2ae21a",
+              "name": "wall-powered",
+              "deviceValues": [
+                {
+                  "id": "415ad3c9-4e13-465c-9c66-8a45f23e27cc",
+                  "type": "attribute",
+                  "key": "400",
+                  "value": "0"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "7e3b20af-b20c-4fd1-a38f-4d02330edf08",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-32",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "dc490179-adb8-4a29-ab97-558419bf256c",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "d76ade06-df8f-4268-b043-4f0a6c44c6f2",
+                  "type": "attribute",
+                  "key": "332",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "868b4dda-b7bb-4303-8e09-0bcf34c53258",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-31",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "fd888808-d708-4453-b2f3-db81d36fd42e",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "9e62a70e-27a1-4f2e-9456-a097a8938101",
+                  "type": "attribute",
+                  "key": "331",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "16dfc944-316b-4206-9e2b-ca69713a49f8",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-30",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "e1b2f3ff-3e70-4c21-9d5c-ef549ded7c2e",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "279811e3-756f-4648-aa58-9180937bdbc7",
+                  "type": "attribute",
+                  "key": "330",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "a590c335-5fad-4050-a68a-f021fc4af777",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-29",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "501408cd-ab80-4086-b2b1-dd01448958b4",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "1eda8856-aeea-4cd8-9085-709f9db8925d",
+                  "type": "attribute",
+                  "key": "329",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "bd5eff22-9616-4b49-8c6c-dd6839f7b852",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-28",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "64c029b6-751f-4c64-8acd-7e8b763791c0",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "8e39a01a-70bc-46e2-a166-0bc581a8a5b7",
+                  "type": "attribute",
+                  "key": "328",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "f65ac051-dbf9-404d-80de-634d53d9b9d3",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-27",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "ba1afbf6-5ce9-4318-a327-5f931c04fc23",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "3e1741a3-98f0-4e8c-92f5-898048fe102d",
+                  "type": "attribute",
+                  "key": "327",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "8c974dc0-21fb-4225-82da-ca97799b31dd",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-26",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a8cfc64f-68ab-4a68-85b8-ba2c3e879dfe",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "4a690b41-402a-4833-ac11-5c00bdca039f",
+                  "type": "attribute",
+                  "key": "326",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "7af45ded-8102-4d48-839e-c98f892eff37",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-25",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "5fab8389-24d7-4e34-9289-f7cef9d0794a",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "c3421a6b-3502-4330-b12d-028da33f7615",
+                  "type": "attribute",
+                  "key": "325",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "3068e93d-602c-40cc-a707-80a9640e0ebe",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-24",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "e85c9701-ec04-4ef6-a12c-9daded5f4b8e",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "63e14d56-b2c7-4510-9b37-14bd12174b00",
+                  "type": "attribute",
+                  "key": "324",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "1d467136-1c37-417d-a58c-7100abd0debf",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-23",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "51e6b873-290f-4e72-a010-050d2f002f53",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "4930c50f-335a-4990-840a-78914846d8c4",
+                  "type": "attribute",
+                  "key": "323",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "2ad763d0-ea11-4e93-b4ba-ddfe0b007083",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-22",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "444be5f0-ab18-459a-918c-0d37f49058b5",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "701e7f83-6705-483c-85ca-60f728ba899f",
+                  "type": "attribute",
+                  "key": "322",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "5a9ef945-0cb6-45f9-8626-d773bd872f29",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-21",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "e0f269de-f304-4ef3-9a70-0a8bafa7c570",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "a927f8e7-7357-4a30-b72b-bf4bb673784c",
+                  "type": "attribute",
+                  "key": "321",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "5629435d-2659-440e-8f03-8fed49999f16",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-20",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "aa1e96c9-a89d-43aa-8bae-64ff21bfbab8",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "45a4f954-06ed-4869-b7f6-e5ca90c0495b",
+                  "type": "attribute",
+                  "key": "320",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "b0e0fac0-f409-4737-a237-5d0c404c7244",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-19",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "8e60b9ee-3c6b-4715-b4f2-d1355da0214c",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "11860054-9a2d-48a4-a4f2-8064ecf7daf7",
+                  "type": "attribute",
+                  "key": "319",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "ee0e2068-f28f-4555-b5db-943f123a50f6",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-18",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "254e7c89-3dbf-4775-acca-19f9c2c76b81",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "48d32f5d-9c61-4342-ad18-7308251073e8",
+                  "type": "attribute",
+                  "key": "318",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "b143cdf0-370f-4844-98f9-4f7f7e03c349",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-17",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "616a463c-540b-41f1-871e-5fe7bdc53f4d",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "faf23f2a-74c9-48c9-a88c-ce5fc93f75d8",
+                  "type": "attribute",
+                  "key": "317",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "725a278c-3ba6-4eca-89ad-1693be0c0191",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-16",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "1395c341-2906-46f1-8497-55b483ac921f",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "966cb9d9-3cd4-4ff3-8190-90ce2d40d0c7",
+                  "type": "attribute",
+                  "key": "316",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "b6efb262-15d8-4725-8207-789d503a102f",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-15",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "eecf75cf-2e6b-4561-92fd-db0ef0cae52a",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "79c2479c-7b12-4b3c-b897-67e56560565c",
+                  "type": "attribute",
+                  "key": "315",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "44b26273-0bb4-4ce2-a220-19435ee52eb4",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-14",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "69d421be-f675-4430-ba28-7d1adcf257b6",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "f45a0e36-c6ce-4392-8d49-8b4198820548",
+                  "type": "attribute",
+                  "key": "314",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "9c5a7e2a-393d-4d33-8af5-9133cf728deb",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-13",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "503d82ad-0d82-4108-8034-bdfabbf53a3b",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "2e073a58-aeb3-4071-a529-a2204c31a0a0",
+                  "type": "attribute",
+                  "key": "313",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "fa86c256-13b7-4aaf-be33-11e58653c510",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-12",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a73dfab7-09f4-4f51-8654-0d8d1e2fef57",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "223af02b-e7a1-419a-8d3a-5c632b5c2569",
+                  "type": "attribute",
+                  "key": "312",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "708fc6b8-b175-4cbb-a328-8ea7857ae9af",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-11",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "239368e0-0699-4068-b46b-0ce6df8786e5",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "073f8f62-523d-4c02-9b24-1b5d69289e78",
+                  "type": "attribute",
+                  "key": "311",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "3ebdc698-4d11-446a-b84f-3a2e0e697d80",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-10",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "1f338fb8-e682-4c5d-b5c7-8e9e3acd46d7",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "003a480d-d130-49f7-9e40-a040eedf0d6a",
+                  "type": "attribute",
+                  "key": "310",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "dcd88e7d-5172-44e4-ab7d-2bf0de052089",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-9",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "3e2c6e2a-7d0d-48f5-b855-5b2e2b3bf42b",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "41ed2185-583f-418e-94e9-29d448415b38",
+                  "type": "attribute",
+                  "key": "309",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "d11cf2ca-bb16-476d-a141-900422663a6c",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-8",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "d909f779-24c9-4fa8-ba51-c98ad1e4ebef",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "79b86567-294c-4949-a68b-9da14f679d97",
+                  "type": "attribute",
+                  "key": "308",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "b9edef44-1550-4f04-8f9a-90f96196b390",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-7",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "bf2bdcd9-9a6b-4dd3-971f-1c3e2dbbba0e",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "6f29e30c-2d55-497e-8385-cdc64ad45490",
+                  "type": "attribute",
+                  "key": "307",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "744f7d57-48cb-4d8b-b60a-dd339fb9ff52",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-6",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "852ecd83-4a33-4425-86d1-6f20a7a3c82f",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "1a5abc58-6a74-4716-bde3-066159b32e3b",
+                  "type": "attribute",
+                  "key": "306",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "3c497472-c08e-4d83-82d2-3764ac5b0f3d",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-5",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "dd658466-c519-4e27-8896-9190e1a968c3",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "11c0e4c4-231d-4ebe-bde7-4cc81180b628",
+                  "type": "attribute",
+                  "key": "305",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "f80cf4b2-78e4-440c-ae01-f4e7aad12b29",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-4",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "750e1756-41b7-429e-a0d1-9d1cbc292976",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "650ae82e-b956-4366-b660-fbbc78b38037",
+                  "type": "attribute",
+                  "key": "304",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "ceffe277-9f60-49d3-a1f3-135409f7293c",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-3",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "04ea39bc-c5e1-49cc-a736-2fcc74dd537e",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "26cb187f-f0fe-488d-bc98-1722315b4d41",
+                  "type": "attribute",
+                  "key": "303",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "5d2907a9-0d2b-4ceb-8b2b-4c77877bbca3",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-2",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "322f8a16-1302-47ec-8bf6-aee7d0952e9b",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "e15cb4e8-5eaf-4f00-ad6e-677e6b653570",
+                  "type": "attribute",
+                  "key": "302",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "6b0b6eb9-16ec-4b3a-ba65-e25d29639312",
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-1",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "f47fc2ec-f377-499d-99df-daad6fdbd6fa",
+              "name": "sensor-config",
+              "deviceValues": [
+                {
+                  "id": "10729475-9e16-4216-b81c-af56b9382c64",
+                  "type": "attribute",
+                  "key": "301",
+                  "format": "security-sensor-config"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "acee2491-7f51-4923-82c9-261a845869a0",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-32",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "d3bf46f0-7cf9-473a-95e4-6ec862695e2f",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "49be1071-51f5-4274-8e1d-b66001493057",
+                  "type": "attribute",
+                  "key": "232",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "8ffa48e9-1909-4373-bfd8-7935465a99c2",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-31",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "4a08a7ef-e6d2-4679-a300-25761705f497",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "3e0ba802-bf8e-4019-98cd-a09a13417501",
+                  "type": "attribute",
+                  "key": "231",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "4095538d-7015-4b3b-9b43-f4aed829e4fe",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-30",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "40e37ce5-8355-46b7-8346-1a6f7da4141f",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "ce102d56-c4bd-4c33-aca5-a30ac1f3e4b3",
+                  "type": "attribute",
+                  "key": "230",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "a72e92f3-9d74-4a3a-b513-bce287aa9154",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-29",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "314dd755-a51b-491b-978f-31d9839c99d0",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "dbe3dee6-c500-4647-b0e9-2a2a486d342d",
+                  "type": "attribute",
+                  "key": "229",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "761d2172-2b03-4d31-97a2-ea7fa791c2f1",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-28",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "174f9176-7d1c-4b82-aa5b-dc443faeacf9",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "ade5101a-c899-44e6-9726-573d1836a19d",
+                  "type": "attribute",
+                  "key": "228",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "901bd0eb-e448-4c15-bc0f-157fbb606528",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-27",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "aed89039-5610-4729-97b4-a04a1de2505e",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "d4fe45c2-eefe-4e68-9a77-12bdf30e40f0",
+                  "type": "attribute",
+                  "key": "227",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "9be8fe50-b2e2-44cd-bc0a-1b046fecc1ca",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-26",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a252cea3-ce1d-4318-9bee-0e3f4fd5903e",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "eb0795ec-1212-45c0-8aa3-3761afa506d4",
+                  "type": "attribute",
+                  "key": "226",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "1d910488-29cc-477a-a3ab-c00d74f89b8b",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-25",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "50d89454-211d-43e9-b131-b5b9709bceee",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "efe1cd8c-d0ef-46ce-bf52-090511885249",
+                  "type": "attribute",
+                  "key": "225",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "51355911-9766-4f44-a9d3-906cf4948771",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-24",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "1763f1f8-e6dc-494d-a968-912ed1f96ab5",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "63c1ea4a-1e55-4fe9-b78c-a23d656b9a5b",
+                  "type": "attribute",
+                  "key": "224",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "925e0817-839f-4737-8f4f-edcf4860241b",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-23",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "c5a80801-5a28-4f04-9037-f1c8e5667c34",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "cf5f0379-dde9-4cc5-8465-8a871108138d",
+                  "type": "attribute",
+                  "key": "223",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "d18678de-2dde-4dee-9277-14e324a5f1c6",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-22",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "4272ebe3-61ec-4842-bbf7-28b54b711001",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "aa6775cb-ef22-4146-9e2c-9a9a61e354a4",
+                  "type": "attribute",
+                  "key": "222",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "b837e7c8-1c6d-4622-b44e-6c009a340f15",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-21",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "5faab7d6-8353-4800-ab40-026bda5d2240",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "b9918521-52f7-41b0-8ca0-3ed001174b4e",
+                  "type": "attribute",
+                  "key": "221",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "af3c285a-cf06-40dd-8a67-dd0d13ca3289",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-20",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "79813c12-bda2-43df-b3f1-8e76864ed90e",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "a1f4e58b-8d42-4b37-963d-89f5c98e1cc9",
+                  "type": "attribute",
+                  "key": "220",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "c73f7d96-cd8a-4d15-b708-d72581af5474",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-19",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "5c3f09a1-889e-4095-8f9c-d2c7ca4c9bc3",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "4e57cb10-aab3-4e46-9af2-5ca868df54ba",
+                  "type": "attribute",
+                  "key": "219",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "01950508-f7e6-40dd-b34b-045bf50574ef",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-18",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "bfae9a50-35d4-4a0a-b201-66b2bad3f0b0",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "60b34064-2751-49b5-af90-8b92845fdb4a",
+                  "type": "attribute",
+                  "key": "218",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "2dbbbb57-d702-47ba-856d-5327c32f5ada",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-17",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "e8ebb6de-15f2-4eb3-86fc-d4fbe9097fe4",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "7ba8894b-1220-43a0-946a-e938ecfd70a3",
+                  "type": "attribute",
+                  "key": "217",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "41a4c24b-d29e-46c8-927d-c833184be1b2",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-16",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "d2c47c35-f719-4ef7-9196-38182f9658a6",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "02e35f5b-d9cb-4d3f-8f74-c5de053b918f",
+                  "type": "attribute",
+                  "key": "216",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "f7032a32-7fc3-4667-8d81-e617ec8222f9",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-15",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "cc62f657-6bfe-4a40-bfe4-9d0657e25b3e",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "a0dd6542-bff4-42bd-b9c6-2095943b47b4",
+                  "type": "attribute",
+                  "key": "215",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "f0386bab-de2d-4fda-acf9-4b32fc307f04",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-14",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "5126c0a2-8738-431b-9564-3b662f0b2728",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "5cfbe1b7-9113-42f3-b976-a17342865e9b",
+                  "type": "attribute",
+                  "key": "214",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "d1759ff0-6a7f-43fa-bb89-4cf2d1cefd64",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-13",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "eb34a033-69f5-4e2c-8ff5-add38be1e9c2",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "6bf60a30-5f63-4d78-b0e2-69be0ce229f2",
+                  "type": "attribute",
+                  "key": "213",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "514c1082-9291-4f53-b304-b949d9c60440",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-12",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "da151b7a-52bf-408a-9e01-d1723f6ebee2",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "e4209e83-7f1a-4599-a1f6-ae761fc1dfbd",
+                  "type": "attribute",
+                  "key": "212",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "425c2da3-f8fd-490a-986e-d5d32fa70e25",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-11",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "35d9f8af-4fef-47e5-ad33-54b6f8353219",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "d5db6c71-95e6-43e7-bbb6-4bde79167b2f",
+                  "type": "attribute",
+                  "key": "211",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "45baaeb8-b24c-4ea7-b67b-86a6b32694be",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-10",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "480c0f11-5958-49ec-8cf8-d96947e78768",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "bec62338-f3be-4c9e-8fa3-533ab9d22dcf",
+                  "type": "attribute",
+                  "key": "210",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "2d1ff9e9-0733-4fde-beb3-9b69a16049ee",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-9",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "632a357e-1e44-48f1-847d-717cea760413",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "d31e145e-a6f1-46d1-bb79-f38e15b5fa0c",
+                  "type": "attribute",
+                  "key": "209",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "2ca2f886-d1cf-42e4-809d-242a00bd623f",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-8",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "b39d0742-31bc-4775-b5dd-50466890f5c6",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "d22856c8-d2f7-4631-b439-b37bf5011ba0",
+                  "type": "attribute",
+                  "key": "208",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "1ba2f36e-ecb2-4dc4-af70-6618003065c4",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-7",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a5aa6ec6-be06-43f5-ab88-461584e6b809",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "68e1c337-96bc-4310-9c05-39aea3ce0baf",
+                  "type": "attribute",
+                  "key": "207",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "274e9516-279f-41de-8c01-13bb0b94bcf3",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-6",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a58cf9e0-81c9-4945-a730-7339b5882daf",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "34f517e6-ec00-42a9-97e8-9de4b4a95cd6",
+                  "type": "attribute",
+                  "key": "206",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "2c8f9404-026b-4f74-b454-de781ce37835",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-5",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "451eda83-3527-48a9-99e1-557554666e16",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "27c72f9c-90a2-44db-abbe-6d91abeaefbf",
+                  "type": "attribute",
+                  "key": "205",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "cf370aad-bd20-4261-b08c-15cf8d8ee591",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-4",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "74db3819-fc77-424f-bdcc-2726e900c813",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "7ed319b6-a05b-40f9-a960-7e664dd87742",
+                  "type": "attribute",
+                  "key": "204",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "7138ff0b-ab1e-4c7e-bc64-9d570b536f60",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-3",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a6c818f0-a0fe-4e66-a45a-6780130248f2",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "7196f0bf-82d9-469a-861d-bd211f5f9cfa",
+                  "type": "attribute",
+                  "key": "203",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "49474955-fe98-4572-b7a3-538c09af9eab",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-2",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "945f4f08-8c43-4cf4-9a21-c30d4d96cb1e",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "2bf76b46-df6a-4b64-b343-e17e3c713c64",
+                  "type": "attribute",
+                  "key": "202",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "78d50670-1eb7-4998-9d66-81593b3c7201",
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-1",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "234e8cba-023c-4238-a500-5d210ff04e41",
+              "name": "sensor-state",
+              "deviceValues": [
+                {
+                  "id": "19836aa1-70e9-4e1c-aed6-3981f3b4a9d7",
+                  "type": "attribute",
+                  "key": "201",
+                  "format": "security-sensor-state"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "d6704ef5-357e-4186-8db7-3b3d6c84485a",
+          "functionClass": "keypad-device-id",
+          "type": "string",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "36b4a41e-0dd3-4fea-b82e-ba27bb243271",
+              "name": "keypad-device-id",
+              "deviceValues": [
+                {
+                  "id": "814ba68e-9d3b-485a-84c6-24143027615b",
+                  "type": "attribute",
+                  "key": "200",
+                  "format": "string"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "d9eecf7a-feca-43e7-b29a-2640026cb9db",
+          "functionClass": "pin",
+          "functionInstance": "pin-10",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "54918e18-63ce-40c0-b502-28dad52cbcd8",
+              "name": "pin-10",
+              "deviceValues": [
+                {
+                  "id": "c97006de-1545-4288-84d6-c7f4f356dc22",
+                  "type": "attribute",
+                  "key": "110",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "82451767-7af1-42d2-8ca1-2eea671241c2",
+          "functionClass": "pin",
+          "functionInstance": "pin-9",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "6b131258-c2e6-4b54-ba35-0a999bd0cbdb",
+              "name": "pin-9",
+              "deviceValues": [
+                {
+                  "id": "fa23efb9-6fe8-4e6a-be3c-dac63b1f7068",
+                  "type": "attribute",
+                  "key": "109",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "d9bed934-54c6-45e6-acac-23f8a16bbd24",
+          "functionClass": "pin",
+          "functionInstance": "pin-8",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "9290843e-d3d6-4464-ab34-ef1f7b3968e4",
+              "name": "pin-8",
+              "deviceValues": [
+                {
+                  "id": "f39ed1f1-5682-4cc2-b47e-f249630809ca",
+                  "type": "attribute",
+                  "key": "108",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "3aacf2ad-22d8-4288-bc33-c8b7ebe96c02",
+          "functionClass": "pin",
+          "functionInstance": "pin-7",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "52baaf81-76cd-4696-8987-71bd63ab8763",
+              "name": "pin-7",
+              "deviceValues": [
+                {
+                  "id": "c700ab42-c015-459c-b771-b2eaebac0d02",
+                  "type": "attribute",
+                  "key": "107",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "6cb8c4e4-06ad-40b0-9584-e2f7d61ec585",
+          "functionClass": "pin",
+          "functionInstance": "pin-6",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "92bc6457-2608-4657-9ee9-dfe168dee09e",
+              "name": "pin-6",
+              "deviceValues": [
+                {
+                  "id": "6cf80adc-0b2a-46e2-8114-f88f6bcbc96f",
+                  "type": "attribute",
+                  "key": "106",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "6007dbcd-5159-4de5-8de0-f48defa5eab0",
+          "functionClass": "pin",
+          "functionInstance": "pin-5",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "98ad04d5-5f03-4b0d-a63e-a7d906e50425",
+              "name": "pin-5",
+              "deviceValues": [
+                {
+                  "id": "7825679c-5c1b-456f-9927-810baf5fe54b",
+                  "type": "attribute",
+                  "key": "105",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "c0d28f6f-85e6-4cf1-be16-89513078d0bf",
+          "functionClass": "pin",
+          "functionInstance": "pin-4",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "8b412a88-d431-4ccb-879e-5bf4f5dbc51e",
+              "name": "pin-4",
+              "deviceValues": [
+                {
+                  "id": "9e352e7f-9828-4e57-afab-710d01293af7",
+                  "type": "attribute",
+                  "key": "104",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "7b6e818f-92f2-466e-bb3f-06c85109f4f7",
+          "functionClass": "pin",
+          "functionInstance": "pin-3",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "79777042-740f-4883-bdf8-b48662300cbe",
+              "name": "pin-3",
+              "deviceValues": [
+                {
+                  "id": "8f5a9beb-8a4d-4166-83b8-a69c51365a35",
+                  "type": "attribute",
+                  "key": "103",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "22c7338d-c914-4199-a82b-46f793ea47e7",
+          "functionClass": "pin",
+          "functionInstance": "pin-2",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "3533cf86-85b7-4c9c-ab50-5b37519ab04d",
+              "name": "pin-2",
+              "deviceValues": [
+                {
+                  "id": "f15d6b8a-8063-4ef0-b676-d5ef27cdc177",
+                  "type": "attribute",
+                  "key": "102",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "61fe0c84-79ac-432a-86dc-f68899b02486",
+          "functionClass": "pin",
+          "functionInstance": "pin-1",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "fa9e8e8f-f4fb-470f-8b98-1772f7d2e326",
+              "name": "pin-1",
+              "deviceValues": [
+                {
+                  "id": "0e7c7ac1-bc68-4ab8-9ec8-7c4bdba2df3f",
+                  "type": "attribute",
+                  "key": "101",
+                  "format": "lock-pin"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "2452a9e8-bfa4-45c8-b696-5d9112ba1ef8",
+          "functionClass": "volume",
+          "functionInstance": "entry-delay",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "027fa830-8b61-43fb-a48f-828c1ce8cf46",
+              "name": "entry-delay-volume",
+              "deviceValues": [
+                {
+                  "id": "e0f26c3b-b4e2-4f75-bda0-37ca123d5119",
+                  "type": "attribute",
+                  "key": "22"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 100,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "8929a506-c90c-4431-9f74-6a77813ce22c",
+          "functionClass": "volume",
+          "functionInstance": "exit-delay-away",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "8332c1d5-002e-4250-8ba3-62da39017044",
+              "name": "exit-delay-away-volume",
+              "deviceValues": [
+                {
+                  "id": "34163385-c416-4b98-8a6c-8896cb292abc",
+                  "type": "attribute",
+                  "key": "21"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 100,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "7f6e789d-34b1-4007-8077-2890cc738acb",
+          "functionClass": "volume",
+          "functionInstance": "exit-delay-stay",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "058c484a-6829-48e4-9cdb-2a8a14e5c552",
+              "name": "exit-delay-stay-volume",
+              "deviceValues": [
+                {
+                  "id": "4c7a2882-6e8f-4eb4-ac0d-1fa6c7a92b6c",
+                  "type": "attribute",
+                  "key": "20"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 100,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "2bcf64db-0083-4836-ac0a-5614a6e64bcc",
+          "functionClass": "disarm",
+          "type": "string",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "40477738-a930-431a-b829-2496f2c999af",
+              "name": "disarm",
+              "deviceValues": [
+                {
+                  "id": "4cdf0624-0b08-4483-9ba3-f66d3f5a168a",
+                  "type": "attribute",
+                  "key": "11",
+                  "format": "string"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "4587a1e7-4e19-4d65-aa17-34ab1969ddf8",
+          "functionClass": "siren-action",
+          "type": "object",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "c7f4bb8b-3f2e-41a2-9958-e7b69f67dc13",
+              "name": "siren-action",
+              "deviceValues": [
+                {
+                  "id": "f8c3ac28-790a-4d9e-88c4-44619cba3b65",
+                  "type": "attribute",
+                  "key": "10",
+                  "format": "security-siren-action"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "29e5c383-6f7a-4c94-aec7-de0226bf63f2",
+          "functionClass": "volume",
+          "functionInstance": "siren",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "d4842b9d-416e-412a-bef4-be6f6c0c8f94",
+              "name": "siren-volume",
+              "deviceValues": [
+                {
+                  "id": "5447ca9f-fb9f-4c95-abd2-4739dbbcb07f",
+                  "type": "attribute",
+                  "key": "7"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 100,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "03fc43c1-ba93-4d02-a73c-e5153ae3211c",
+          "functionClass": "bypass-allowed",
+          "type": "category",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "a99a6020-114a-4bfa-a4d5-55a6c5692770",
+              "name": "allowed",
+              "deviceValues": [
+                {
+                  "id": "becd33a2-9b70-4ad9-9e46-86a3e15c9455",
+                  "type": "attribute",
+                  "key": "6",
+                  "value": "1"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "a9e59492-4fd6-4223-8c12-24cead674ea3",
+              "name": "now-allowed",
+              "deviceValues": [
+                {
+                  "id": "436497e1-71b9-45a5-ae92-cf3922f68482",
+                  "type": "attribute",
+                  "key": "6",
+                  "value": "0"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        },
+        {
+          "id": "58db56b7-c45a-4f71-baca-8fab52e73413",
+          "functionClass": "temporary-bypass-time",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "328bc38d-3f4c-4579-a90d-bb7a487fee23",
+              "name": "temporary-bypass-time",
+              "deviceValues": [
+                {
+                  "id": "7b4fd5e0-1575-4238-8d11-bcb640235760",
+                  "type": "attribute",
+                  "key": "5"
+                }
+              ],
+              "range": {
+                "min": 10,
+                "max": 300,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "d6b7dbe2-075c-42e6-b3fc-e069d88b4e7c",
+          "functionClass": "disarm-entry-delay",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "52611e9b-fc8a-4d4a-8b09-1c31d524a44f",
+              "name": "disarm-entry-delay",
+              "deviceValues": [
+                {
+                  "id": "82e11bf8-c586-41ea-868a-253f095c7c33",
+                  "type": "attribute",
+                  "key": "4"
+                }
+              ],
+              "range": {
+                "min": 10,
+                "max": 300,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "8955b9ba-eaad-42bc-ab24-27e7c6ccdd13",
+          "functionClass": "arm-exit-delay",
+          "functionInstance": "away",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "2b43622a-3bbf-4fce-8df8-733493589956",
+              "name": "arm-exit-delay-away",
+              "deviceValues": [
+                {
+                  "id": "52c3dbd1-6d96-4512-afc4-7074bdfb31ec",
+                  "type": "attribute",
+                  "key": "3"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 300,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "57aab21c-20fd-4ce1-b4ee-b533ac099e5d",
+          "functionClass": "arm-exit-delay",
+          "functionInstance": "stay",
+          "type": "numeric",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "ca27fdf2-1654-4f20-8d42-a1584d50c364",
+              "name": "arm-exit-delay-stay",
+              "deviceValues": [
+                {
+                  "id": "ac1d21df-39a8-4041-bd30-a70a442c926f",
+                  "type": "attribute",
+                  "key": "2"
+                }
+              ],
+              "range": {
+                "min": 0,
+                "max": 300,
+                "step": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "759103bd-6099-4abc-974e-f86d55a663ab",
+          "functionClass": "alarm-state",
+          "type": "category",
+          "schedulable": false,
+          "values": [
+            {
+              "id": "5bb048c5-10e4-410c-a3c3-4a41650016cc",
+              "name": "learning",
+              "deviceValues": [
+                {
+                  "id": "af6a18c2-ed83-4ac5-a5cd-c9b6587616ee",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "8"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "17c7765f-d4f0-4cc5-a378-0ed329eec9c5",
+              "name": "alarming-sos",
+              "deviceValues": [
+                {
+                  "id": "03912d95-dcd8-4566-b971-329fa46f1aea",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "7"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "c76a8167-3a22-4666-8fe5-a6d623aa32f5",
+              "name": "alarming",
+              "deviceValues": [
+                {
+                  "id": "5f06dc47-93b6-4f79-b1c8-fbe8df129a06",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "6"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "f34a7225-f03b-4534-9dc5-f4a91097e83f",
+              "name": "triggered",
+              "deviceValues": [
+                {
+                  "id": "4f624c60-9598-4d0c-bb9e-3e2448657fa1",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "5"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "80ac3019-c4ed-47f0-98e2-13b8c6f58d07",
+              "name": "arm-stay",
+              "deviceValues": [
+                {
+                  "id": "c9b949a6-44d2-49ea-91e8-8e46f5b3945c",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "4"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "a8ca6ebc-814e-4296-aaa5-2f9cf464a5cb",
+              "name": "arm-away",
+              "deviceValues": [
+                {
+                  "id": "0da30594-9ca9-45a4-8d1d-4c1c43ce456c",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "3"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "50ae0257-74b6-4333-abab-744107b34aa6",
+              "name": "arm-started-stay",
+              "deviceValues": [
+                {
+                  "id": "5bda7159-e4c5-47c6-92f8-8be9282e8fda",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "2"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "973ae750-86a5-44cf-9de8-1cbb55645ef3",
+              "name": "arm-started-away",
+              "deviceValues": [
+                {
+                  "id": "314c2985-072f-49fa-a94c-add6d2b749b4",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "1"
+                }
+              ],
+              "range": {}
+            },
+            {
+              "id": "64927173-2f99-4510-b6bd-b7a783678cbe",
+              "name": "disarmed",
+              "deviceValues": [
+                {
+                  "id": "b8d0c451-a701-4cc0-8418-d495db172f75",
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "0"
+                }
+              ],
+              "range": {}
+            }
+          ]
+        }
+      ],
+      "descriptions": []
+    },
+    "deviceId": "8416d8132ada728a",
+    "children": [],
+    "capabilities": [
+      {
+        "functionClass": "available",
+        "type": "boolean"
+      },
+      {
+        "functionClass": "visible",
+        "type": "boolean"
+      },
+      {
+        "functionClass": "direct",
+        "type": "boolean"
+      },
+      {
+        "functionClass": "ble-mac-address",
+        "type": "string"
+      },
+      {
+        "functionClass": "geo-coordinates",
+        "functionInstance": "system-device-location",
+        "type": "object"
+      },
+      {
+        "functionClass": "scheduler-flags",
+        "type": "numeric"
+      },
+      {
+        "functionClass": "wifi-ssid",
+        "type": "string"
+      },
+      {
+        "functionClass": "wifi-rssi",
+        "type": "numeric"
+      },
+      {
+        "functionClass": "wifi-steady-state",
+        "type": "category",
+        "values": [
+          "not-connected",
+          "pending",
+          "connected",
+          "unknown-failure",
+          "association-failure",
+          "handshake-failed",
+          "echo-failed",
+          "ssid-not-found",
+          "ntp-failed"
+        ],
+        "categoryValues": [
+          {
+            "name": "not-connected",
+            "values": ["0"]
+          },
+          {
+            "name": "pending",
+            "values": ["1"]
+          },
+          {
+            "name": "connected",
+            "values": ["2"]
+          },
+          {
+            "name": "unknown-failure",
+            "values": ["3"]
+          },
+          {
+            "name": "association-failure",
+            "values": ["4"]
+          },
+          {
+            "name": "handshake-failed",
+            "values": ["5"]
+          },
+          {
+            "name": "echo-failed",
+            "values": ["6"]
+          },
+          {
+            "name": "ssid-not-found",
+            "values": ["7"]
+          },
+          {
+            "name": "ntp-failed",
+            "values": ["8"]
+          }
+        ]
+      },
+      {
+        "functionClass": "wifi-setup-state",
+        "type": "category",
+        "values": [
+          "not-connected",
+          "pending",
+          "connected",
+          "unknown-failure",
+          "association-failure",
+          "handshake-failed",
+          "echo-failed",
+          "ssid-not-found",
+          "ntp-failed"
+        ],
+        "categoryValues": [
+          {
+            "name": "not-connected",
+            "values": ["0"]
+          },
+          {
+            "name": "pending",
+            "values": ["1"]
+          },
+          {
+            "name": "connected",
+            "values": ["2"]
+          },
+          {
+            "name": "unknown-failure",
+            "values": ["3"]
+          },
+          {
+            "name": "association-failure",
+            "values": ["4"]
+          },
+          {
+            "name": "handshake-failed",
+            "values": ["5"]
+          },
+          {
+            "name": "echo-failed",
+            "values": ["6"]
+          },
+          {
+            "name": "ssid-not-found",
+            "values": ["7"]
+          },
+          {
+            "name": "ntp-failed",
+            "values": ["8"]
+          }
+        ]
+      },
+      {
+        "functionClass": "wifi-mac-address",
+        "type": "string"
+      },
+      {
+        "functionClass": "battery-level",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "disarmed-by",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          "pin-10",
+          "pin-9",
+          "pin-8",
+          "pin-7",
+          "pin-6",
+          "pin-5",
+          "pin-4",
+          "pin-3",
+          "pin-2",
+          "pin-1"
+        ],
+        "categoryValues": [
+          {
+            "name": "pin-10",
+            "values": ["10"]
+          },
+          {
+            "name": "pin-9",
+            "values": ["9"]
+          },
+          {
+            "name": "pin-8",
+            "values": ["8"]
+          },
+          {
+            "name": "pin-7",
+            "values": ["7"]
+          },
+          {
+            "name": "pin-6",
+            "values": ["6"]
+          },
+          {
+            "name": "pin-5",
+            "values": ["5"]
+          },
+          {
+            "name": "pin-4",
+            "values": ["4"]
+          },
+          {
+            "name": "pin-3",
+            "values": ["3"]
+          },
+          {
+            "name": "pin-2",
+            "values": ["2"]
+          },
+          {
+            "name": "pin-1",
+            "values": ["1"]
+          }
+        ]
+      },
+      {
+        "functionClass": "history-event",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          "invalid-pin",
+          "arming-failure",
+          "sensor-removed-door-window",
+          "sensor-removed-motion",
+          "sensor-battery-report",
+          "sensor-valid-message",
+          "sensor-invalid-message",
+          "sensor-not-tampered",
+          "sensor-tampered",
+          "sensor-returned",
+          "sensor-missing",
+          "sensor-not-triggered",
+          "sensor-triggered"
+        ],
+        "categoryValues": [
+          {
+            "name": "invalid-pin",
+            "values": ["13"]
+          },
+          {
+            "name": "arming-failure",
+            "values": ["12"]
+          },
+          {
+            "name": "sensor-removed-door-window",
+            "values": ["11"]
+          },
+          {
+            "name": "sensor-removed-motion",
+            "values": ["10"]
+          },
+          {
+            "name": "sensor-battery-report",
+            "values": ["9"]
+          },
+          {
+            "name": "sensor-valid-message",
+            "values": ["8"]
+          },
+          {
+            "name": "sensor-invalid-message",
+            "values": ["7"]
+          },
+          {
+            "name": "sensor-not-tampered",
+            "values": ["6"]
+          },
+          {
+            "name": "sensor-tampered",
+            "values": ["5"]
+          },
+          {
+            "name": "sensor-returned",
+            "values": ["4"]
+          },
+          {
+            "name": "sensor-missing",
+            "values": ["3"]
+          },
+          {
+            "name": "sensor-not-triggered",
+            "values": ["2"]
+          },
+          {
+            "name": "sensor-triggered",
+            "values": ["1"]
+          }
+        ]
+      },
+      {
+        "functionClass": "battery-powered",
+        "type": "category",
+        "schedulable": false,
+        "values": ["battery-powered", "wall-powered"],
+        "categoryValues": [
+          {
+            "name": "battery-powered",
+            "values": ["1"]
+          },
+          {
+            "name": "wall-powered",
+            "values": ["0"]
+          }
+        ]
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-32",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-31",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-30",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-29",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-28",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-27",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-26",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-25",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-24",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-23",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-22",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-21",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-20",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-19",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-18",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-17",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-16",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-15",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-14",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-13",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-12",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-11",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-10",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-9",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-8",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-7",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-6",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-5",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-4",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-3",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-2",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-config",
+        "functionInstance": "sensor-1",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-32",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-31",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-30",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-29",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-28",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-27",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-26",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-25",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-24",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-23",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-22",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-21",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-20",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-19",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-18",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-17",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-16",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-15",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-14",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-13",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-12",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-11",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-10",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-9",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-8",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-7",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-6",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-5",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-4",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-3",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-2",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "sensor-state",
+        "functionInstance": "sensor-1",
+        "type": "object",
+        "schedulable": false,
+        "name": "Aaaaa",
+        "locale": "en_US"
+      },
+      {
+        "functionClass": "keypad-device-id",
+        "type": "string",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-10",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-9",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-8",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-7",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-6",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-5",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-4",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-3",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-2",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "pin",
+        "functionInstance": "pin-1",
+        "type": "object",
+        "schedulable": false,
+        "name": "Main",
+        "locale": "en_US"
+      },
+      {
+        "functionClass": "volume",
+        "functionInstance": "entry-delay",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "volume",
+        "functionInstance": "exit-delay-away",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "volume",
+        "functionInstance": "exit-delay-stay",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "disarm",
+        "type": "string",
+        "schedulable": false
+      },
+      {
+        "functionClass": "siren-action",
+        "type": "object",
+        "schedulable": false
+      },
+      {
+        "functionClass": "volume",
+        "functionInstance": "siren",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "bypass-allowed",
+        "type": "category",
+        "schedulable": false,
+        "values": ["allowed", "now-allowed"],
+        "categoryValues": [
+          {
+            "name": "allowed",
+            "values": ["1"]
+          },
+          {
+            "name": "now-allowed",
+            "values": ["0"]
+          }
+        ]
+      },
+      {
+        "functionClass": "temporary-bypass-time",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 10,
+          "max": 300,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "disarm-entry-delay",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 10,
+          "max": 300,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "arm-exit-delay",
+        "functionInstance": "away",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 300,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "arm-exit-delay",
+        "functionInstance": "stay",
+        "type": "numeric",
+        "schedulable": false,
+        "range": {
+          "min": 0,
+          "max": 300,
+          "step": 1
+        }
+      },
+      {
+        "functionClass": "alarm-state",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          "learning",
+          "alarming-sos",
+          "alarming",
+          "triggered",
+          "arm-stay",
+          "arm-away",
+          "arm-started-stay",
+          "arm-started-away",
+          "disarmed"
+        ],
+        "categoryValues": [
+          {
+            "name": "learning",
+            "values": ["8"]
+          },
+          {
+            "name": "alarming-sos",
+            "values": ["7"]
+          },
+          {
+            "name": "alarming",
+            "values": ["6"]
+          },
+          {
+            "name": "triggered",
+            "values": ["5"]
+          },
+          {
+            "name": "arm-stay",
+            "values": ["4"]
+          },
+          {
+            "name": "arm-away",
+            "values": ["3"]
+          },
+          {
+            "name": "arm-started-stay",
+            "values": ["2"]
+          },
+          {
+            "name": "arm-started-away",
+            "values": ["1"]
+          },
+          {
+            "name": "disarmed",
+            "values": ["0"]
+          }
+        ]
+      }
+    ],
+    "state": {
+      "metadeviceId": "6073f228-7839-4b3e-8416-950477861cda",
+      "values": [
+        {
+          "functionClass": "battery-level",
+          "value": 100,
+          "lastUpdateTime": 1756738469023
+        },
+        {
+          "functionClass": "history-event",
+          "value": "sensor-not-tampered",
+          "lastUpdateTime": 1756738752267
+        },
+        {
+          "functionClass": "battery-powered",
+          "value": "wall-powered",
+          "lastUpdateTime": 1756738477397
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-32",
+          "lastUpdateTime": 1756738477389
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-31",
+          "lastUpdateTime": 1756738477380
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-30",
+          "lastUpdateTime": 1756738477307
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-29",
+          "lastUpdateTime": 1756738477298
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-28",
+          "lastUpdateTime": 1756738477290
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-27",
+          "lastUpdateTime": 1756738477280
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-26",
+          "lastUpdateTime": 1756738477192
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-25",
+          "lastUpdateTime": 1756738477182
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-24",
+          "lastUpdateTime": 1756738477179
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-23",
+          "lastUpdateTime": 1756738477166
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-22",
+          "lastUpdateTime": 1756738477100
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-21",
+          "lastUpdateTime": 1756738477091
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-20",
+          "lastUpdateTime": 1756738477084
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-19",
+          "lastUpdateTime": 1756738477075
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-18",
+          "lastUpdateTime": 1756738477068
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-17",
+          "lastUpdateTime": 1756738476989
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-16",
+          "lastUpdateTime": 1756738476983
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-15",
+          "lastUpdateTime": 1756738476974
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-14",
+          "lastUpdateTime": 1756738476963
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-13",
+          "lastUpdateTime": 1756738476890
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-12",
+          "lastUpdateTime": 1756738476881
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-11",
+          "lastUpdateTime": 1756738476873
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-10",
+          "lastUpdateTime": 1756738478622
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-9",
+          "lastUpdateTime": 1756738478561
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-8",
+          "lastUpdateTime": 1756738478503
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-7",
+          "lastUpdateTime": 1756738478406
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-6",
+          "lastUpdateTime": 1756738478347
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-5",
+          "lastUpdateTime": 1756738478305
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-4",
+          "lastUpdateTime": 1756738478230
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-3",
+          "lastUpdateTime": 1756738478177
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-2",
+          "lastUpdateTime": 1756738478070
+        },
+        {
+          "functionClass": "sensor-config",
+          "functionInstance": "sensor-1",
+          "value": {
+            "security-sensor-config": {
+              "chirpMode": 1,
+              "triggerType": 3,
+              "bypassType": 0
+            }
+          },
+          "lastUpdateTime": 1756738738551
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-32",
+          "lastUpdateTime": 1756738478162
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-31",
+          "lastUpdateTime": 1756738478115
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-30",
+          "lastUpdateTime": 1756738478069
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-29",
+          "lastUpdateTime": 1756738478026
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-28",
+          "lastUpdateTime": 1756738477971
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-27",
+          "lastUpdateTime": 1756738477900
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-26",
+          "lastUpdateTime": 1756738477856
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-25",
+          "lastUpdateTime": 1756738477800
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-24",
+          "lastUpdateTime": 1756738477757
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-23",
+          "lastUpdateTime": 1756738477699
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-22",
+          "lastUpdateTime": 1756738477654
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-21",
+          "lastUpdateTime": 1756738477597
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-20",
+          "lastUpdateTime": 1756738477553
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-19",
+          "lastUpdateTime": 1756738477501
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-18",
+          "lastUpdateTime": 1756738477454
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-17",
+          "lastUpdateTime": 1756738477409
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-16",
+          "lastUpdateTime": 1756738477363
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-15",
+          "lastUpdateTime": 1756738477315
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-14",
+          "lastUpdateTime": 1756738477265
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-13",
+          "lastUpdateTime": 1756738477217
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-12",
+          "lastUpdateTime": 1756738477165
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-11",
+          "lastUpdateTime": 1756738477118
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-10",
+          "lastUpdateTime": 1756738477064
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-9",
+          "lastUpdateTime": 1756738477017
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-8",
+          "lastUpdateTime": 1756738476966
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-7",
+          "lastUpdateTime": 1756738476923
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-6",
+          "lastUpdateTime": 1756738476872
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-5",
+          "lastUpdateTime": 1756738476826
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-4",
+          "lastUpdateTime": 1756738476775
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-3",
+          "lastUpdateTime": 1756738476732
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-2",
+          "lastUpdateTime": 1756738476687
+        },
+        {
+          "functionClass": "sensor-state",
+          "functionInstance": "sensor-1",
+          "value": {
+            "security-sensor-state": {
+              "deviceType": 2,
+              "tampered": 0,
+              "triggered": 1,
+              "missing": 0,
+              "versionBuild": 3,
+              "versionMajor": 2,
+              "versionMinor": 0,
+              "batteryLevel": 100
+            }
+          },
+          "lastUpdateTime": 1756738752220
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-10",
+          "lastUpdateTime": 1756738476281
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-9",
+          "lastUpdateTime": 1756738476863
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-8",
+          "lastUpdateTime": 1756738476781
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-7",
+          "lastUpdateTime": 1756738476774
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-6",
+          "lastUpdateTime": 1756738476765
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-5",
+          "lastUpdateTime": 1756738476759
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-4",
+          "lastUpdateTime": 1756738476685
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-3",
+          "lastUpdateTime": 1756738476674
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-2",
+          "lastUpdateTime": 1756738476668
+        },
+        {
+          "functionClass": "pin",
+          "functionInstance": "pin-1",
+          "value": {
+            "lock-pin": {
+              "pin": "",
+              "active": true,
+              "type": 0
+            }
+          },
+          "lastUpdateTime": 1756738487495
+        },
+        {
+          "functionClass": "volume",
+          "functionInstance": "entry-delay",
+          "value": 5,
+          "lastUpdateTime": 1756738476585
+        },
+        {
+          "functionClass": "volume",
+          "functionInstance": "exit-delay-away",
+          "value": 5,
+          "lastUpdateTime": 1756738476578
+        },
+        {
+          "functionClass": "volume",
+          "functionInstance": "exit-delay-stay",
+          "value": 5,
+          "lastUpdateTime": 1756738476569
+        },
+        {
+          "functionClass": "siren-action",
+          "value": {
+            "security-siren-action": {
+              "resultCode": 0,
+              "command": 7
+            }
+          },
+          "lastUpdateTime": 1756738739532
+        },
+        {
+          "functionClass": "volume",
+          "functionInstance": "siren",
+          "value": 100,
+          "lastUpdateTime": 1756738476562
+        },
+        {
+          "functionClass": "bypass-allowed",
+          "value": "now-allowed",
+          "lastUpdateTime": 1756738476556
+        },
+        {
+          "functionClass": "temporary-bypass-time",
+          "value": 60,
+          "lastUpdateTime": 1756738476476
+        },
+        {
+          "functionClass": "disarm-entry-delay",
+          "value": 30,
+          "lastUpdateTime": 1756738476467
+        },
+        {
+          "functionClass": "arm-exit-delay",
+          "functionInstance": "away",
+          "value": 30,
+          "lastUpdateTime": 1756738476461
+        },
+        {
+          "functionClass": "arm-exit-delay",
+          "functionInstance": "stay",
+          "value": 0,
+          "lastUpdateTime": 1756738476453
+        },
+        {
+          "functionClass": "alarm-state",
+          "value": "disarmed",
+          "lastUpdateTime": 1756738739579
+        },
+        {
+          "functionClass": "wifi-ssid",
+          "value": "HTTP403_GUEST",
+          "lastUpdateTime": 1756738477587
+        },
+        {
+          "functionClass": "wifi-rssi",
+          "value": -51,
+          "lastUpdateTime": 1756738477596
+        },
+        {
+          "functionClass": "wifi-steady-state",
+          "value": "connected",
+          "lastUpdateTime": 1756738470046
+        },
+        {
+          "functionClass": "wifi-setup-state",
+          "value": "connected",
+          "lastUpdateTime": 1756738470102
+        },
+        {
+          "functionClass": "wifi-mac-address",
+          "value": "d8132ada7288",
+          "lastUpdateTime": 0
+        },
+        {
+          "functionClass": "geo-coordinates",
+          "functionInstance": "system-device-location",
+          "value": {
+            "geo-coordinates": {
+              "latitude": "35.59030151367188",
+              "longitude": "-78.81748962402344"
+            }
+          },
+          "lastUpdateTime": 1756738477791
+        },
+        {
+          "functionClass": "scheduler-flags",
+          "value": 0,
+          "lastUpdateTime": 1756738477514
+        },
+        {
+          "functionClass": "available",
+          "value": true,
+          "lastUpdateTime": 1756738492519
+        },
+        {
+          "functionClass": "visible",
+          "value": true,
+          "lastUpdateTime": 1756738492519
+        },
+        {
+          "functionClass": "direct",
+          "value": true,
+          "lastUpdateTime": 1756738492519
+        },
+        {
+          "functionClass": "ble-mac-address",
+          "value": "d8132ada728a",
+          "lastUpdateTime": 0
+        }
+      ]
+    },
+    "location": {},
+    "timezone": "America/New_York",
+    "scheduleCapabilities": {
+      "scheduleCount": 0,
+      "activeScheduleCount": 0,
+      "scheduleCountMax": 0,
+      "supportedTimeTypes": []
+    }
+  }
+]
