@@ -67,6 +67,15 @@ async def test_initialize(mocked_controller):
             instance="triggered",
         ),
     }
+    assert dev.sensors == {
+        "battery-level": AferoSensor(
+            id="sensor-state",
+            owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
+            value=100,
+            unit="%",
+            instance=None,
+        ),
+    }
     assert dev.selects == {
         ("sensor-2", "bypassType"): features.SelectFeature(
             selected="Off",
