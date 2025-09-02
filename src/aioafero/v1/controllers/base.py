@@ -499,7 +499,7 @@ class BaseResourcesController(Generic[AferoResource]):
                 self._logger.debug("No states to send. Skipping")
                 return
             # Update the state of the item to match the new states
-            update_dataclass(cur_item, obj_in)
+            await update_dataclass(cur_item, obj_in)
         else:  # Manually setting states
             device_states = states
             await self._process_state_update(cur_item, device_id, states)
@@ -515,10 +515,10 @@ class BaseResourcesController(Generic[AferoResource]):
             raise DeviceNotFound(device_id) from err
 
 
-def update_dataclass(elem: AferoResource, update_vals: dataclass):
+async def update_dataclass(elem: AferoResource, update_vals: dataclass):
     """Update the element with the latest changes."""
     if "callback" in [field.name for field in fields(update_vals)]:
-        update_vals.callback(elem, update_vals)
+        await update_vals.callback(elem, update_vals)
     else:
         for f in fields(update_vals):
             cur_val = getattr(update_vals, f.name, None)

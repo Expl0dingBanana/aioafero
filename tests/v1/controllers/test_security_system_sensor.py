@@ -12,12 +12,12 @@ from aioafero.v1.controllers.security_system_sensor import (
     AferoSensor,
     SecuritySystemSensorController,
     features,
+    get_valid_states
 )
 
 from .. import utils
 
 security_system = utils.create_devices_from_data("security-system.json")[1]
-
 security_system_sensors = security_system_callback(
     utils.create_devices_from_data("security-system.json")[1]
 ).split_devices
@@ -27,73 +27,56 @@ security_system_sensor_2 = security_system_sensors[1]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = SecuritySystemSensorController(mocked_bridge)
-    return controller
+    return mocked_bridge.security_systems_sensors
 
 
 @pytest.mark.asyncio
 async def test_initialize(mocked_controller):
-    await mocked_controller.initialize_elem(security_system_sensor_2)
-    assert len(mocked_controller.items) == 1
-    dev = mocked_controller.items[0]
+    await mocked_controller._bridge.generate_devices_from_data([security_system])
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 3
+    dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
     assert dev.available is True
     assert dev.id == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
     assert dev.update_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
     assert dev.instance == 2
-    assert dev.sensors == {
-        "battery-level": AferoSensor(
-            id="sensor-state",
+    assert dev.sensors == {}
+    assert dev.binary_sensors == {
+        "tampered|None": AferoBinarySensor(
+            id="tampered|None",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            value=100,
-            unit="%",
+            current_value="Off",
+            _error="On",
+            unit=None,
             instance=None,
         ),
-    }
-    assert dev.binary_sensors == {
-        "tampered": AferoBinarySensor(
-            id="tampered",
+        "triggered|None": AferoBinarySensor(
+            id="triggered|None",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            current_value=0,
-            _error=1,
+            current_value="On",
+            _error="On",
             unit=None,
-            instance="tampered",
-        ),
-        "triggered": AferoBinarySensor(
-            id="triggered",
-            owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            current_value=1,
-            _error=1,
-            unit=None,
-            instance="triggered",
-        ),
-    }
-    assert dev.sensors == {
-        "battery-level": AferoSensor(
-            id="sensor-state",
-            owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            value=100,
-            unit="%",
             instance=None,
         ),
     }
     assert dev.selects == {
-        ("sensor-2", "bypassType"): features.SelectFeature(
+        ("bypassType", None): features.SelectFeature(
             selected="Off",
             selects={
                 "Off",
                 "On",
             },
-            name="Can Be Bypassed",
+            name="Bypass",
         ),
-        ("sensor-2", "chirpMode"): features.SelectFeature(
+        ("chirpMode", None): features.SelectFeature(
             selected="Off",
             selects={
                 "Off",
                 "On",
             },
-            name="Chirp Mode",
+            name="Chime",
         ),
-        ("sensor-2", "triggerType"): features.SelectFeature(
+        ("triggerType", None): features.SelectFeature(
             selected="Home/Away",
             selects={
                 "Away",
@@ -101,16 +84,19 @@ async def test_initialize(mocked_controller):
                 "Home/Away",
                 "Off",
             },
-            name="Triggers",
+            name="Alarming State",
         ),
     }
 
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(security_system_sensor_2)
-    assert len(mocked_controller.items) == 1
-    dev_update = copy.deepcopy(security_system_sensor_2)
+    await mocked_controller._bridge.generate_devices_from_data([security_system])
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 3
+    dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
+    assert dev.available is True
+    dev_update = copy.deepcopy(security_system)
     new_states = [
         AferoState(
             functionClass="sensor-state",
@@ -144,63 +130,47 @@ async def test_update_elem(mocked_controller):
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
-    updates = await mocked_controller.update_elem(dev_update)
-    assert updates == {
-        "battery-level",
-        "bypassType",
-        "chirpMode",
-        "tampered",
-        "triggerType",
-        "triggered",
-        "available",
-    }
-    dev = mocked_controller.items[0]
+    await mocked_controller._bridge.generate_devices_from_data([dev_update])
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
     assert dev.available is False
-    assert dev.sensors == {
-        "battery-level": AferoSensor(
-            id="sensor-state",
+    assert dev.sensors == {}
+    assert dev.binary_sensors == {
+        "tampered|None": AferoBinarySensor(
+            id="tampered|None",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            value=95,
-            unit="%",
+            current_value="On",
+            _error="On",
+            unit=None,
             instance=None,
         ),
-    }
-    assert dev.binary_sensors == {
-        "tampered": AferoBinarySensor(
-            id="tampered",
+        "triggered|None": AferoBinarySensor(
+            id="triggered|None",
             owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            current_value=1,
-            _error=1,
+            current_value="Off",
+            _error="On",
             unit=None,
-            instance="tampered",
-        ),
-        "triggered": AferoBinarySensor(
-            id="triggered",
-            owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            current_value=0,
-            _error=1,
-            unit=None,
-            instance="triggered",
+            instance=None
         ),
     }
     assert dev.selects == {
-        ("sensor-2", "bypassType"): features.SelectFeature(
+        ("bypassType", None): features.SelectFeature(
             selected="On",
             selects={
                 "Off",
                 "On",
             },
-            name="Can Be Bypassed",
+            name="Bypass",
         ),
-        ("sensor-2", "chirpMode"): features.SelectFeature(
+        ("chirpMode", None): features.SelectFeature(
             selected="On",
             selects={
                 "Off",
                 "On",
             },
-            name="Chirp Mode",
+            name="Chime",
         ),
-        ("sensor-2", "triggerType"): features.SelectFeature(
+        ("triggerType", None): features.SelectFeature(
             selected="Away",
             selects={
                 "Away",
@@ -208,36 +178,41 @@ async def test_update_elem(mocked_controller):
                 "Home/Away",
                 "Off",
             },
-            name="Triggers",
+            name="Alarming State",
         ),
     }
 
 
 @pytest.mark.asyncio
 async def test_update_security_sensor_no_updates(mocked_controller):
-    await mocked_controller.initialize_elem(security_system_sensor_2)
-    assert len(mocked_controller.items) == 1
-    updates = await mocked_controller.update_elem(security_system_sensor_2)
-    assert updates == set()
+    # Simulate the discovery process
+    await mocked_controller._bridge.generate_devices_from_data([security_system])
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller._bridge.security_systems_sensors._items) == 3
+    new_states = get_valid_states(security_system.states, 2)
+    dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
+    assert await mocked_controller._update_elem(dev, new_states) == set()
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     (
-        "device",
+        "device_id",
+        "update_id",
         "updates",
         "expected_updates",
     ),
     [
         # Selects are updated
         (
-            security_system_sensor_2,
+            "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
+            "7f4e4c01-e799-45c5-9b1a-385433a78edc",
             {
                 "selects": {
-                    ("sensor-2", "chirpMode"): "On",
-                    ("sensor-2", "triggerType"): "Away",
-                    ("sensor-2", "bypassType"): "On",
-                    ("sensor-2", "doesnt_exist"): "On",
+                    ("chirpMode", None): "On",
+                    ("triggerType", None): "Away",
+                    ("bypassType", None): "On",
+                    ("doesnt_exist", None): "On",
                 }
             },
             [
@@ -257,14 +232,20 @@ async def test_update_security_sensor_no_updates(mocked_controller):
         ),
     ],
 )
-async def test_set_state(device, updates, expected_updates, mocked_controller):
-    await mocked_controller.initialize_elem(device)
-    await mocked_controller.set_state(device.id, **updates)
+async def test_set_state(device_id, update_id, updates, expected_updates, mocked_controller, caplog):
+    caplog.set_level("DEBUG")
+    await mocked_controller._bridge.generate_devices_from_data([security_system])
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.set_state(device_id, **updates)
+    await mocked_controller._bridge.async_block_until_done()
     utils.ensure_states_sent(
         mocked_controller,
         expected_updates,
-        device_id="7f4e4c01-e799-45c5-9b1a-385433a78edc",
+        device_id=update_id,
     )
+    assert mocked_controller[device_id].selects[("chirpMode", None)].selected == "On"
+    assert mocked_controller[device_id].selects[("triggerType", None)].selected == "Away"
+    assert mocked_controller[device_id].selects[("bypassType", None)].selected == "On"
 
 
 @pytest.mark.asyncio
@@ -292,14 +273,12 @@ async def test_set_states_nothing(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_emitting(bridge):
+async def test_emitting(mocked_bridge):
     # Simulate the discovery process
-    await bridge.events.generate_events_from_data(
-        utils.create_hs_raw_from_dump("security-system.json")
-    )
-    await bridge.async_block_until_done()
-    assert len(bridge.security_systems_sensors._items) == 3
-    dev_update = copy.deepcopy(security_system_sensor_2)
+    await mocked_bridge.generate_devices_from_data([security_system])
+    await mocked_bridge.async_block_until_done()
+    assert len(mocked_bridge.security_systems_sensors._items) == 3
+    dev_update = copy.deepcopy(security_system)
     # Simulate an update
     utils.modify_state(
         dev_update,
@@ -320,12 +299,7 @@ async def test_emitting(bridge):
             },
         ),
     )
-    update_event = {
-        "type": "update",
-        "device_id": dev_update.id,
-        "device": dev_update,
-    }
-    bridge.events.emit(event.EventType.RESOURCE_UPDATED, update_event)
-    await bridge.async_block_until_done()
-    assert len(bridge.security_systems_sensors._items) == 3
-    assert not bridge.security_systems_sensors._items[dev_update.id].available
+    await mocked_bridge.generate_devices_from_data([dev_update])
+    await mocked_bridge.async_block_until_done()
+    assert len(mocked_bridge.security_systems_sensors._items) == 3
+    assert not mocked_bridge.security_systems_sensors._items["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"].available

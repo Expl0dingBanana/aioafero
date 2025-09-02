@@ -163,4 +163,4 @@ Custom handling of state update
 
 If the device class has special processing for state updates (for example, one state contains
 multiple datapoints) you can specify a custom callback in the models Put class. This is done
-through the attribute ``callback`` and must specify a callable to handle the update.
+through the attribute ``callback`` and must specify an awaitable callable to handle the update.
