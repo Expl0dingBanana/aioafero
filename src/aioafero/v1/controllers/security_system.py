@@ -24,6 +24,10 @@ TRIGGER_MODES = {
     2: "Away",
     3: "Home/Away",
 }
+KNOWN_SENSOR_MODELS = {
+    1: "Motion Sensor",
+    2: "Door/Window Sensor",
+}
 
 
 def get_sensor_ids(device) -> set[int]:
@@ -118,6 +122,22 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
     return valid_states
 
 
+def get_model_type(states: list[AferoState], sensor_id: int) -> str:
+    """Get the model type from the state list."""
+    for state in states:
+        if state.functionClass not in ["sensor-state"] or state.value is None:
+            continue
+        state_sensor_split = state.functionInstance.rsplit("-", 1)
+        state_sensor_id = int(state_sensor_split[1])
+        if state_sensor_id != sensor_id:
+            continue
+        top_level_key = list(state.value.keys())[0]
+        return KNOWN_SENSOR_MODELS.get(
+            int(state.value[top_level_key]["deviceType"]), "Unknown"
+        )
+    return "Unknown"
+
+
 def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
     """Find functions associated with the specific sensor."""
     valid_functions: list = []
@@ -182,6 +202,7 @@ def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
             cloned.friendly_name = f"{afero_device.friendly_name} - {get_sensor_name(afero_device.capabilities, sensor_id)}"
             cloned.states = get_valid_states(afero_device.states, sensor_id)
             cloned.functions = get_valid_functions(afero_device.functions, sensor_id)
+            cloned.model = f"{afero_device.model} - {get_model_type(afero_device.states, sensor_id)}"
             multi_devs.append(cloned)
     return CallbackResponse(
         split_devices=multi_devs,

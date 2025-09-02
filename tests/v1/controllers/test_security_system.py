@@ -417,7 +417,9 @@ def test_security_system_callback():
     results = security_system_callback(alarm_panel)
     assert results.remove_original is False
     assert len(results.split_devices) == 3
-
+    assert results.split_devices[0].model == "Security System - Motion Sensor"
+    assert results.split_devices[1].model == "Security System - Door/Window Sensor"
+    assert results.split_devices[2].model == "Security System - Unknown"
 
 
 capability_device = AferoDevice(
