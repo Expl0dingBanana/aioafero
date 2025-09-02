@@ -2,7 +2,12 @@
 
 import copy
 
-from aioafero.device import AferoCapability, AferoDevice, get_function_from_device
+from aioafero.device import (
+    AferoCapability,
+    AferoDevice,
+    AferoState,
+    get_function_from_device,
+)
 from aioafero.errors import DeviceNotFound
 from aioafero.util import process_function
 from aioafero.v1.models import SecuritySystem, SecuritySystemPut, features
@@ -12,6 +17,13 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, Numbe
 from .event import CallbackResponse
 
 SENSOR_SPLIT_IDENTIFIER = "sensor"
+GENERIC_MODES = {0: "Off", 1: "On"}
+TRIGGER_MODES = {
+    0: "Off",
+    1: "Home",
+    2: "Away",
+    3: "Home/Away",
+}
 
 
 def get_sensor_ids(device) -> set[int]:
@@ -44,7 +56,65 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
         state_sensor_id = int(state_sensor_split[1])
         if state_sensor_id != sensor_id:
             continue
-        valid_states.append(state)
+        top_level_key = list(state.value.keys())[0]
+        if state.functionClass == "sensor-state":
+            valid_states.append(
+                AferoState(
+                    functionClass="battery-level",
+                    functionInstance=None,
+                    value=state.value[top_level_key]["batteryLevel"],
+                )
+            )
+            valid_states.append(
+                AferoState(
+                    functionClass="tampered",
+                    functionInstance=None,
+                    value=GENERIC_MODES[state.value[top_level_key]["tampered"]],
+                )
+            )
+            valid_states.append(
+                AferoState(
+                    functionClass="triggered",
+                    functionInstance=None,
+                    value=GENERIC_MODES[state.value[top_level_key]["triggered"]],
+                )
+            )
+            valid_states.append(
+                AferoState(
+                    functionClass="available",
+                    functionInstance=None,
+                    value=not bool(state.value[top_level_key]["missing"]),
+                )
+            )
+        else:
+            valid_states.append(
+                AferoState(
+                    functionClass="chirpMode",
+                    functionInstance=None,
+                    value=GENERIC_MODES[state.value[top_level_key]["chirpMode"]],
+                )
+            )
+            valid_states.append(
+                AferoState(
+                    functionClass="triggerType",
+                    functionInstance=None,
+                    value=TRIGGER_MODES[state.value[top_level_key]["triggerType"]],
+                )
+            )
+            valid_states.append(
+                AferoState(
+                    functionClass="bypassType",
+                    functionInstance=None,
+                    value=GENERIC_MODES[state.value[top_level_key]["bypassType"]],
+                )
+            )
+            valid_states.append(
+                AferoState(
+                    functionClass="top-level-key",
+                    functionInstance=None,
+                    value=top_level_key,
+                )
+            )
     return valid_states
 
 
@@ -58,7 +128,31 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
         state_sensor_id = int(sensor_split[1])
         if state_sensor_id != sensor_id:
             continue
-        valid_functions.append(func)
+        if func["functionClass"] == "sensor-config":
+            valid_functions.append(
+                {
+                    "functionClass": "chirpMode",
+                    "functionInstance": func["functionInstance"],
+                    "type": "category",
+                    "values": [{"name": x} for x in GENERIC_MODES.values()],
+                }
+            )
+            valid_functions.append(
+                {
+                    "functionClass": "triggerType",
+                    "functionInstance": func["functionInstance"],
+                    "type": "category",
+                    "values": [{"name": x} for x in TRIGGER_MODES.values()],
+                }
+            )
+            valid_functions.append(
+                {
+                    "functionClass": "bypassType",
+                    "functionInstance": func["functionInstance"],
+                    "type": "category",
+                    "values": [{"name": x} for x in GENERIC_MODES.values()],
+                }
+            )
     return valid_functions
 
 
