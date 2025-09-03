@@ -11,6 +11,7 @@ __all__ = [
     "LockController",
     "PortableACController",
     "SecuritySystemController",
+    "SecuritySystemKeypadController",
     "SecuritySystemSensorController",
     "SwitchController",
     "ThermostatController",
@@ -49,6 +50,7 @@ from .controllers.light import LightController
 from .controllers.lock import LockController
 from .controllers.portable_ac import PortableACController
 from .controllers.security_system import SecuritySystemController
+from .controllers.security_system_keypad import SecuritySystemKeypadController
 from .controllers.security_system_sensor import SecuritySystemSensorController
 from .controllers.switch import SwitchController
 from .controllers.thermostat import ThermostatController
@@ -82,6 +84,7 @@ type AferoController = (
     | ExhaustFanController
     | PortableACController
     | SecuritySystemController
+    | SecuritySystemKeypadController
     | SecuritySystemSensorController
 )
 
@@ -138,6 +141,9 @@ class AferoBridgeV1:
         self._locks: LockController = LockController(self)
         self._portable_acs: PortableACController = PortableACController(self)
         self._security_system: SecuritySystemController = SecuritySystemController(self)
+        self._security_system_keypads: SecuritySystemKeypadController = (
+            SecuritySystemKeypadController(self)
+        )
         self._security_system_sensors: SecuritySystemSensorController = (
             SecuritySystemSensorController(self)
         )
@@ -191,7 +197,12 @@ class AferoBridgeV1:
         return self._security_system
 
     @property
-    def security_systems_sensors(self) -> SecuritySystemSensorController:
+    def security_system_keypads(self) -> SecuritySystemKeypadController:
+        """Get the controller related to Security System Keypads."""
+        return self._security_system_keypads
+
+    @property
+    def security_system_sensors(self) -> SecuritySystemSensorController:
         """Get the controller related to Security System Sensors."""
         return self._security_system_sensors
 
@@ -220,6 +231,7 @@ class AferoBridgeV1:
             self._locks,
             self._portable_acs,
             self._security_system,
+            self._security_system_keypads,
             self._security_system_sensors,
             self._switches,
             self._thermostats,

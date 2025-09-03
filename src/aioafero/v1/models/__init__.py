@@ -17,6 +17,8 @@ __all__ = [
     "PortableACPut",
     "ResourceTypes",
     "SecuritySystem",
+    "SecuritySystemKeypad",
+    "SecuritySystemKeypadPut",
     "SecuritySystemPut",
     "SecuritySystemSensor",
     "SecuritySystemSensorPut",
@@ -37,6 +39,7 @@ from .lock import Lock, LockPut
 from .portable_ac import PortableAC, PortableACPut
 from .resource import ResourceTypes
 from .security_system import SecuritySystem, SecuritySystemPut
+from .security_system_keypad import SecuritySystemKeypad, SecuritySystemKeypadPut
 from .security_system_sensor import SecuritySystemSensor, SecuritySystemSensorPut
 from .sensor import AferoBinarySensor, AferoSensor
 from .switch import Switch, SwitchPut
