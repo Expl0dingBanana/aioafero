@@ -84,7 +84,7 @@ The following controllers are implemented:
    * set_temperature_range
 
 
-* ``bridge.security_systems``: Any device that matches a security-system. Can perform
+* ``bridge.security_systems``: Any device that matches security-system. Can perform
   the following actions
 
    * alarm_trigger
@@ -92,7 +92,13 @@ The following controllers are implemented:
    * arm_home
    * disarm
 
-* ``bridge.security_systems_sensors``: Sensors split from security-system. Can perform
+* ``bridge.security_system_keypads``: Any device that matches security-system-keypad. Can perform
+  the following actions
+
+   * Everything is done through set_state
+
+
+* ``bridge.security_system_sensors``: Sensors split from security-system. Can perform
   the following actions
 
    * Everything is done through set_state
