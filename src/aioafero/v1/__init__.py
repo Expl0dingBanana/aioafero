@@ -11,6 +11,7 @@ __all__ = [
     "LockController",
     "PortableACController",
     "SecuritySystemController",
+    "SecuritySystemKeypadController",
     "SecuritySystemSensorController",
     "SwitchController",
     "ThermostatController",
@@ -49,6 +50,7 @@ from .controllers.light import LightController
 from .controllers.lock import LockController
 from .controllers.portable_ac import PortableACController
 from .controllers.security_system import SecuritySystemController
+from .controllers.security_system_keypad import SecuritySystemKeypadController
 from .controllers.security_system_sensor import SecuritySystemSensorController
 from .controllers.switch import SwitchController
 from .controllers.thermostat import ThermostatController
@@ -82,6 +84,7 @@ type AferoController = (
     | ExhaustFanController
     | PortableACController
     | SecuritySystemController
+    | SecuritySystemKeypadController
     | SecuritySystemSensorController
 )
 

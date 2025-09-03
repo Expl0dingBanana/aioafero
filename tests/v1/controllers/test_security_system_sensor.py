@@ -9,8 +9,6 @@ from aioafero.v1.controllers import event
 from aioafero.v1.controllers.security_system import security_system_callback
 from aioafero.v1.controllers.security_system_sensor import (
     AferoBinarySensor,
-    AferoSensor,
-    SecuritySystemSensorController,
     features,
     get_valid_states
 )
@@ -28,7 +26,7 @@ security_system_sensor_2 = security_system_sensors[1]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    return mocked_bridge.security_systems_sensors
+    return mocked_bridge.security_system_sensors
 
 
 @pytest.mark.asyncio
@@ -297,7 +295,7 @@ async def test_emitting(mocked_bridge):
     # Simulate the discovery process
     await mocked_bridge.generate_devices_from_data([security_system])
     await mocked_bridge.async_block_until_done()
-    assert len(mocked_bridge.security_systems_sensors._items) == 3
+    assert len(mocked_bridge.security_system_sensors._items) == 3
     dev_update = copy.deepcopy(security_system)
     # Simulate an update
     utils.modify_state(
@@ -321,5 +319,5 @@ async def test_emitting(mocked_bridge):
     )
     await mocked_bridge.generate_devices_from_data([dev_update])
     await mocked_bridge.async_block_until_done()
-    assert len(mocked_bridge.security_systems_sensors._items) == 3
-    assert not mocked_bridge.security_systems_sensors._items["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"].available
+    assert len(mocked_bridge.security_system_sensors._items) == 3
+    assert not mocked_bridge.security_system_sensors._items["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"].available
