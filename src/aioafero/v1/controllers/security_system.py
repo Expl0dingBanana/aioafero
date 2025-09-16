@@ -228,6 +228,8 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 model=afero_device.model,
                 name=afero_device.friendly_name,
                 parent_id=afero_device.device_id,
+                children=afero_device.children,
+                functions=afero_device.functions,
             ),
             alarm_state=alarm_state,
             siren_action=siren_action,

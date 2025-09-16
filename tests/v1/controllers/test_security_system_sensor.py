@@ -13,6 +13,7 @@ from aioafero.v1.controllers.security_system_sensor import (
     SecuritySystemSensorController,
     features,
 )
+from dataclasses import asdict
 
 from .. import utils
 
@@ -27,8 +28,7 @@ security_system_sensor_2 = security_system_sensors[1]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = SecuritySystemSensorController(mocked_bridge)
-    return controller
+    return mocked_bridge.security_systems_sensors
 
 
 @pytest.mark.asyncio
@@ -98,9 +98,12 @@ async def test_initialize(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(security_system_sensor_2)
-    assert len(mocked_controller.items) == 1
+async def test_update_elem(mocked_controller, caplog):
+    caplog.set_level("DEBUG")
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("security-system.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
     dev_update = copy.deepcopy(security_system_sensor_2)
     new_states = [
         AferoState(
@@ -145,7 +148,7 @@ async def test_update_elem(mocked_controller):
         "triggered",
         "available",
     }
-    dev = mocked_controller.items[0]
+    dev = mocked_controller[security_system_sensor_2.id]
     assert dev.available is False
     assert dev.sensors == {
         "battery-level": AferoSensor(
@@ -206,8 +209,10 @@ async def test_update_elem(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_security_sensor_no_updates(mocked_controller):
-    await mocked_controller.initialize_elem(security_system_sensor_2)
-    assert len(mocked_controller.items) == 1
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("security-system.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
     updates = await mocked_controller.update_elem(security_system_sensor_2)
     assert updates == set()
 
@@ -248,14 +253,29 @@ async def test_update_security_sensor_no_updates(mocked_controller):
         ),
     ],
 )
-async def test_set_state(device, updates, expected_updates, mocked_controller):
-    await mocked_controller.initialize_elem(device)
-    await mocked_controller.set_state(device.id, **updates)
-    utils.ensure_states_sent(
-        mocked_controller,
-        expected_updates,
-        device_id="7f4e4c01-e799-45c5-9b1a-385433a78edc",
+async def test_set_state(device, updates, expected_updates, mocked_controller, mocker):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("security-system.json")
     )
+    await bridge.async_block_until_done()
+    # Split devices require a full update during testing
+    resp = mocker.AsyncMock()
+    dev_update = utils.create_devices_from_data("security-system.json")[1]
+    for state in expected_updates:
+        utils.modify_state(dev_update, AferoState(**state))
+    # Split devices need their IDs correctly set
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": security_system.id, "values": [asdict(x) for x in dev_update.states]}
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    await mocked_controller.set_state(device.id, **updates)
+    await bridge.async_block_until_done()
+    dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
+    for select in dev.selects:
+        assert dev.selects[select].selected == updates["selects"][select], f"Failed for {select}, "
 
 
 @pytest.mark.asyncio
@@ -275,7 +295,10 @@ async def test_set_state_bad_device(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_states_nothing(mocked_controller):
-    await mocked_controller.initialize_elem(security_system_sensor_2)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("security-system.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(
         security_system_sensor_2.id,
     )

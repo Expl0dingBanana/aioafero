@@ -24,8 +24,7 @@ a21_light = utils.create_devices_from_data("light-a21.json")[0]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = ExhaustFanController(mocked_bridge)
-    return controller
+    return mocked_bridge.exhaust_fans
 
 
 def test_generate_split_name():
@@ -134,7 +133,10 @@ async def test_initialize(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(exhaust_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(exhaust_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.available is True
@@ -174,7 +176,10 @@ async def test_update_elem(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_state_no_change(mocked_controller):
-    await mocked_controller.initialize_elem(exhaust_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(exhaust_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.available is True
@@ -194,13 +199,19 @@ async def test_update_state_no_change(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_state_empty(mocked_controller):
-    await mocked_controller.initialize_elem(exhaust_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(exhaust_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(exhaust_fan.id)
 
 
 @pytest.mark.asyncio
 async def test_set_state(mocked_controller):
-    await mocked_controller.initialize_elem(exhaust_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(exhaust_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.available is True
@@ -215,6 +226,7 @@ async def test_set_state(mocked_controller):
             ("invalid", "state"): None,
         },
     )
+    await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller.items[0]
     assert dev.numbers[("auto-off-timer", "auto-off")].value == 120
     assert dev.selects[("motion-action", "exhaust-fan")].selected == "both"
@@ -255,7 +267,10 @@ async def test_exhaust_fan_emitting(bridge):
 @pytest.mark.asyncio
 async def test_set_state_no_dev(mocked_controller, caplog):
     caplog.set_level(0)
-    await mocked_controller.initialize_elem(exhaust_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(exhaust_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     mocked_controller._bridge.add_device(exhaust_fan.id, mocked_controller)
     await mocked_controller.set_state("not-a-device")
     mocked_controller._bridge.request.assert_not_called()

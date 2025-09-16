@@ -14,8 +14,7 @@ lock = utils.create_devices_from_data("door-lock-TBD.json")[0]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = LockController(mocked_bridge)
-    return controller
+    return mocked_bridge.locks
 
 
 @pytest.mark.asyncio
@@ -31,43 +30,34 @@ async def test_initialize(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_lock(mocked_controller):
-    await mocked_controller.initialize_elem(lock)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(lock)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.lock(lock.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == lock.id
-    expected_states = [
-        {
-            "functionClass": "lock-control",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "locking",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert mocked_controller.items[0].position.position == features.CurrentPositionEnum.LOCKING
 
 
 @pytest.mark.asyncio
 async def test_unlock(mocked_controller):
-    await mocked_controller.initialize_elem(lock)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(lock)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.unlock(lock.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == lock.id
-    expected_states = [
-        {
-            "functionClass": "lock-control",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": features.CurrentPositionEnum.UNLOCKING.value,
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert mocked_controller.items[0].position.position == features.CurrentPositionEnum.UNLOCKING
 
 
 @pytest.mark.asyncio
 async def test_empty_update(mocked_controller):
-    await mocked_controller.initialize_elem(lock)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(lock)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     update = utils.create_devices_from_data("door-lock-TBD.json")[0]
     updates = await mocked_controller.update_elem(update)
@@ -84,7 +74,10 @@ async def test_empty_update(mocked_controller):
     ],
 )
 async def test_update_elem(value, expected, expected_updates, mocked_controller):
-    await mocked_controller.initialize_elem(lock)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(lock)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.available
@@ -108,7 +101,10 @@ async def test_update_elem(value, expected, expected_updates, mocked_controller)
 
 @pytest.mark.asyncio
 async def test_set_state_empty(mocked_controller):
-    await mocked_controller.initialize_elem(lock)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(lock)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(lock.id)
 
 

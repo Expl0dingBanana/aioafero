@@ -199,15 +199,25 @@ async def test_send_service_request_dev_not_found(mocked_bridge):
 
 
 @pytest.mark.asyncio
-async def test_send_service_request(mocked_bridge):
+async def test_send_service_request(mocked_bridge, mocker):
     controller = mocked_bridge.lights
-    await controller.initialize_elem(zandra_light)
+    await mocked_bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_light)]
+    )
+    await mocked_bridge.async_block_until_done()
     mocked_bridge.add_device(zandra_light.id, controller)
     assert controller[zandra_light.id].on.on is True
+    states = [{"functionClass": "power", "functionInstance": "light-power", "value": "off"}]
+    resp = mocker.AsyncMock()
+    resp.json = mocker.AsyncMock(return_value={"metadeviceId": zandra_light.id, "values": states})
+    mocker.patch.object(
+        controller, "update_afero_api", return_value=resp
+    )
     await mocked_bridge.send_service_request(
         zandra_light.id,
-        [{"functionClass": "power", "functionInstance": "light-power", "value": "off"}],
+        states,
     )
+    await mocked_bridge.async_block_until_done()
     assert controller[zandra_light.id].on.on is False
 
 

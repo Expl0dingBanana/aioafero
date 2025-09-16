@@ -135,18 +135,23 @@ def transform_capability(capability: dict[str, Any]) -> AferoCapability:
     return AferoCapability(**top_level_fields, _opts=extra_fields)
 
 
+def convert_state(state: dict[str, Any]) -> AferoState:
+    """Convert a state dictionary into an AferoState."""
+    return AferoState(
+        functionClass=state.get("functionClass"),
+        value=state.get("value"),
+        lastUpdateTime=state.get("lastUpdateTime"),
+        functionInstance=state.get("functionInstance"),
+    )
+
+
 def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
     """Convert the Afero device definition into a AferoDevice."""
     description = afero_device.get("description", {})
     device = description.get("device", {})
     processed_states: list[AferoState] = []
     processed_states = [
-        AferoState(
-            functionClass=state.get("functionClass"),
-            value=state.get("value"),
-            lastUpdateTime=state.get("lastUpdateTime"),
-            functionInstance=state.get("functionInstance"),
-        )
+        convert_state(state)
         for state in afero_device.get("state", {}).get("values", [])
     ]
     processed_capabilities = [

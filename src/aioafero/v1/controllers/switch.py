@@ -77,6 +77,8 @@ class SwitchController(BaseResourcesController[Switch]):
                 model=afero_device.model,
                 name=afero_device.friendly_name,
                 parent_id=afero_device.device_id,
+                children=afero_device.children,
+                functions=afero_device.functions,
             ),
             on=on,
         )

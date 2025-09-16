@@ -299,7 +299,12 @@ class EventStream:
             if dev.get("typeId") == ResourceTypes.DEVICE.value
             and dev.get("description", {}).get("device", {}).get("deviceClass")
         ]
-        self._logger.debug("Number of devices: %s", len(devices))
+        for device in devices:
+            self._bridge.add_afero_dev(device)
+        return await self.split_devices(devices)
+
+    async def split_devices(self, devices: list[AferoDevice]) -> list[AferoDevice]:
+        """Split Afero devices into multiple devices where required."""
         for name, multi_dev_callable in self._multiple_device_finder.items():
             for dev in devices[:]:
                 multi_devs, remove_root = multi_dev_callable(dev)
@@ -314,6 +319,24 @@ class EventStream:
                     devices.extend(multi_devs)
         self._logger.debug("Total number of devices (post split): %s", len(devices))
         return devices
+
+    async def generate_events_from_update(self, dev: AferoDevice) -> None:
+        """Generate updates for a single device update."""
+        devices = await self.split_devices([dev])
+        self._logger.warning(
+            "Received update for device %s. Generating %d events",
+            dev.device_class,
+            len(devices),
+        )
+        for device in devices:
+            self._event_queue.put_nowait(
+                AferoEvent(
+                    type=EventType.RESOURCE_UPDATE_RESPONSE,
+                    device_id=device.id,
+                    device=device,
+                    force_forward=False,
+                )
+            )
 
     async def generate_events_from_data(self, data: list[dict[Any, str]]) -> None:
         """Process the raw Afero IoT data for emitting.

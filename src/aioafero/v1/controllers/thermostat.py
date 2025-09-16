@@ -136,6 +136,8 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 model=afero_device.model,
                 name=afero_device.friendly_name,
                 parent_id=afero_device.device_id,
+                children=afero_device.children,
+                functions=afero_device.functions,
             ),
             current_temperature=current_temperature,
             fan_running=fan_running,

@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class ResourceTypes(Enum):
@@ -45,3 +46,5 @@ class DeviceInformation:
     wifi_mac: str | None = None
     ble_mac: str | None = None
     version_data: dict | None = None
+    children: list[str] | None = None
+    functions: list[dict[str, Any]] | None = None

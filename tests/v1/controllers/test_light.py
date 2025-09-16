@@ -1,6 +1,7 @@
 """Test LightController"""
 
 import pytest
+from dataclasses import asdict
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event, light
@@ -25,8 +26,7 @@ speaker_power_light_id = f"{speaker_power_light.id}-light-speaker-power"
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = LightController(mocked_bridge)
-    return controller
+    return mocked_bridge.lights
 
 
 def test_generate_split_name():
@@ -497,154 +497,129 @@ async def test_initialize_dimmer(mocked_controller):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "afero_dev, expected_instance",
+    "afero_dev",
     [
-        (a21_light, None),
-        (zandra_light, "light-power"),
-        (dimmer_light, "gang-1"),
+        (a21_light),
+        (zandra_light),
+        (dimmer_light),
     ],
 )
-async def test_turn_on(afero_dev, expected_instance, mocked_controller):
+async def test_turn_on(afero_dev, mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(afero_dev)]
+    )
+    await bridge.async_block_until_done()
     await mocked_controller.initialize_elem(afero_dev)
     dev = mocked_controller.items[0]
     dev.on.on = False
     await mocked_controller.turn_on(afero_dev.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == afero_dev.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": expected_instance,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await bridge.async_block_until_done()
     assert dev.is_on
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "afero_dev, expected_instance",
+    "afero_dev",
     [
-        (a21_light, None),
-        (zandra_light, "light-power"),
-        (dimmer_light, "gang-1"),
+        (a21_light),
+        (zandra_light),
+        (dimmer_light),
     ],
 )
-async def test_turn_off(afero_dev, expected_instance, mocked_controller):
-    await mocked_controller.initialize_elem(afero_dev)
+async def test_turn_off(afero_dev, mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(afero_dev)]
+    )
+    await bridge.async_block_until_done()
     dev = mocked_controller.items[0]
     dev.on.on = True
     await mocked_controller.turn_off(afero_dev.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == afero_dev.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": expected_instance,
-            "lastUpdateTime": 12345,
-            "value": "off",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await bridge.async_block_until_done()
     assert not dev.is_on
 
 
 @pytest.mark.asyncio
 async def test_set_color_temperature(mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = False
     dev.color_temperature.temperature = 2700
     dev.color_mode.mode = "color"
     await mocked_controller.set_color_temperature(a21_light.id, 3475)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == a21_light.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        },
-        {
-            "functionClass": "color-temperature",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "3500",
-        },
-        {
-            "functionClass": "color-mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "white",
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.color_mode.mode == "white"
+    assert dev.color_temperature.temperature == 3500
 
 
 @pytest.mark.asyncio
 async def test_set_brightness(mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = False
     dev.dimming.brightness = 50
     await mocked_controller.set_brightness(a21_light.id, 60)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == a21_light.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        },
-        {
-            "functionClass": "brightness",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": 60,
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.dimming.brightness == 60
 
 
 @pytest.mark.asyncio
-async def test_set_brightness_split(bridge, mocker):
+async def test_set_brightness_split(mocked_controller, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = bridge.lights
-    await bridge.events.generate_events_from_data(
+    await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-flushmount.json")
     )
-    await bridge.async_block_until_done()
-    assert len(bridge.lights._items) == 2
-    dev = controller[flushmount_light_white_id]
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller._bridge.lights._items) == 2
+    dev = mocked_controller[flushmount_light_white_id]
     assert dev.on.on is False
-    await controller.set_brightness(flushmount_light_white_id, 20)
-    await bridge.async_block_until_done()
-    expected_states = [
+    # Split devices need their IDs correctly set
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": [
         {
             "functionClass": "toggle",
             "functionInstance": "white",
-            "lastUpdateTime": 12345,
             "value": "on",
+            "lastUpdateTime": 0,
         },
         {
             "functionClass": "brightness",
             "functionInstance": "white",
-            "lastUpdateTime": 12345,
             "value": 20,
-        },
-    ]
-    utils.ensure_states_sent(controller, expected_states, device_id=flushmount_light.id)
-
+            "lastUpdateTime": 0,
+        }
+    ]}
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    # Run the test
+    await mocked_controller.set_brightness(flushmount_light_white_id, 20)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[flushmount_light_white_id]
+    assert dev.is_on
+    assert dev.dimming.brightness == 20
 
 @pytest.mark.asyncio
 async def test_set_rgb(mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = False
@@ -653,100 +628,46 @@ async def test_set_rgb(mocked_controller):
     dev.color.green = 100
     dev.color.blue = 100
     await mocked_controller.set_rgb(a21_light.id, 0, 20, 40)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == a21_light.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        },
-        {
-            "functionClass": "color-mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "color",
-        },
-        {
-            "functionClass": "color-rgb",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": {
-                "color-rgb": {
-                    "r": 0,
-                    "g": 20,
-                    "b": 40,
-                }
-            },
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.color_mode.mode == "color"
+    assert dev.color.red == 0
+    assert dev.color.green == 20
+    assert dev.color.blue == 40
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "effect, expected_instance",
+    "effect",
     [
-        ("rainbow", "custom"),
-        ("fade-7", "preset"),
+        ("rainbow"),
+        ("fade-7"),
     ],
 )
-async def test_set_effect(effect, expected_instance, mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+async def test_set_effect(effect, mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = False
     dev.effect.effect = None
     await mocked_controller.set_effect(a21_light.id, effect)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == a21_light.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        },
-        {
-            "functionClass": "color-mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "sequence",
-        },
-    ]
-    if expected_instance == "preset":
-        expected_states.append(
-            {
-                "functionClass": "color-sequence",
-                "functionInstance": expected_instance,
-                "lastUpdateTime": 12345,
-                "value": effect,
-            }
-        )
-    else:
-        expected_states.append(
-            {
-                "functionClass": "color-sequence",
-                "functionInstance": "preset",
-                "lastUpdateTime": 12345,
-                "value": expected_instance,
-            }
-        )
-        expected_states.append(
-            {
-                "functionClass": "color-sequence",
-                "functionInstance": expected_instance,
-                "lastUpdateTime": 12345,
-                "value": effect,
-            }
-        )
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.color_mode.mode == "sequence"
+    assert dev.effect.effect == effect
 
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.available = False
@@ -801,7 +722,11 @@ async def test_update_elem(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem_no_updates(mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     assert not await mocked_controller.update_elem(a21_light)
 
@@ -834,7 +759,11 @@ states_preset = [
     ],
 )
 async def test_update_elem_effect(new_states, expected, mocked_controller):
-    await mocked_controller.initialize_elem(a21_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("light-a21.json")[0]
     for state in new_states:
@@ -1029,28 +958,13 @@ async def test_emitting(bridge):
 
 @pytest.mark.asyncio
 async def test_set_state_white_light(mocked_controller):
-    await mocked_controller.initialize_elem(speaker_power_light)
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(speaker_power_light)]
+    )
+    await bridge.async_block_until_done()
     await mocked_controller.set_state(speaker_power_light.id, on=True, force_white_mode=75)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == speaker_power_light.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        },
-        {
-            "functionClass": "color-mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "white",
-        },
-        {
-            "functionClass": "brightness",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": 75
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert mocked_controller[speaker_power_light.id].on.on is True
+    assert mocked_controller[speaker_power_light.id].color_mode.mode == "white"
+    assert mocked_controller[speaker_power_light.id].dimming.brightness == 75

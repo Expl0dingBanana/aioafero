@@ -21,8 +21,7 @@ portable_ac_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = PortableACController(mocked_bridge)
-    return controller
+    return mocked_bridge.portable_acs
 
 
 def test_generate_split_name():
@@ -108,7 +107,10 @@ async def test_initialize(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("portable-ac.json")[0]
     new_states = [
@@ -163,7 +165,10 @@ async def test_update_elem(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem_no_updates(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("portable-ac.json")[0]
     updates = await mocked_controller.update_elem(dev_update)
@@ -172,7 +177,10 @@ async def test_update_elem_no_updates(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_state(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     mocked_controller[portable_ac_id].display_celsius = True
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
@@ -181,41 +189,20 @@ async def test_set_state(mocked_controller):
         target_temperature=22.5,
         selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
+    await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller.items[0]
     assert dev.target_temperature_cooling.value == 22.5
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
-    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
-    assert post["metadeviceId"] == portable_ac_id
-    expected_calls = [
-        {
-            "functionClass": "mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "cool",
-        },
-        {
-            "functionClass": "temperature",
-            "functionInstance": "cooling-target",
-            "lastUpdateTime": 12345,
-            "value": 22.5,
-        },
-        {
-            "functionClass": "fan-speed",
-            "functionInstance": "ac-fan-speed",
-            "lastUpdateTime": 12345,
-            "value": "fan-speed-2-100",
-        },
-    ]
-    for call in expected_calls:
-        assert call in post["values"]
-    assert len(expected_calls) == len(post["values"])
 
 
 @pytest.mark.asyncio
 async def test_set_state_in_f(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         portable_ac_id,
@@ -223,41 +210,20 @@ async def test_set_state_in_f(mocked_controller):
         target_temperature=76,
         selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
+    await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller.items[0]
     assert dev.target_temperature_cooling.value == 24.5
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
-    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
-    assert post["metadeviceId"] == portable_ac_id
-    expected_calls = [
-        {
-            "functionClass": "mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "cool",
-        },
-        {
-            "functionClass": "temperature",
-            "functionInstance": "cooling-target",
-            "lastUpdateTime": 12345,
-            "value": 24.5,
-        },
-        {
-            "functionClass": "fan-speed",
-            "functionInstance": "ac-fan-speed",
-            "lastUpdateTime": 12345,
-            "value": "fan-speed-2-100",
-        },
-    ]
-    for call in expected_calls:
-        assert call in post["values"]
-    assert len(expected_calls) == len(post["values"])
 
 
 @pytest.mark.asyncio
 async def test_set_state_in_f_force_c(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         portable_ac_id,
@@ -266,41 +232,20 @@ async def test_set_state_in_f_force_c(mocked_controller):
         selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
         is_celsius=True,
     )
+    await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller.items[0]
     assert dev.target_temperature_cooling.value == 24.5
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
-    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
-    assert post["metadeviceId"] == portable_ac_id
-    expected_calls = [
-        {
-            "functionClass": "mode",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "cool",
-        },
-        {
-            "functionClass": "temperature",
-            "functionInstance": "cooling-target",
-            "lastUpdateTime": 12345,
-            "value": 24.5,
-        },
-        {
-            "functionClass": "fan-speed",
-            "functionInstance": "ac-fan-speed",
-            "lastUpdateTime": 12345,
-            "value": "fan-speed-2-100",
-        },
-    ]
-    for call in expected_calls:
-        assert call in post["values"]
-    assert len(expected_calls) == len(post["values"])
 
 
 @pytest.mark.asyncio
 async def test_set_state_invalid_dev(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         "nope",
@@ -313,7 +258,10 @@ async def test_set_state_invalid_dev(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_state_no_updates(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         portable_ac_id,
@@ -323,24 +271,16 @@ async def test_set_state_no_updates(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_state_invalid_updates(mocked_controller):
-    await mocked_controller.initialize_elem(portable_ac)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(portable_ac)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         portable_ac_id,
         hvac_mode="i dont exist",
         selects={(None, None): 7, ("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
-    mocked_controller._bridge.request.assert_called_once()
-    expected_calls = [
-        {
-            "functionClass": "fan-speed",
-            "functionInstance": "ac-fan-speed",
-            "lastUpdateTime": 12345,
-            "value": "fan-speed-2-100",
-        },
-    ]
-    post = mocked_controller._bridge.request.call_args_list[0][1]["json"]
-    assert post["metadeviceId"] == portable_ac_id
-    for call in expected_calls:
-        assert call in post["values"]
-    assert len(expected_calls) == len(post["values"])
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller.items[0]
+    assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"

@@ -66,6 +66,8 @@ class DeviceController(BaseResourcesController[Device]):
                 wifi_mac=wifi_mac,
                 ble_mac=ble_mac,
                 version_data=getattr(afero_device, "version_data", {}),
+                children=afero_device.children,
+                functions=afero_device.functions,
             ),
         )
         return self._items[afero_device.id]
@@ -79,7 +81,25 @@ class DeviceController(BaseResourcesController[Device]):
             self._process_polled_devices,
             event_filter=EventType.POLLED_DEVICES,
         )
+        # Subscribe to updates for existing devices
+        self._bridge.events.subscribe(
+            self._process_update_response,
+            event_filter=EventType.RESOURCE_UPDATE_RESPONSE,
+        )
         self._initialized = True
+
+    async def _process_update_response(
+        self, evt_type: EventType, evt_data: AferoEvent | None
+    ) -> None:
+        """Process the response of an update."""
+        dev = evt_data["device"]
+        if evt_data["device"].device_id in self._known_parents:
+            evt = AferoEvent(
+                type=EventType.RESOURCE_UPDATED,
+                device_id=dev.id,
+                device=dev,
+            )
+            await self._handle_event(evt["type"], evt)
 
     async def _process_polled_devices(
         self, evt_type: EventType, evt_data: AferoEvent | None

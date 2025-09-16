@@ -30,7 +30,7 @@ import aiohttp
 from aiohttp import web_exceptions
 from securelogging import LogRedactorMessage, add_secret
 
-from aioafero.device import AferoResource
+from aioafero.device import AferoDevice, AferoResource
 from aioafero.errors import (
     AferoError,
     DeviceNotFound,
@@ -123,27 +123,25 @@ class AferoBridgeV1:
         if len(self.logger.handlers) == 0:
             self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
+        self._known_afero_devices: dict[str, str] = {}
         # Known running tasks
         self._scheduled_tasks: list[asyncio.Task] = []
         self._adhoc_tasks: list[asyncio.Task] = []
         # Data Updater
         self._events: EventStream = EventStream(self, polling_interval, poll_version)
         # Data Controllers
-        self._devices: DeviceController = DeviceController(
-            self
-        )  # Devices contain all sensors
-        self._exhaust_fans: ExhaustFanController = ExhaustFanController(self)
-        self._fans: FanController = FanController(self)
-        self._lights: LightController = LightController(self)
-        self._locks: LockController = LockController(self)
-        self._portable_acs: PortableACController = PortableACController(self)
-        self._security_system: SecuritySystemController = SecuritySystemController(self)
-        self._security_system_sensors: SecuritySystemSensorController = (
-            SecuritySystemSensorController(self)
-        )
-        self._switches: SwitchController = SwitchController(self)
-        self._thermostats: ThermostatController = ThermostatController(self)
-        self._valves: ValveController = ValveController(self)
+        self._controllers: dict[str, BaseResourcesController] = {}
+        self.add_controller("devices", DeviceController)
+        self.add_controller("exhaust_fans", ExhaustFanController)
+        self.add_controller("fans", FanController)
+        self.add_controller("lights", LightController)
+        self.add_controller("locks", LockController)
+        self.add_controller("portable_acs", PortableACController)
+        self.add_controller("security_systems", SecuritySystemController)
+        self.add_controller("security_systems_sensors", SecuritySystemSensorController)
+        self.add_controller("switches", SwitchController)
+        self.add_controller("thermostats", ThermostatController)
+        self.add_controller("valves", ValveController)
 
     @property
     def refresh_token(self) -> str | None:
@@ -151,86 +149,17 @@ class AferoBridgeV1:
         return self._auth.refresh_token
 
     @property
-    def devices(self) -> DeviceController:
-        """Get the controller related to Top Level Devices."""
-        return self._devices
-
-    @property
     def events(self) -> EventStream:
         """Get the class that handles getting new data and notifying controllers."""
         return self._events
 
     @property
-    def exhaust_fans(self) -> ExhaustFanController:
-        """Get the controller related to Exhaust Fans."""
-        return self._exhaust_fans
-
-    @property
-    def fans(self) -> FanController:
-        """Get the controller related to Fans."""
-        return self._fans
-
-    @property
-    def lights(self) -> LightController:
-        """Get the controller related to Lights."""
-        return self._lights
-
-    @property
-    def locks(self) -> LockController:
-        """Get the controller related to Locks."""
-        return self._locks
-
-    @property
-    def portable_acs(self) -> PortableACController:
-        """Get the controller related to Portable ACs."""
-        return self._portable_acs
-
-    @property
-    def security_systems(self) -> SecuritySystemController:
-        """Get the controller related to Security Systems."""
-        return self._security_system
-
-    @property
-    def security_systems_sensors(self) -> SecuritySystemSensorController:
-        """Get the controller related to Security System Sensors."""
-        return self._security_system_sensors
-
-    @property
-    def switches(self) -> SwitchController:
-        """Get the controller related to Switches."""
-        return self._switches
-
-    @property
-    def thermostats(self) -> ThermostatController:
-        """Get the controller related to Thermostats."""
-        return self._thermostats
-
-    @property
-    def valves(self) -> ValveController:
-        """Get the controller related to Valves."""
-        return self._valves
-
-    @property
-    def _controllers(self) -> list:
-        return [
-            self._devices,
-            self._exhaust_fans,
-            self._fans,
-            self._lights,
-            self._locks,
-            self._portable_acs,
-            self._security_system,
-            self._security_system_sensors,
-            self._switches,
-            self._thermostats,
-            self._valves,
-        ]
-
-    @property
     def controllers(self) -> list:
         """Get a list of initialized controllers."""
         return [
-            controller for controller in self._controllers if controller.initialized
+            controller
+            for controller in self._controllers.values()
+            if controller.initialized
         ]
 
     @property
@@ -248,6 +177,26 @@ class AferoBridgeV1:
         """Remove a device from the list of known devices."""
         with contextlib.suppress(KeyError):
             self._known_devs.pop(device_id)
+        with contextlib.suppress(KeyError):
+            self._known_afero_devices.pop(device_id)
+
+    def add_afero_dev(self, device: AferoDevice) -> None:
+        """Add a tracked afero device."""
+        self._known_afero_devices[device.id] = device
+
+    def get_device(self, device_id: str) -> BaseResourcesController[AferoResource]:
+        """Get the controller for a device."""
+        controller = self._known_devs.get(device_id)
+        if controller:
+            return controller[device_id]
+        raise DeviceNotFound(f"Unable to find device {device_id}")
+
+    def get_afero_device(self, device_id: str) -> AferoDevice | None:
+        """Get the afero device for a given id."""
+        try:
+            return self._known_afero_devices[device_id]
+        except KeyError as err:
+            raise DeviceNotFound(f"Unable to find device for {device_id}") from err
 
     @property
     def account_id(self) -> str:
@@ -258,6 +207,11 @@ class AferoBridgeV1:
     def afero_client(self) -> str:
         """Get identifier for Afero system."""
         return self._afero_client
+
+    def add_controller(self, name: str, controller_type: type) -> None:
+        """Add a controller to the list of controllers."""
+        self._controllers[name] = controller_type(self)
+        setattr(self, name, self._controllers[name])
 
     def set_token_data(self, data: TokenData) -> None:
         """Set TokenData used for querying the API."""
@@ -338,7 +292,7 @@ class AferoBridgeV1:
             await asyncio.gather(
                 *[
                     controller.initialize()
-                    for controller in self._controllers
+                    for controller in self._controllers.values()
                     if not controller.initialized
                 ]
             )
