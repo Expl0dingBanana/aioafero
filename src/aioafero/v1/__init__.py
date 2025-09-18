@@ -180,9 +180,11 @@ class AferoBridgeV1:
         with contextlib.suppress(KeyError):
             self._known_afero_devices.pop(device_id)
 
-    def add_afero_dev(self, device: AferoDevice) -> None:
+    def add_afero_dev(self, device: AferoDevice, device_id: str | None = None) -> None:
         """Add a tracked afero device."""
-        self._known_afero_devices[device.id] = device
+        if not device_id:
+            device_id = device.id
+        self._known_afero_devices[device_id] = device
 
     def get_afero_device(self, device_id: str) -> AferoDevice | None:
         """Get the afero device for a given id."""

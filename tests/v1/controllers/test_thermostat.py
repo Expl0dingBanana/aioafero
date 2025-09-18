@@ -396,7 +396,7 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "cool",
             {"hvac_mode": "beans"},
             [],
-            ["Unknown hvac mode beans. Available modes: auto, cool, fan, heat, off"],
+            ["Unknown hvac mode beans. Available modes: cool, fan, heat, off"],
         ),
     ],
 )

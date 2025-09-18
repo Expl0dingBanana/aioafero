@@ -315,7 +315,9 @@ class EventStream:
                     self._logger.debug(
                         "Found %s devices from %s", len(multi_devs), name
                     )
-                    dev.children.extend([x.id for x in multi_devs])
+                    for split_dev in multi_devs:
+                        self._bridge.add_afero_dev(dev, split_dev.id)
+                        dev.children.append(split_dev.id)
                     devices.extend(multi_devs)
         self._logger.debug("Total number of devices (post split): %s", len(devices))
         return devices

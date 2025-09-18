@@ -289,7 +289,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 self._logger.debug(
                     "Unknown hvac mode %s. Available modes: %s",
                     hvac_mode,
-                    ", ".join(sorted(cur_item.hvac_mode.modes)),
+                    ", ".join(sorted(cur_item.hvac_mode.supported_modes)),
                 )
         # Setting the temp without a specific means we need to adjust the active
         # mode.

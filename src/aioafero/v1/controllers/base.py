@@ -112,6 +112,8 @@ class BaseResourcesController(Generic[AferoResource]):
             return
         item_id = evt_data.get("device_id", None)
         cur_item = await self._handle_event_type(evt_type, item_id, evt_data)
+        if evt_type == EventType.RESOURCE_UPDATE_RESPONSE:
+            evt_type = EventType.RESOURCE_UPDATED
         if cur_item:
             await self.emit_to_subscribers(evt_type, item_id, cur_item)
 
