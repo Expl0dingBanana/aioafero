@@ -134,7 +134,7 @@ async def test_update_elem(mocked_controller, caplog):
             current_value="Off",
             _error="On",
             unit=None,
-            instance=None
+            instance=None,
         ),
     }
     assert dev.selects == {
@@ -201,9 +201,9 @@ async def test_update_security_sensor_no_updates(mocked_controller):
                     "functionClass": "sensor-config",
                     "value": {
                         "security-sensor-config-v2": {
-                            "chirpMode": 1,
-                            "triggerType": 2,
-                            "bypassType": 1,
+                            "chirpMode": 0,
+                            "triggerType": 3,
+                            "bypassType": 0,
                         }
                     },
                     "functionInstance": "sensor-2",
@@ -234,7 +234,9 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
     await mocked_controller.set_state(device.id, **updates)
     await bridge.async_block_until_done()
     dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
-    assert dev.selects[("chirpMode", None)].selected == 'On'
+    assert dev.selects[("chirpMode", None)].selected == 'Off'
+    assert dev.selects[("triggerType", None)].selected == 'Home/Away'
+    assert dev.selects[("bypassType", None)].selected == 'Off'
 
 
 @pytest.mark.asyncio

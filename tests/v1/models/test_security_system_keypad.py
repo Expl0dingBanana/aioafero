@@ -17,7 +17,7 @@ def populated_entity():
         id="entity-1",
         available=True,
         selects={
-            ("volume ", "buzzer-volume"): features.SelectFeature(
+            ("volume", "buzzer-volume"): features.SelectFeature(
                 selected="volume-04",
                 selects={
                     "volume-00",
@@ -29,7 +29,7 @@ def populated_entity():
                 name="Buzzer Volume",
             ),
         },
-        instances="i dont execute",
+        instances={"preset": "preset-1"},
     )
 
 

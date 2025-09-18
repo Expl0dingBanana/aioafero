@@ -471,3 +471,58 @@ capability_device = AferoDevice(
 )
 def test_get_sensor_name(device, sensor_id, expected):
     assert get_sensor_name(device.capabilities, sensor_id) == expected
+
+
+@pytest.mark.parametrize(
+    (("device", "expected")),
+    [
+        # No valid data
+        ([], "Unknown"),
+        # Valid data and valid type
+        (
+            [
+                AferoState(
+                    functionClass="sensor-state",
+                    functionInstance="sensor-4",
+                    value={
+                        "security-sensor-state": {
+                            "deviceType": 1,
+                            "tampered": 0,
+                            "triggered": 0,
+                            "missing": 0,
+                            "versionBuild": 3,
+                            "versionMajor": 2,
+                            "versionMinor": 0,
+                            "batteryLevel": 100
+                        }
+                    },
+                )
+            ],
+            "Motion Sensor",
+        ),
+        # Valid data and invalid type
+        (
+            [
+                AferoState(
+                    functionClass="sensor-state",
+                    functionInstance="sensor-4",
+                    value={
+                        "security-sensor-state": {
+                            "deviceType": 3,
+                            "tampered": 0,
+                            "triggered": 0,
+                            "missing": 0,
+                            "versionBuild": 3,
+                            "versionMajor": 2,
+                            "versionMinor": 0,
+                            "batteryLevel": 100
+                        }
+                    },
+                )
+            ],
+            "Unknown",
+        ),
+    ]
+)
+def test_get_model_type():
+    pass

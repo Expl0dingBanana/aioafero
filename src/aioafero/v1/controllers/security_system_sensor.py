@@ -128,12 +128,13 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                     cur_item.selects.get(("bypassType", None)).selected
                 ],
             }
+            self._logger.warning(selects)
             for select, select_val in selects.items():
-                if select[0] == "chirpMode":
+                if select[1] == "chirpMode":
                     select_vals["chirpMode"] = chirp_modes[select_val]
-                elif select[0] == "triggerType":
+                elif select[1] == "triggerType":
                     select_vals["triggerType"] = trigger_types[select_val]
-                elif select[0] == "bypassType":
+                elif select[1] == "bypassType":
                     select_vals["bypassType"] = bypass_types[select_val]
                 else:
                     continue
