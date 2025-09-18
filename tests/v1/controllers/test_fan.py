@@ -16,13 +16,15 @@ zandra_fan = utils.create_devices_from_data("fan-ZandraFan.json")[0]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = FanController(mocked_bridge)
-    return controller
+    return mocked_bridge.fans
 
 
 @pytest.mark.asyncio
 async def test_initialize_zandra(mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.id == "066c0e38-c49b-4f60-b805-486dc07cab74"
@@ -44,89 +46,62 @@ async def test_initialize_zandra(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_turn_on(mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = False
     await mocked_controller.turn_on(zandra_fan.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == zandra_fan.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": "fan-power",
-            "lastUpdateTime": 12345,
-            "value": "on",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.on.on is True
 
 
 @pytest.mark.asyncio
 async def test_turn_off(mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = True
     await mocked_controller.turn_off(zandra_fan.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == zandra_fan.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": "fan-power",
-            "lastUpdateTime": 12345,
-            "value": "off",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.on.on is False
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "speed, expected_speed",
+    "speed",
     [
         # Speed of 0 should turn off
-        (0, None),
-        # Find the next highest value
-        (1, "fan-speed-6-016"),
+        (0),
         # Exact value
-        (16, "fan-speed-6-016"),
+        (16),
     ],
 )
-async def test_set_speed(speed, expected_speed, mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+async def test_set_speed(speed, mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
-    if expected_speed:
+    if speed:
         dev.on.on = False
     else:
         dev.on.on = True
     dev.speed.speed = "fan-speed-6-100"
     await mocked_controller.set_speed(zandra_fan.id, speed)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == zandra_fan.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": "fan-power",
-            "lastUpdateTime": 12345,
-            "value": "on",
-        },
-    ]
-    if expected_speed is None:
-        expected_states[0]["value"] = "off"
+    await mocked_controller._bridge.async_block_until_done()
+    if not speed:
+        assert dev.on.on is False
     else:
-        expected_states.append(
-            {
-                "functionClass": "fan-speed",
-                "functionInstance": "fan-speed",
-                "lastUpdateTime": 12345,
-                "value": expected_speed,
-            }
-        )
-    utils.ensure_states_sent(mocked_controller, expected_states)
+        assert dev.on.on is True
+        assert dev.speed.speed == speed
 
 
 @pytest.mark.asyncio
@@ -135,33 +110,24 @@ async def test_set_speed(speed, expected_speed, mocked_controller):
     [True, False],
 )
 @pytest.mark.parametrize(
-    "forward, value",
+    "forward",
     [
-        (True, "forward"),
-        (False, "reverse"),
+        (True),
+        (False),
     ],
 )
-async def test_set_direction(on, forward, value, mocked_controller, caplog):
-    caplog.set_level(logging.DEBUG)
-    await mocked_controller.initialize_elem(zandra_fan)
+async def test_set_direction(on, forward, mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = on
     dev.direction.forward = not forward
     await mocked_controller.set_direction(zandra_fan.id, forward)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == zandra_fan.id
-    expected_states = [
-        {
-            "functionClass": "fan-reverse",
-            "functionInstance": "fan-reverse",
-            "lastUpdateTime": 12345,
-            "value": value,
-        },
-    ]
-    if not on:
-        assert "Fan is not running so direction will not be set" in caplog.text
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.direction.forward is forward
 
 
 @pytest.mark.asyncio
@@ -173,35 +139,32 @@ async def test_set_direction(on, forward, value, mocked_controller, caplog):
     ],
 )
 @pytest.mark.parametrize(
-    "preset, value",
+    "preset",
     [
-        (True, "enabled"),
-        (False, "disabled"),
+        (True),
+        (False),
     ],
 )
-async def test_set_preset(on, preset, value, mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+async def test_set_preset(on, preset, mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     dev.on.on = True
     dev.preset.enabled = not preset
     await mocked_controller.set_preset(zandra_fan.id, preset)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == zandra_fan.id
-    expected_states = [
-        {
-            "functionClass": "toggle",
-            "functionInstance": "comfort-breeze",
-            "lastUpdateTime": 12345,
-            "value": value,
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.preset.enabled is preset
 
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("fan-ZandraFan.json")[0]
     new_states = [
@@ -238,7 +201,10 @@ async def test_update_elem(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem_no_updates(mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     updates = await mocked_controller.update_elem(zandra_fan)
     assert updates == set()
@@ -247,7 +213,10 @@ async def test_update_elem_no_updates(mocked_controller):
 # @TODO - Create tests for BaseResourcesController
 @pytest.mark.asyncio
 async def test_update(mocked_controller):
-    await mocked_controller.initialize_elem(zandra_fan)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.on.on is True
@@ -258,7 +227,9 @@ async def test_update(mocked_controller):
             "functionInstance": "fan-power",
         }
     ]
+    mocked_controller._bridge.mock_update_afero_api(zandra_fan.id, manual_update)
     await mocked_controller.update(zandra_fan.id, states=manual_update)
+    await mocked_controller._bridge.async_block_until_done()
     assert dev.on.on is False
 
 

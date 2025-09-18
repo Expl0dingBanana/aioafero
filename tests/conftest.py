@@ -11,6 +11,7 @@ from aioafero import AferoDevice
 from aioafero.v1.auth import TokenData
 from aioafero.v1.controllers.event import EventType
 from tests.v1.utils import create_hs_raw_from_device
+from aioafero.v1.controllers.base import BaseResourcesController, dataclass_to_afero
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -27,6 +28,7 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
     bridge: AferoBridgeV1 = AferoBridgeV1("username2", "password2")
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
     mocker.patch.object(bridge, "fetch_data", return_value=[])
+    mocker.patch.object(bridge.events, "initialize_reader")
     mocker.patch.object(bridge, "request", side_effect=mocker.AsyncMock())
     mocker.patch.object(
         bridge, "fetch_data", side_effect=mocker.AsyncMock(return_value=[])
@@ -63,6 +65,25 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
         await bridge.events.generate_events_from_data(raw_data)
         await bridge.async_block_until_done()
 
+    # Fake the response from the API when updating states
+    def mock_update_afero_api(device_id, result):
+        json_resp = mocker.AsyncMock()
+        json_resp.return_value = {"metadeviceId": device_id, "values": result}
+        resp = mocker.AsyncMock()
+        resp.json = json_resp
+        resp.status = 200
+        mocker.patch("aioafero.v1.controllers.base.BaseResourcesController.update_afero_api", return_value=resp)
+    
+    # Enable "results" to be returned on update
+    actual_dataclass_to_afero = dataclass_to_afero
+    def mocked_dataclass_to_afero(*args, **kwargs):
+        result = actual_dataclass_to_afero(*args, **kwargs)
+        mock_update_afero_api(args[0].id, result)
+        return result
+    
+    mocker.patch("aioafero.v1.controllers.base.dataclass_to_afero", side_effect=mocked_dataclass_to_afero)
+    
+    bridge.mock_update_afero_api = mock_update_afero_api
     bridge.generate_devices_from_data = generate_devices_from_data
     bridge.generate_events_from_data = generate_events_from_data
 
@@ -91,7 +112,7 @@ def mocked_bridge_req(mocker, aio_sess):
         expiration=datetime.datetime.now().timestamp() + 200,
     )
     # Force initialization so test elements are not overwritten
-    for controller in bridge._controllers:
+    for controller in bridge._controllers.values():
         controller._initialized = True
 
     # Enable ad-hoc event updates
@@ -125,6 +146,22 @@ async def bridge_with_acct(mocker):
             expiration=datetime.datetime.now().timestamp() + 200,
         )
     yield bridge
+
+
+@pytest_asyncio.fixture
+async def bridge_with_acct_req(mocker):
+    bridge = AferoBridgeV1("user", "passwd")
+    mocker.patch.object(bridge, "_account_id", "mocked-account-id")
+    mocker.patch.object(bridge, "request", side_effect=bridge.request)
+    bridge._auth._token_data = TokenData(
+            "mock-token",
+            None,
+            "mock-refresh-token",
+            expiration=datetime.datetime.now().timestamp() + 200,
+        )
+    await bridge.initialize()
+    yield bridge
+    await bridge.close()
 
 
 @pytest.fixture

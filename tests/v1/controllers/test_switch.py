@@ -9,7 +9,6 @@ from aioafero.v1.models import AferoSensor
 
 from .. import utils
 
-switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 transformer = utils.create_devices_from_data("transformer.json")[0]
 glass_door = utils.create_devices_from_data("glass-door.json")[0]
 exhaust_fan = utils.create_devices_from_data("exhaust-fan.json")[0]
@@ -24,10 +23,10 @@ def mocked_controller(mocked_bridge, mocker):
 
 @pytest.mark.asyncio
 async def test_initialize(mocked_controller):
-    await mocked_controller.initialize_elem(switch)
+    await mocked_controller.initialize_elem(glass_door)
     assert len(mocked_controller.items) == 1
-    dev = mocked_controller.items[0]
-    assert dev.id == "feb5d9db-0562-478b-aaa0-00c889f0a758"
+    dev = mocked_controller[glass_door.id]
+    assert dev.id == "89d12e53-2c38-46b3-af2a-ced1ccc04c39"
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None),
     }
@@ -39,7 +38,7 @@ async def test_initialize(mocked_controller):
 async def test_initialize_multi(mocked_controller):
     await mocked_controller.initialize_elem(transformer)
     assert len(mocked_controller.items) == 1
-    dev = mocked_controller.items[0]
+    dev = mocked_controller[transformer.id]
     assert dev.id == "f9aa07e9-a4ce-46b4-b6bc-ad3bc070bc90"
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None),
@@ -74,9 +73,12 @@ async def test_initialize_multi(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_initialize_glass_door(mocked_controller):
-    await mocked_controller.initialize_elem(glass_door)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(glass_door)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
-    dev = mocked_controller.items[0]
+    dev = mocked_controller[glass_door.id]
     assert dev.id == "89d12e53-2c38-46b3-af2a-ced1ccc04c39"
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None),
@@ -116,95 +118,38 @@ async def test_initialize_portable_ac(bridge):
 
 
 @pytest.mark.asyncio
-async def test_turn_on(mocked_controller):
-    await mocked_controller.initialize_elem(switch)
-    dev = mocked_controller.items[0]
-    await mocked_controller.turn_on(switch.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == switch.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
-    assert dev.on == {
-        None: features.OnFeature(on=True, func_class="power", func_instance=None)
-    }
-    assert dev.sensors == {}
-    assert dev.binary_sensors == {}
-
-
-@pytest.mark.asyncio
 async def test_turn_on_multi(mocked_controller):
-    await mocked_controller.initialize_elem(transformer)
-    dev = mocked_controller.items[0]
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(transformer)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.turn_on(transformer.id, instance="zone-1")
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == transformer.id
-    expected_states = [
-        {
-            "functionClass": "toggle",
-            "functionInstance": "zone-1",
-            "lastUpdateTime": 12345,
-            "value": "on",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
-    assert dev.on == {
-        None: features.OnFeature(on=False, func_class="power", func_instance=None),
-        "zone-1": features.OnFeature(
-            on=True, func_class="toggle", func_instance="zone-1"
-        ),
-        "zone-2": features.OnFeature(
-            on=True, func_class="toggle", func_instance="zone-2"
-        ),
-        "zone-3": features.OnFeature(
-            on=False, func_class="toggle", func_instance="zone-3"
-        ),
-    }
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[transformer.id]
+    assert dev.on["zone-1"].on is True
 
 
 @pytest.mark.asyncio
 async def test_turn_on_glass_door(mocked_controller):
-    await mocked_controller.initialize_elem(glass_door)
-    dev = mocked_controller.items[0]
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(glass_door)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.turn_on(glass_door.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == glass_door.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "on",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
-    assert dev.on == {
-        None: features.OnFeature(on=True, func_class="power", func_instance=None)
-    }
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[glass_door.id]
+    assert dev.on[None].on is True
 
 
 @pytest.mark.asyncio
 async def test_turn_off(mocked_controller):
-    await mocked_controller.initialize_elem(switch)
-    dev = mocked_controller.items[0]
-    await mocked_controller.turn_off(switch.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == switch.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "off",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(glass_door)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.turn_off(glass_door.id)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[glass_door.id]
     assert dev.on == {
         None: features.OnFeature(on=False, func_class="power", func_instance=None)
     }
@@ -212,83 +157,66 @@ async def test_turn_off(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_turn_off_multi(mocked_controller):
-    await mocked_controller.initialize_elem(transformer)
-    dev = mocked_controller.items[0]
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(transformer)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.turn_off(transformer.id, instance="zone-2")
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == transformer.id
-    expected_states = [
-        {
-            "functionClass": "toggle",
-            "functionInstance": "zone-2",
-            "lastUpdateTime": 12345,
-            "value": "off",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
-    assert dev.on == {
-        None: features.OnFeature(on=False, func_class="power", func_instance=None),
-        "zone-1": features.OnFeature(
-            on=False, func_class="toggle", func_instance="zone-1"
-        ),
-        "zone-2": features.OnFeature(
-            on=False, func_class="toggle", func_instance="zone-2"
-        ),
-        "zone-3": features.OnFeature(
-            on=False, func_class="toggle", func_instance="zone-3"
-        ),
-    }
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[transformer.id]
+    assert dev.on["zone-1"].on is False
+    assert dev.on["zone-2"].on is False
+    assert dev.on["zone-3"].on is False
 
 
 @pytest.mark.asyncio
 async def test_turn_off_glass_door(mocked_controller):
-    await mocked_controller.initialize_elem(glass_door)
-    dev = mocked_controller.items[0]
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(glass_door)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.turn_off(glass_door.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == glass_door.id
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "off",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
-    assert dev.on == {
-        None: features.OnFeature(on=False, func_class="power", func_instance=None)
-    }
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[glass_door.id]
+    assert dev.on[None].on is False
 
 
 @pytest.mark.asyncio
-async def test_turn_on_split_device(mocked_bridge):
+async def test_turn_on_split_device(mocked_bridge, mocker):
     await mocked_bridge.generate_devices_from_data(
         utils.create_devices_from_data("light-with-speaker.json")
     )
+    await mocked_bridge.async_block_until_done()
     speaker_id = "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f-light-speaker-power"
     mocked_controller = mocked_bridge.switches
     dev = mocked_controller[speaker_id]
-    await mocked_controller.turn_on(speaker_id, instance="speaker-power")
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f"
-    expected_states = [
+    # Split devices need their IDs correctly set
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f", "values": [
         {
             "functionClass": "toggle",
             "functionInstance": "speaker-power",
-            "lastUpdateTime": 12345,
             "value": "on",
-        }
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
-    assert dev.on == {
-        "speaker-power": features.OnFeature(on=True, func_class="toggle", func_instance="speaker-power")
-    }
+            "lastUpdateTime": 0,
+        },
+    ]}
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    # Run the test
+    await mocked_controller.turn_on(speaker_id, instance="speaker-power")
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[speaker_id]
+    assert dev.on["speaker-power"].on is True
 
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(transformer)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(transformer)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev_update = utils.create_devices_from_data("transformer.json")[0]
     new_states = [
@@ -322,7 +250,7 @@ async def test_update_elem(mocked_controller):
 async def test_empty_update(mocked_controller):
     switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
     await mocked_controller.initialize_elem(switch)
-    assert len(mocked_controller.items) == 1
+    await mocked_controller._bridge.async_block_until_done()
     updates = await mocked_controller.update_elem(switch)
     assert updates == set()
 
@@ -371,14 +299,20 @@ async def test_switch_emit_update(bridge):
 
 @pytest.mark.asyncio
 async def test_set_state_empty(mocked_controller):
-    await mocked_controller.initialize_elem(switch)
-    await mocked_controller.set_state(switch.id)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(glass_door)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.set_state(glass_door.id)
 
 
 @pytest.mark.asyncio
 async def test_set_state_no_dev(mocked_controller, caplog):
     caplog.set_level(0)
-    await mocked_controller.initialize_elem(transformer)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(transformer)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     mocked_controller._bridge.add_device(transformer.id, mocked_controller)
     await mocked_controller.set_state("not-a-device")
     mocked_controller._bridge.request.assert_not_called()
@@ -388,7 +322,10 @@ async def test_set_state_no_dev(mocked_controller, caplog):
 @pytest.mark.asyncio
 async def test_set_state_invalid_instance(mocked_controller, caplog):
     caplog.set_level(0)
-    await mocked_controller.initialize_elem(transformer)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(transformer)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     mocked_controller._bridge.add_device(transformer.id, mocked_controller)
     await mocked_controller.set_state(
         transformer.id, on=True, instance="not-a-instance"

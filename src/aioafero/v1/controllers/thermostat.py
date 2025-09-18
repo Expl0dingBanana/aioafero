@@ -136,6 +136,8 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 model=afero_device.model,
                 name=afero_device.friendly_name,
                 parent_id=afero_device.device_id,
+                children=afero_device.children,
+                functions=afero_device.functions,
             ),
             current_temperature=current_temperature,
             fan_running=fan_running,
@@ -287,7 +289,7 @@ class ThermostatController(BaseResourcesController[Thermostat]):
                 self._logger.debug(
                     "Unknown hvac mode %s. Available modes: %s",
                     hvac_mode,
-                    ", ".join(sorted(cur_item.hvac_mode.modes)),
+                    ", ".join(sorted(cur_item.hvac_mode.supported_modes)),
                 )
         # Setting the temp without a specific means we need to adjust the active
         # mode.

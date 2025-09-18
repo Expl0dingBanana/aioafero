@@ -146,6 +146,8 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 model=afero_device.model,
                 name=afero_device.friendly_name,
                 parent_id=afero_device.device_id,
+                children=afero_device.children,
+                functions=afero_device.functions,
             ),
         )
         return self._items[afero_device.id]

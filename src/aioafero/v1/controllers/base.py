@@ -4,14 +4,21 @@ import asyncio
 from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable, Iterator
 import contextlib
-import copy
 from dataclasses import dataclass, fields
 from datetime import UTC, datetime
 import re
 import time
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple
 
-from aioafero.device import AferoDevice, AferoResource, AferoState, get_afero_device
+import aiohttp
+
+from aioafero.device import (
+    AferoDevice,
+    AferoResource,
+    AferoState,
+    convert_state,
+    get_afero_device,
+)
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.util import process_function
 from aioafero.v1 import v1_const
@@ -105,6 +112,8 @@ class BaseResourcesController(Generic[AferoResource]):
             return
         item_id = evt_data.get("device_id", None)
         cur_item = await self._handle_event_type(evt_type, item_id, evt_data)
+        if evt_type == EventType.RESOURCE_UPDATE_RESPONSE:
+            evt_type = EventType.RESOURCE_UPDATED
         if cur_item:
             await self.emit_to_subscribers(evt_type, item_id, cur_item)
 
@@ -132,7 +141,10 @@ class BaseResourcesController(Generic[AferoResource]):
         elif evt_type == EventType.RESOURCE_DELETED:
             cur_item = self._items.pop(item_id, evt_data)
             self._bridge.remove_device(evt_data["device_id"])
-        elif evt_type == EventType.RESOURCE_UPDATED:
+        elif evt_type in [
+            EventType.RESOURCE_UPDATED,
+            EventType.RESOURCE_UPDATE_RESPONSE,
+        ]:
             # existing item updated
             try:
                 cur_item = self.get_device(item_id)
@@ -433,13 +445,15 @@ class BaseResourcesController(Generic[AferoResource]):
             )
         )
 
-    async def update_afero_api(self, device_id: str, states: list[dict]) -> bool:
+    async def update_afero_api(
+        self, device_id: str, states: list[dict]
+    ) -> aiohttp.ClientResponse | bool:
         """Update Afero IoT API with the new states.
 
         :param device_id: Afero IoT Device ID
         :param states: States to manually set
 
-        :return: True if successful, False otherwise.
+        :return: Response if successful, False otherwise.
         """
         url = self._bridge.generate_api_url(
             v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
@@ -463,7 +477,7 @@ class BaseResourcesController(Generic[AferoResource]):
                     "Invalid update provided for %s using %s", device_id, states
                 )
                 return False
-        return True
+        return res
 
     async def update(
         self,
@@ -479,6 +493,7 @@ class BaseResourcesController(Generic[AferoResource]):
         :param states: States to manually set
         :param send_duplicate_states: Send all states, regardless if there's been a change
         """
+        update_id = device_id
         try:
             cur_item = self.get_device(device_id)
         except DeviceNotFound:
@@ -488,9 +503,7 @@ class BaseResourcesController(Generic[AferoResource]):
             return
         # split devices use <elem>.update_id to specify the correct device id
         with contextlib.suppress(AttributeError):
-            device_id = cur_item.update_id
-        # Make a clone to restore if the update fails
-        fallback = copy.deepcopy(cur_item)
+            update_id = cur_item.update_id
         if obj_in:
             device_states = dataclass_to_afero(
                 cur_item, obj_in, self.ITEM_MAPPING, send_duplicate_states
@@ -498,14 +511,21 @@ class BaseResourcesController(Generic[AferoResource]):
             if not device_states:
                 self._logger.debug("No states to send. Skipping")
                 return
-            # Update the state of the item to match the new states
-            update_dataclass(cur_item, obj_in)
         else:  # Manually setting states
             device_states = states
-            await self._process_state_update(cur_item, device_id, states)
         # @TODO - Implement bluetooth logic for update
-        if not await self.update_afero_api(device_id, device_states):
-            self._items[device_id] = fallback
+        if res := await self.update_afero_api(update_id, device_states):
+            resp_json = await res.json()
+            states = [convert_state(val) for val in resp_json.get("values", [])]
+            update_dev = self.generate_update_dev(resp_json["metadeviceId"], states)
+            update_dev.id = update_id
+            await self._bridge.events.generate_events_from_update(update_dev)
+
+    def generate_update_dev(self, device_id: str, states: list[AferoState]) -> dict:
+        """Generate update data for the event controller."""
+        afero_dev = self._bridge.get_afero_device(device_id)
+        afero_dev.states = states
+        return afero_dev
 
     def get_device(self, device_id) -> AferoResource:
         """Lookup the device with the given ID."""
@@ -513,28 +533,6 @@ class BaseResourcesController(Generic[AferoResource]):
             return self[device_id]
         except KeyError as err:
             raise DeviceNotFound(device_id) from err
-
-
-def update_dataclass(elem: AferoResource, update_vals: dataclass):
-    """Update the element with the latest changes."""
-    if "callback" in [field.name for field in fields(update_vals)]:
-        update_vals.callback(elem, update_vals)
-    else:
-        for f in fields(update_vals):
-            cur_val = getattr(update_vals, f.name, None)
-            elem_val = getattr(elem, f.name)
-            if cur_val is None:
-                continue
-            # There is probably a better way to approach this
-            if not str(f.type).startswith("dict"):
-                # Special processing for dicts
-                if isinstance(elem_val, dict):
-                    cur_val = {getattr(cur_val, "func_instance", None): cur_val}
-                    getattr(elem, f.name).update(cur_val)
-                else:
-                    setattr(elem, f.name, cur_val)
-            else:
-                elem_val.update(cur_val)
 
 
 def dataclass_to_afero(
@@ -545,8 +543,6 @@ def dataclass_to_afero(
     for f in fields(cls):
         current_feature = getattr(cls, f.name, None)
         if current_feature is None:
-            continue
-        if f.name == "callback":
             continue
         api_key = mapping.get(f.name, f.name)
         # There is probably a better way to approach this

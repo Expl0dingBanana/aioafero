@@ -129,7 +129,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         selects: dict[tuple[str, int | None], str] | None = None,
     ) -> None:
         """Set supported feature(s) to fan resource."""
-        update_obj = SecuritySystemSensorPut(callback=update_dataclass_callback)
+        update_obj = SecuritySystemSensorPut()
         try:
             cur_item: SecuritySystemSensor = self.get_device(device_id)
         except DeviceNotFound:
@@ -229,10 +229,3 @@ def update_from_states(
                     data["bypassType"]
                 )
     return updated_keys
-
-
-def update_dataclass_callback(
-    elem: SecuritySystemSensor, update_vals: SecuritySystemSensorPut
-):
-    """Update the SecuritySystem with the values from SecuritySystemSensorPut."""
-    return update_from_states([AferoState(**update_vals.sensor_config.api_value)], elem)

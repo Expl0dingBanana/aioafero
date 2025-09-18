@@ -27,8 +27,7 @@ def get_alarm_panel_with_siren() -> AferoDevice:
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = SecuritySystemController(mocked_bridge)
-    return controller
+    return mocked_bridge.security_systems
 
 
 @pytest.mark.asyncio
@@ -145,7 +144,10 @@ async def test_initialize(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_initialize_with_siren(mocked_controller):
-    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.siren_action == features.SecuritySensorSirenFeature(
@@ -156,104 +158,71 @@ async def test_initialize_with_siren(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_disarm(mocked_controller):
-    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
     await mocked_controller.disarm(alarm_panel.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == alarm_panel.id
-    expected_states = [
-        {
-            "functionClass": "alarm-state",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "disarmed",
-        },
-        {
-            "functionClass": "siren-action",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": None,
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.alarm_state.mode == "disarmed"
+    assert dev.siren_action.result_code is None
+    assert dev.siren_action.command is None
 
 
 @pytest.mark.asyncio
 async def test_arm_home(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.arm_home(alarm_panel.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == alarm_panel.id
-    expected_states = [
-        {
-            "functionClass": "alarm-state",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "arm-started-stay",
-        },
-        {
-            "functionClass": "siren-action",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": {"security-siren-action": {"resultCode": 0, "command": 4}},
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.alarm_state.mode == "arm-started-stay"
+    assert dev.siren_action.result_code == 0
+    assert dev.siren_action.command == 4
 
 
 @pytest.mark.asyncio
 async def test_arm_away(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.arm_away(alarm_panel.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == alarm_panel.id
-    expected_states = [
-        {
-            "functionClass": "alarm-state",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "arm-started-away",
-        },
-        {
-            "functionClass": "siren-action",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": {"security-siren-action": {"resultCode": 0, "command": 4}},
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.alarm_state.mode == "arm-started-away"
+    assert dev.siren_action.result_code == 0
+    assert dev.siren_action.command == 4
 
 
 @pytest.mark.asyncio
 async def test_alarm_trigger(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.alarm_trigger(alarm_panel.id)
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == alarm_panel.id
-    expected_states = [
-        {
-            "functionClass": "alarm-state",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "alarming-sos",
-        },
-        {
-            "functionClass": "siren-action",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": {"security-siren-action": {"resultCode": 0, "command": 5}},
-        },
-    ]
-    utils.ensure_states_sent(mocked_controller, expected_states)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.alarm_state.mode == "alarming-sos"
+    assert dev.siren_action.result_code == 0
+    assert dev.siren_action.command == 5
 
 
 @pytest.mark.asyncio
 async def test_empty_update(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     update = utils.create_devices_from_data("security-system.json")[1]
     updates = await mocked_controller.update_elem(update)
@@ -262,7 +231,10 @@ async def test_empty_update(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller[alarm_panel.id]
     assert dev.available
@@ -312,7 +284,10 @@ async def test_update_elem(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem_from_siren(mocked_controller):
-    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     update = get_alarm_panel_with_siren()
     utils.modify_state(
@@ -333,7 +308,10 @@ async def test_update_elem_from_siren(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_update_elem_from_siren_empty(mocked_controller):
-    await mocked_controller.initialize_elem(get_alarm_panel_with_siren())
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     update = get_alarm_panel_with_siren()
     updates = await mocked_controller.update_elem(update)
@@ -342,46 +320,29 @@ async def test_update_elem_from_siren_empty(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_state_empty(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(alarm_panel.id)
 
 
 @pytest.mark.asyncio
 async def test_set_state(mocked_controller):
-    await mocked_controller.initialize_elem(alarm_panel)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(alarm_panel)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(
         alarm_panel.id,
         mode="alarming-sos",
         numbers={("arm-exit-delay", "away"): 300, ("bad", None): False},
         selects={("song-id", "alarm"): "preset-12", ("bad", None): False},
     )
+    await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.numbers[("arm-exit-delay", "away")].value == 300
     assert dev.selects[("song-id", "alarm")].selected == "preset-12"
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == alarm_panel.id
-    expected_calls = [
-        {
-            "functionClass": "alarm-state",
-            "functionInstance": None,
-            "lastUpdateTime": 12345,
-            "value": "alarming-sos",
-        },
-        {
-            "functionClass": "arm-exit-delay",
-            "functionInstance": "away",
-            "lastUpdateTime": 12345,
-            "value": 300,
-        },
-        {
-            "functionClass": "song-id",
-            "functionInstance": "alarm",
-            "lastUpdateTime": 12345,
-            "value": "preset-12",
-        },
-    ]
-    for call in expected_calls:
-        assert call in req["values"]
 
 
 @pytest.mark.asyncio
@@ -424,7 +385,7 @@ async def test_emitting(bridge):
     bridge.events.emit(event.EventType.RESOURCE_UPDATED, update_event)
     await bridge.async_block_until_done()
     assert len(bridge.security_systems._items) == 1
-    assert not bridge.security_systems._items[dev_update.id].available
+    assert not bridge.security_systems[dev_update.id].available
 
 
 def test_get_sensor_ids():
