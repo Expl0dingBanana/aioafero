@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.3.0
+=============
+
+ * Device states are set from the API response rather than the sent states
+
 Version 5.2.3
 =============
 
