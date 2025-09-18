@@ -437,7 +437,6 @@ class Example1ResourceController(BaseResourcesController):
     async def update_elem(self, afero_dev: AferoDevice) -> set:
         updated_keys = set()
         cur_item = self.get_device(afero_dev.id)
-        self._logger.warning(afero_dev.states)
         for state in afero_dev.states:
             if state.functionClass == "power":
                 new_val = state.value == "on"
