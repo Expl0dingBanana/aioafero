@@ -141,6 +141,7 @@ class AferoBridgeV1:
         self.add_controller("locks", LockController)
         self.add_controller("portable_acs", PortableACController)
         self.add_controller("security_systems", SecuritySystemController)
+        self.add_controller("security_systems_keypads", SecuritySystemKeypadController)
         self.add_controller("security_systems_sensors", SecuritySystemSensorController)
         self.add_controller("switches", SwitchController)
         self.add_controller("thermostats", ThermostatController)

@@ -5,13 +5,8 @@ from aioafero.errors import DeviceNotFound
 from aioafero.v1.models import SecuritySystemSensor, SecuritySystemSensorPut, features
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
-from .base import AferoBinarySensor, AferoSensor, AferoState, BaseResourcesController
-from .security_system import (
-    GENERIC_MODES,
-    SENSOR_SPLIT_IDENTIFIER,
-    TRIGGER_MODES,
-    get_valid_states,
-)
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .security_system import GENERIC_MODES, SENSOR_SPLIT_IDENTIFIER, TRIGGER_MODES
 
 
 class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSensor]):
@@ -93,14 +88,8 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         :return: States that have been modified
         """
         cur_item = self.get_device(afero_device.id)
-        return await self._update_elem(cur_item, afero_device.states)
-
-    async def _update_elem(
-        self, cur_item: SecuritySystemSensor, states: list[AferoState]
-    ) -> set[str]:
-        """Update the item from the incoming changes."""
         updated_keys = set()
-        for state in states:
+        for state in afero_device.states:
             if state.functionClass == "available":
                 if cur_item.available != state.value:
                     updated_keys.add("available")

@@ -766,7 +766,7 @@ async def test_initialize(item_types, ex1_rc, mocker):
     ex1_rc._initialized = False
     handle_event = mocker.patch.object(ex1_rc, "_handle_event")
     await ex1_rc.initialize()
-    assert len(ex1_rc._bridge.events._subscribers) == 13
+    assert len(ex1_rc._bridge.events._subscribers) == 14
     assert "nada" in ex1_rc._bridge.events.registered_multiple_devices
     assert ex1_rc._bridge.events.registered_multiple_devices["nada"] == callback
 

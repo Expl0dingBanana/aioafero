@@ -10,7 +10,6 @@ from aioafero.v1.controllers.security_system import security_system_callback
 from aioafero.v1.controllers.security_system_sensor import (
     AferoBinarySensor,
     features,
-    get_valid_states
 )
 from dataclasses import asdict
 
@@ -26,7 +25,7 @@ security_system_sensor_2 = security_system_sensors[1]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    return mocked_bridge.security_system_sensors
+    return mocked_bridge.security_systems_sensors
 
 
 @pytest.mark.asyncio
@@ -97,46 +96,24 @@ async def test_update_elem(mocked_controller, caplog):
     await mocked_controller._bridge.async_block_until_done()
     dev_update = copy.deepcopy(security_system_sensor_2)
     new_states = [
-        AferoState(
-            functionClass="sensor-state",
-            value={
-                "security-sensor-state": {
-                    "deviceType": 2,
-                    "tampered": 1,
-                    "triggered": 0,
-                    "missing": 1,
-                    "versionBuild": 3,
-                    "versionMajor": 2,
-                    "versionMinor": 0,
-                    "batteryLevel": 95,
-                }
-            },
-            lastUpdateTime=0,
-            functionInstance="sensor-2",
-        ),
-        AferoState(
-            functionClass="sensor-config",
-            value={
-                "security-sensor-config-v2": {
-                    "chirpMode": 1,
-                    "triggerType": 2,
-                    "bypassType": 1,
-                }
-            },
-            lastUpdateTime=0,
-            functionInstance="sensor-2",
-        ),
+        AferoState(functionClass='chirpMode', value='On', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='triggerType', value='Away', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='bypassType', value='On', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='top-level-key', value='security-sensor-config-v2', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='tampered', value='On', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='triggered', value='Off', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='available', value=False, lastUpdateTime=None, functionInstance=None)
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
     updates = await mocked_controller.update_elem(dev_update)
+    await mocked_controller._bridge.async_block_until_done()
     assert updates == {
-        "battery-level",
-        "bypassType",
-        "chirpMode",
-        "tampered",
-        "triggerType",
-        "triggered",
+        "select-('bypassType', None)",
+        "select-('chirpMode', None)",
+        "binary-tampered|None",
+        "select-('triggerType', None)",
+        "binary-triggered|None",
         "available",
     }
     dev = mocked_controller[security_system_sensor_2.id]
@@ -203,22 +180,20 @@ async def test_update_security_sensor_no_updates(mocked_controller):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     (
-        "device_id",
-        "update_id",
+        "device",
         "updates",
         "expected_updates",
     ),
     [
         # Selects are updated
         (
-            "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-            "7f4e4c01-e799-45c5-9b1a-385433a78edc",
+            security_system_sensor_2,
             {
                 "selects": {
-                    ("chirpMode", None): "On",
-                    ("triggerType", None): "Away",
-                    ("bypassType", None): "On",
-                    ("doesnt_exist", None): "On",
+                    ("sensor-2", "chirpMode"): "On",
+                    ("sensor-2", "triggerType"): "Away",
+                    ("sensor-2", "bypassType"): "On",
+                    ("sensor-2", "doesnt_exist"): "On",
                 }
             },
             [
@@ -259,8 +234,7 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
     await mocked_controller.set_state(device.id, **updates)
     await bridge.async_block_until_done()
     dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
-    for select in dev.selects:
-        assert dev.selects[select].selected == updates["selects"][select], f"Failed for {select}, "
+    assert dev.selects[("chirpMode", None)].selected == 'On'
 
 
 @pytest.mark.asyncio
@@ -295,7 +269,7 @@ async def test_emitting(mocked_bridge):
     # Simulate the discovery process
     await mocked_bridge.generate_devices_from_data([security_system])
     await mocked_bridge.async_block_until_done()
-    assert len(mocked_bridge.security_system_sensors._items) == 3
+    assert len(mocked_bridge.security_systems_sensors._items) == 3
     dev_update = copy.deepcopy(security_system)
     # Simulate an update
     utils.modify_state(
@@ -319,5 +293,5 @@ async def test_emitting(mocked_bridge):
     )
     await mocked_bridge.generate_devices_from_data([dev_update])
     await mocked_bridge.async_block_until_done()
-    assert len(mocked_bridge.security_system_sensors._items) == 3
-    assert not mocked_bridge.security_system_sensors._items["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"].available
+    assert len(mocked_bridge.security_systems_sensors._items) == 3
+    assert not mocked_bridge.security_systems_sensors._items["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"].available

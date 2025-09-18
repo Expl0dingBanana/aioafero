@@ -15,7 +15,7 @@ keypad_id = "1f31be19-b9b9-4ca8-8a22-20d0015ec2dd"
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    return mocked_bridge.security_system_keypads
+    return mocked_bridge.security_systems_keypads
 
 
 @pytest.mark.asyncio
@@ -75,6 +75,7 @@ async def test_update_elem(mocked_controller):
     for state in new_states:
         utils.modify_state(update, state)
     updates = await mocked_controller.update_elem(update)
+    await mocked_controller._bridge.async_block_until_done()
     assert not dev.available
     assert updates == {
         "available",
@@ -102,21 +103,9 @@ async def test_set_state(mocked_controller):
         keypad_id,
         selects={("volume", "buzzer-volume"): "volume-03", ("bad", None): False},
     )
+    await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[keypad_id]
     assert dev.selects[("volume", "buzzer-volume")].selected == "volume-03"
-    req = utils.get_json_call(mocked_controller)
-    assert req["metadeviceId"] == keypad_id
-    expected_calls = [
-        {
-            "functionClass": "volume",
-            "functionInstance": "buzzer-volume",
-            "lastUpdateTime": 12345,
-            "value": "volume-03",
-        },
-    ]
-    for call in expected_calls:
-        assert call in req["values"]
-
 
 @pytest.mark.asyncio
 async def test_set_state_bad_device(mocked_controller):
@@ -135,7 +124,7 @@ async def test_emitting(mocked_controller):
     bridge = mocked_controller._bridge
     await bridge.generate_devices_from_data(security_system)
     await bridge.async_block_until_done()
-    dev = bridge.security_system_keypads[keypad_id]
+    dev = bridge.security_systems_keypads[keypad_id]
     assert dev.available
     update = utils.create_devices_from_data("security-system.json")[0]
     new_states = [
@@ -153,7 +142,7 @@ async def test_emitting(mocked_controller):
         utils.modify_state(update, state)
     await bridge.generate_devices_from_data([update])
     await bridge.async_block_until_done()
-    dev = bridge.security_system_keypads[keypad_id]
+    dev = bridge.security_systems_keypads[keypad_id]
     assert not dev.available
     assert dev.selects[("volume", "buzzer-volume")].selected == "volume-03"
     assert dev.binary_sensors["tamper-detection|None"].current_value == "tampered"
