@@ -313,7 +313,7 @@ async def test_arm_bad_sensors(mocked_controller, mocker):
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     exp_err = "Sensors are open or unavailable: "
-    with pytest.raises(SecuritySystemError, match=exp_err) as err:
+    with pytest.raises(SecuritySystemError, match=exp_err):
         await mocked_controller.arm_away(alarm_panel.id)
         await mocked_controller._bridge.async_block_until_done()
 
@@ -653,3 +653,22 @@ def test_get_sensor_name(device, sensor_id, expected):
 )
 def test_get_model_type(device, expected):
     assert get_model_type(device, 4) == expected
+
+
+@pytest.mark.asyncio
+async def test_validate_arm_state_invalid_controller(mocked_controller, mocker):
+    bridge = mocked_controller._bridge
+    panel = get_alarm_panel_with_siren()
+    zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
+    panel.children.append(zandra_light.id)
+    await bridge.events.generate_events_from_data(
+        [
+            utils.create_hs_raw_from_device(zandra_light),
+            utils.create_hs_raw_from_device(panel)
+        ]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    exp_err = "Sensors are open or unavailable: "
+    with pytest.raises(SecuritySystemError, match=exp_err):
+        await mocked_controller.validate_arm_state(panel.id)
+        await bridge.async_block_until_done()

@@ -339,8 +339,8 @@ class AferoBridgeV1:
         return data
 
     async def fetch_device_states(self, device_id) -> list[dict[Any, str]]:
-        """Query the API."""
-        self.logger.debug("Querying API for all data")
+        """Query the API for new device states."""
+        self.logger.debug("Querying the API for updated states for %s", device_id)
         headers = {
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }

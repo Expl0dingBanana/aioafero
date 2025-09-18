@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from aioafero import EventType, InvalidAuth
+from aioafero import EventType, InvalidAuth, AferoDevice, AferoState
 from aioafero.errors import DeviceNotFound, AferoError, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const
 from aioafero.v1.controllers.device import DeviceController
@@ -14,6 +14,7 @@ from aioafero.v1.controllers.lock import LockController
 from aioafero.v1.controllers.switch import SwitchController
 from aioafero.v1.controllers.valve import ValveController
 from aiohttp.client_exceptions import ClientResponseError
+from dataclasses import asdict
 
 from . import utils
 
@@ -411,3 +412,36 @@ async def test_request(max_retries, times_to_sleep, response_gen, exp_error, moc
 def test_get_afero_device(mocked_bridge):
     with pytest.raises(DeviceNotFound):
         mocked_bridge.get_afero_device("nope")
+
+
+def test_fetch_device_states(mocked_bridge, mocker):
+    dummy_dev = AferoDevice(
+        id="beans",
+        device_id="parent-bean",
+        device_class="bean-class",
+        default_name="beans",
+        default_image="beans",
+        friendly_name="Beans",
+        model="bean-model",
+        manufacturerName="bean-co",
+        states=[
+            AferoState(functionClass="power", functionInstance="light-power", value="on"),
+            AferoState(functionClass="brightness", functionInstance="light-brightness", value="100"),
+        ],
+        functions=[],
+    )
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": dummy_dev.id, "values": [asdict(x) for x in dummy_dev.states]}
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    mocker.patch.object(mocked_bridge, "request", return_value=resp)
+    states = asyncio.run(mocked_bridge.fetch_device_states(dummy_dev.id))
+    assert states == dummy_dev.states
+
+
+def test_get_device_controller(mocked_bridge):
+    mocked_bridge.add_device(zandra_light.id, mocked_bridge.lights)
+    assert mocked_bridge.get_device_controller(zandra_light.id) == mocked_bridge.lights
+    with pytest.raises(DeviceNotFound):
+        mocked_bridge.get_device_controller("nope")
