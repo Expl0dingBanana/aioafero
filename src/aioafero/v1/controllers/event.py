@@ -323,7 +323,7 @@ class EventStream:
     async def generate_events_from_update(self, dev: AferoDevice) -> None:
         """Generate updates for a single device update."""
         devices = await self.split_devices([dev])
-        self._logger.warning(
+        self._logger.debug(
             "Received update for device %s. Generating %d events",
             dev.device_class,
             len(devices),
