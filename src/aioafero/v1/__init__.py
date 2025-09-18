@@ -184,13 +184,6 @@ class AferoBridgeV1:
         """Add a tracked afero device."""
         self._known_afero_devices[device.id] = device
 
-    def get_device(self, device_id: str) -> BaseResourcesController[AferoResource]:
-        """Get the controller for a device."""
-        controller = self._known_devs.get(device_id)
-        if controller:
-            return controller[device_id]
-        raise DeviceNotFound(f"Unable to find device {device_id}")
-
     def get_afero_device(self, device_id: str) -> AferoDevice | None:
         """Get the afero device for a given id."""
         try:

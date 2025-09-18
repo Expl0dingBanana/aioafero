@@ -334,3 +334,32 @@ async def test_update_lifecycle(bridge, caplog):
     )
     assert len(bridge.devices.items) == 0
     assert bridge.devices._known_parents == {}
+
+
+@pytest.mark.asyncio
+async def test__process_update_response(mocked_controller, mocker):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await bridge.async_block_until_done()
+    handle_event = mocker.patch.object(mocked_controller, "_handle_event", return_value=None)
+    dev = utils.create_devices_from_data("light-a21.json")[0]
+    await mocked_controller._process_update_response(
+        event.EventType.RESOURCE_UPDATE_RESPONSE,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_UPDATE_RESPONSE,
+            device=dev,
+        ),
+    )
+    handle_event.assert_called_once()
+    handle_event.reset_mock()
+    dev.device_id = "beans"
+    await mocked_controller._process_update_response(
+        event.EventType.RESOURCE_UPDATE_RESPONSE,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_UPDATE_RESPONSE,
+            device=dev,
+        ),
+    )
+    handle_event.assert_not_called()

@@ -405,3 +405,8 @@ async def test_request(max_retries, times_to_sleep, response_gen, exp_error, moc
         await bridge.request("fff", "fff")
     if times_to_sleep:
         assert mock_sleep.call_count == times_to_sleep
+
+
+def test_get_afero_device(mocked_bridge):
+    with pytest.raises(DeviceNotFound):
+        mocked_bridge.get_afero_device("nope")
