@@ -535,28 +535,6 @@ class BaseResourcesController(Generic[AferoResource]):
             raise DeviceNotFound(device_id) from err
 
 
-def update_dataclass(elem: AferoResource, update_vals: dataclass):
-    """Update the element with the latest changes."""
-    if "callback" in [field.name for field in fields(update_vals)]:
-        update_vals.callback(elem, update_vals)
-    else:
-        for f in fields(update_vals):
-            cur_val = getattr(update_vals, f.name, None)
-            elem_val = getattr(elem, f.name)
-            if cur_val is None:
-                continue
-            # There is probably a better way to approach this
-            if not str(f.type).startswith("dict"):
-                # Special processing for dicts
-                if isinstance(elem_val, dict):
-                    cur_val = {getattr(cur_val, "func_instance", None): cur_val}
-                    getattr(elem, f.name).update(cur_val)
-                else:
-                    setattr(elem, f.name, cur_val)
-            else:
-                elem_val.update(cur_val)
-
-
 def dataclass_to_afero(
     elem: AferoResource, cls: dataclass, mapping: dict, send_duplicate_states: bool
 ) -> list[dict]:
@@ -565,8 +543,6 @@ def dataclass_to_afero(
     for f in fields(cls):
         current_feature = getattr(cls, f.name, None)
         if current_feature is None:
-            continue
-        if f.name == "callback":
             continue
         api_key = mapping.get(f.name, f.name)
         # There is probably a better way to approach this

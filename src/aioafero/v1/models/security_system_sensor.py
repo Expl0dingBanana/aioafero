@@ -58,7 +58,6 @@ class SecuritySystemSensor:
 class SecuritySystemSensorPut:
     """States that can be updated for a Security System Sensor."""
 
-    callback: callable
     sensor_config: features.SecuritySensorConfigFeature | None = field(
         default_factory=dict, repr=False, init=False
     )

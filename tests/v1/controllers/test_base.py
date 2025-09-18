@@ -18,7 +18,6 @@ from aioafero.v1.controllers.base import (
     get_afero_state_from_feature,
     get_afero_states_from_list,
     get_afero_states_from_mapped,
-    update_dataclass,
 )
 from aioafero.v1.models.features import SelectFeature
 from aioafero.v1.models.resource import DeviceInformation
@@ -1230,53 +1229,6 @@ def callback_test(elem, update_vals: dataclass):
                 setattr(elem, f.name, cur_val)
         else:
             elem_val.update(cur_val)
-
-
-@pytest.mark.parametrize(
-    "resource,update,expected",
-    [
-        # No updates
-        (replace(test_res), TestResourcePut(on=None, beans=None), replace(test_res)),
-        # Test single + dict updates
-        (
-            replace(test_res),
-            TestResourcePut(
-                on=TestFeatureBool(on=False),
-                beans=TestFeatureInstance(on=False, func_instance=None),
-            ),
-            replace(
-                test_res,
-                on=TestFeatureBool(on=False),
-                beans={
-                    None: TestFeatureInstance(on=False, func_instance=None),
-                    "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
-                    "bean2": TestFeatureInstance(on=False, func_instance="bean2"),
-                },
-            ),
-        ),
-        # Callback test
-        (
-            replace(test_res),
-            TestResourcePutCallback(
-                on=TestFeatureBool(on=False),
-                beans=TestFeatureInstance(on=False, func_instance=None),
-                callback=callback_test,
-            ),
-            replace(
-                test_res,
-                on=TestFeatureBool(on=False),
-                beans={
-                    None: TestFeatureInstance(on=False, func_instance=None),
-                    "bean1": TestFeatureInstance(on=True, func_instance="bean1"),
-                    "bean2": TestFeatureInstance(on=False, func_instance="bean2"),
-                },
-            ),
-        ),
-    ],
-)
-def test_update_dataclass(resource, update, expected):
-    update_dataclass(resource, update)
-    assert resource == expected
 
 
 @pytest.mark.parametrize(
