@@ -415,6 +415,10 @@ def test_get_afero_device(mocked_bridge):
 
 
 def test_fetch_device_states(mocked_bridge, mocker):
+    states = [
+        AferoState(functionClass="power", functionInstance="light-power", value="on"),
+        AferoState(functionClass="brightness", functionInstance="light-brightness", value="100"),
+    ]
     dummy_dev = AferoDevice(
         id="beans",
         device_id="parent-bean",
@@ -424,14 +428,13 @@ def test_fetch_device_states(mocked_bridge, mocker):
         friendly_name="Beans",
         model="bean-model",
         manufacturerName="bean-co",
-        states=[
-            AferoState(functionClass="power", functionInstance="light-power", value="on"),
-            AferoState(functionClass="brightness", functionInstance="light-brightness", value="100"),
-        ],
+        states=states,
         functions=[],
     )
+    resp_states = [asdict(x) for x in states]
+    resp_states.append({"functionClass": "unknown", "functionInstance": "unknown"})
     json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": dummy_dev.id, "values": [asdict(x) for x in dummy_dev.states]}
+    json_resp.return_value = {"metadeviceId": dummy_dev.id, "values": resp_states}
     resp = mocker.AsyncMock()
     resp.json = json_resp
     resp.status = 200
