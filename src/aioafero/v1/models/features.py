@@ -310,6 +310,22 @@ class SelectFeature:
 
 
 @dataclass
+class SecuritySystemDisarmPin:
+    """Represent the disarm pin feature."""
+
+    pin: int
+
+    @property
+    def api_value(self):
+        """Value to send to Afero API."""
+        return {
+            "functionClass": "disarm",
+            "functionInstance": None,
+            "value": str(self.pin),
+        }
+
+
+@dataclass
 class SecuritySensorSirenFeature:
     """Represent the current state of the siren."""
 

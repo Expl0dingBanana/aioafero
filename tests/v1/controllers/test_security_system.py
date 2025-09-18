@@ -2,6 +2,7 @@
 
 import pytest
 
+from aioafero.errors import SecuritySystemError
 from aioafero.device import AferoDevice, AferoState, AferoCapability
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions, get_sensor_name, get_model_type
@@ -27,6 +28,7 @@ def get_alarm_panel_with_siren() -> AferoDevice:
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
+    mocker.patch("aioafero.v1.controllers.security_system.UPDATE_TIME", 0)
     return mocked_bridge.security_systems
 
 
@@ -157,14 +159,25 @@ async def test_initialize_with_siren(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_disarm(mocked_controller):
+async def test_disarm(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
-    await mocked_controller.disarm(alarm_panel.id)
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="disarmed", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
+    await mocked_controller.disarm(alarm_panel.id, 1234)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "disarmed"
@@ -173,48 +186,164 @@ async def test_disarm(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_arm_home(mocked_controller):
+async def test_disarm_invalid_pin(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(alarm_panel)]
+        [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="arm-away", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
+    with pytest.raises(SecuritySystemError, match="Disarm PIN was not accepted"):
+        await mocked_controller.disarm(alarm_panel.id, 1234)
+        await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.alarm_state.mode == "arm-away"
+
+
+def enable_sensors(dev):
+    for state in dev.states:
+        if state.functionClass not in ["sensor-state"] or state.value is None:
+            continue
+        state.value = {
+            'security-sensor-state': {
+                'deviceType': 1,
+                'tampered': 0,
+                'triggered': 0,
+                'missing': 0,
+                'versionBuild': 3,
+                'versionMajor': 2,
+                'versionMinor': 0,
+                'batteryLevel': 100
+            }
+        }
+
+
+def disable_sensors(dev):
+    for state in dev.states:
+        if state.functionClass not in ["sensor-state"] or state.value is None:
+            continue
+        state.value = {
+            'security-sensor-state': {
+                'deviceType': 1,
+                'tampered': 1,
+                'triggered': 1,
+                'missing': 1,
+                'versionBuild': 3,
+                'versionMajor': 2,
+                'versionMinor': 0,
+                'batteryLevel': 100
+            }
+        }
+
+@pytest.mark.asyncio
+async def test_arm_home(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    enable_sensors(dev)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dev)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="arm-started-stay", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
     await mocked_controller.arm_home(alarm_panel.id)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "arm-started-stay"
-    assert dev.siren_action.result_code == 0
-    assert dev.siren_action.command == 4
 
 
 @pytest.mark.asyncio
-async def test_arm_away(mocked_controller):
+async def test_arm_away(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    enable_sensors(dev)
     await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(alarm_panel)]
+        [utils.create_hs_raw_from_device(dev)]
     )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="arm-started-away", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.arm_away(alarm_panel.id)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "arm-started-away"
-    assert dev.siren_action.result_code == 0
-    assert dev.siren_action.command == 4
 
 
 @pytest.mark.asyncio
-async def test_alarm_trigger(mocked_controller):
+async def test_arm_bad_sensors(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    disable_sensors(dev)
     await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(alarm_panel)]
+        [utils.create_hs_raw_from_device(dev)]
     )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=dev.states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    exp_err = "Sensors are open or unavailable: "
+    with pytest.raises(SecuritySystemError, match=exp_err) as err:
+        await mocked_controller.arm_away(alarm_panel.id)
+        await mocked_controller._bridge.async_block_until_done()
+
+
+@pytest.mark.asyncio
+async def test_alarm_trigger(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    enable_sensors(dev)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dev)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="alarming-sos", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.alarm_trigger(alarm_panel.id)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "alarming-sos"
-    assert dev.siren_action.result_code == 0
-    assert dev.siren_action.command == 5
 
 
 @pytest.mark.asyncio
@@ -335,7 +464,6 @@ async def test_set_state(mocked_controller):
     await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(
         alarm_panel.id,
-        mode="alarming-sos",
         numbers={("arm-exit-delay", "away"): 300, ("bad", None): False},
         selects={("song-id", "alarm"): "preset-12", ("bad", None): False},
     )
@@ -349,7 +477,6 @@ async def test_set_state(mocked_controller):
 async def test_set_state_bad_device(mocked_controller):
     await mocked_controller.set_state(
         alarm_panel.id,
-        mode="alarming-sos",
         numbers={("arm-exit-delay", "away"): 300, ("bad", None): False},
         selects={("song-id", "alarm"): "preset-12", ("bad", None): False},
     )

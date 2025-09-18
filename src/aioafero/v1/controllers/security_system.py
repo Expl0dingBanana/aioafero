@@ -1,5 +1,6 @@
 """Controller holding and managing Afero IoT resources of type `security-system`."""
 
+import asyncio
 import copy
 
 from aioafero.device import (
@@ -8,7 +9,7 @@ from aioafero.device import (
     AferoState,
     get_function_from_device,
 )
-from aioafero.errors import DeviceNotFound
+from aioafero.errors import DeviceNotFound, SecuritySystemError
 from aioafero.util import process_function
 from aioafero.v1.models import SecuritySystem, SecuritySystemPut, features
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
@@ -28,6 +29,8 @@ KNOWN_SENSOR_MODELS = {
     1: "Motion Sensor",
     2: "Door/Window Sensor",
 }
+
+UPDATE_TIME = 3  # Seconds after performing an action to refresh state
 
 
 def get_sensor_ids(device) -> set[int]:
@@ -263,21 +266,21 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         ResourceTypes.SECURITY_SYSTEM_SENSOR.value: security_system_callback
     }
 
-    async def disarm(self, device_id: str) -> None:
+    async def disarm(self, device_id: str, disarm_pin: int) -> None:
         """Disarm the system."""
-        await self.set_state(device_id, mode="disarmed")
+        await self.set_state(device_id, disarm_pin=disarm_pin)
 
     async def arm_home(self, device_id: str) -> None:
         """Arms the system while someone is home."""
-        await self.set_state(device_id, mode="arm-started-stay")
+        await self.set_state(device_id, command=4)
 
     async def arm_away(self, device_id: str) -> None:
         """Arms the system while no one is home."""
-        await self.set_state(device_id, mode="arm-started-away")
+        await self.set_state(device_id, command=2)
 
     async def alarm_trigger(self, device_id: str) -> None:
         """Manually trigger the alarm."""
-        await self.set_state(device_id, mode="alarming-sos")
+        await self.set_state(device_id, command=5)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> SecuritySystem:
         """Initialize the element.
@@ -395,37 +398,30 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
     async def set_state(
         self,
         device_id: str,
-        mode: str | None = None,
+        disarm_pin: int | None = None,
+        command: int | None = None,
         numbers: dict[tuple[str, str | None], float] | None = None,
         selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
         """Set supported feature(s) to Security System resource."""
         update_obj = SecuritySystemPut()
+        force_mode = False
         try:
             cur_item = self.get_device(device_id)
         except DeviceNotFound:
             self._logger.info("Unable to find device %s", device_id)
             return
-        if mode is not None:
-            update_obj.alarm_state = features.ModeFeature(
-                mode=mode,
-                modes=cur_item.alarm_state.modes,
+        if command is not None:
+            force_mode = True
+            if command != 5:
+                await self.validate_arm_state(device_id)
+            update_obj.siren_action = features.SecuritySensorSirenFeature(
+                result_code=0,
+                command=command,
             )
-            if "-started-" in mode:
-                update_obj.siren_action = features.SecuritySensorSirenFeature(
-                    result_code=0,
-                    command=4,
-                )
-            elif mode == "alarming-sos":
-                update_obj.siren_action = features.SecuritySensorSirenFeature(
-                    result_code=0,
-                    command=5,
-                )
-            else:
-                update_obj.siren_action = features.SecuritySensorSirenFeature(
-                    result_code=None,
-                    command=None,
-                )
+        if disarm_pin is not None:
+            force_mode = True
+            update_obj.disarm_pin = features.SecuritySystemDisarmPin(pin=disarm_pin)
         if numbers:
             for key, val in numbers.items():
                 if key not in cur_item.numbers:
@@ -447,4 +443,62 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                     selects=cur_item.selects[key].selects,
                     name=cur_item.selects[key].name,
                 )
-        await self.update(device_id, obj_in=update_obj)
+        await self.update(
+            device_id, obj_in=update_obj, send_duplicate_states=force_mode
+        )
+        # Ensure the correct pin was used
+        if disarm_pin:
+            await self.validate_disarm_pin(device_id)
+        elif command:
+            await self.refresh_alarm_state(device_id)
+
+    async def refresh_alarm_state(self, device_id: str) -> None:
+        """Refresh the alarm state after alarm state change command."""
+        task = asyncio.create_task(asyncio.sleep(UPDATE_TIME))
+        await task
+        states = await self._bridge.fetch_device_states(device_id)
+        device = self._bridge.get_afero_device(device_id)
+        device.states = states
+        await self._bridge.events.generate_events_from_update(device)
+
+    async def validate_disarm_pin(self, device_id: str) -> None:
+        """Ensure the system has switched to disarmed."""
+        # alarm-state does not update immediately, so wait and recheck
+        task = asyncio.create_task(asyncio.sleep(UPDATE_TIME))
+        await task
+        states = await self._bridge.fetch_device_states(device_id)
+        for state in states:
+            if state.functionClass != "alarm-state":
+                continue
+            if state.value != "disarmed":
+                raise SecuritySystemError("Disarm PIN was not accepted")
+        device = self._bridge.get_afero_device(device_id)
+        device.states = states
+        await self._bridge.events.generate_events_from_update(device)
+
+    async def validate_arm_state(self, device_id: str) -> bool:
+        """Ensure the system can arm."""
+        dev = self._bridge.get_afero_device(device_id)
+        sensors_with_issues = []
+        for child in dev.children:
+            controller = self._bridge.get_device_controller(child)
+            if type(controller).__name__ != "SecuritySystemSensorController":
+                continue
+            sensor = controller[child]
+            if sensor.available is False:
+                sensors_with_issues.append(
+                    f"{sensor.device_information.name} (Unavailable)"
+                )
+            if sensor.binary_sensors.get("triggered|None").current_value == "On":
+                sensors_with_issues.append(
+                    f"{sensor.device_information.name} (Triggered)"
+                )
+            if sensor.binary_sensors.get("tampered|None").current_value == "On":
+                sensors_with_issues.append(
+                    f"{sensor.device_information.name} (Tampered)"
+                )
+        if sensors_with_issues:
+            raise SecuritySystemError(
+                f"Sensors are open or unavailable: {', '.join(sensors_with_issues)}"
+            )
+        return True

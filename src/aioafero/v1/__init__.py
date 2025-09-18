@@ -31,7 +31,7 @@ import aiohttp
 from aiohttp import web_exceptions
 from securelogging import LogRedactorMessage, add_secret
 
-from aioafero.device import AferoDevice, AferoResource
+from aioafero.device import AferoDevice, AferoResource, AferoState
 from aioafero.errors import (
     AferoError,
     DeviceNotFound,
@@ -176,6 +176,13 @@ class AferoBridgeV1:
     ) -> None:
         """Add a device to the list of known devices."""
         self._known_devs[device_id] = controller
+
+    def get_device_controller(self, device_id: str) -> BaseResourcesController:
+        """Get the controller for a given device."""
+        try:
+            return self._known_devs[device_id]
+        except KeyError as err:
+            raise DeviceNotFound(f"Unable to find device {device_id}") from err
 
     def remove_device(self, device_id: str) -> None:
         """Remove a device from the list of known devices."""
@@ -330,6 +337,34 @@ class AferoBridgeV1:
                 devs[dev_id] = dev["version_data"]
 
         return data
+
+    async def fetch_device_states(self, device_id) -> list[dict[Any, str]]:
+        """Query the API."""
+        self.logger.debug("Querying API for all data")
+        headers = {
+            "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
+        }
+        params = {"expansions": "state,capabilities,semantics"}
+        url = self.generate_api_url(
+            v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
+                self.account_id, device_id
+            )
+        )
+        res = await self.request(
+            "get",
+            url,
+            headers=headers,
+            params=params,
+        )
+        res.raise_for_status()
+        data = await res.json()
+        states = []
+        for state in data.get("values", []):
+            try:
+                states.append(AferoState(**state))
+            except TypeError:
+                continue
+        return states
 
     async def get_device_version(self, device_id: str) -> dict:
         """Query the API for device version information."""

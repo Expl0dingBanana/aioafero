@@ -81,6 +81,7 @@ class SecuritySystemPut:
 
     alarm_state: features.ModeFeature | None = None
     siren_action: features.SecuritySensorSirenFeature | None = None
+    disarm_pin: features.SecuritySystemDisarmPin | None = None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
         default_factory=dict, repr=False, init=False
     )
