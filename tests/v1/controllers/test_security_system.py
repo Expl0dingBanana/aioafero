@@ -4,7 +4,7 @@ import pytest
 
 from aioafero.device import AferoDevice, AferoState, AferoCapability
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions, get_sensor_name
+from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions, get_sensor_name, get_model_type
 
 from .. import utils
 
@@ -524,5 +524,5 @@ def test_get_sensor_name(device, sensor_id, expected):
         ),
     ]
 )
-def test_get_model_type():
-    pass
+def test_get_model_type(device, expected):
+    assert get_model_type(device, 4) == expected
