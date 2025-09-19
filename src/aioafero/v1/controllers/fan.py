@@ -101,8 +101,8 @@ class FanController(BaseResourcesController[Fan]):
                     sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Fan(
-            afero_device.functions,
-            id=afero_device.id,
+            functions=afero_device.functions,
+            _id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
