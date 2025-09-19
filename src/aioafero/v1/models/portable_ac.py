@@ -25,10 +25,6 @@ class PortableAC(HVACMixin, StandardMixin):
         """Range which the thermostat will heat / cool."""
         return False
 
-    def get_instance(self, elem):
-        """Lookup the instance associated with the elem."""
-        return self.instances.get(elem, None)
-
 
 @dataclass
 class PortableACPut:

@@ -8,7 +8,7 @@ from .resource import ResourceTypes
 from .standard_mixin import StandardMixin
 
 
-@dataclass
+@dataclass(kw_only=True)
 class Lock(StandardMixin):
     """Representation of an Afero Lock."""
 
