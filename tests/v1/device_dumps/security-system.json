@@ -6064,7 +6064,7 @@
         "functionClass": "sensor-state",
         "value": {
           "security-sensor-state": {
-            "deviceType": 2,
+            "deviceType": 1,
             "tampered": 0,
             "triggered": 0,
             "missing": 0,
@@ -6290,7 +6290,7 @@
         "functionClass": "sensor-state",
         "value": {
           "security-sensor-state": {
-            "deviceType": 2,
+            "deviceType": 3,
             "tampered": 0,
             "triggered": 0,
             "missing": 0,

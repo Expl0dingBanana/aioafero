@@ -23,3 +23,7 @@ class InvalidAuth(AferoError):
 
 class InvalidResponse(AferoError):
     """An invalid response was received from Afero API."""
+
+
+class SecuritySystemError(AferoError):
+    """Generic exception for Afero Security System issues."""

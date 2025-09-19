@@ -485,7 +485,7 @@ class BaseResourcesController(Generic[AferoResource]):
         obj_in: AferoResource | None = None,
         states: list[dict] | None = None,
         send_duplicate_states: bool = False,
-    ) -> None:
+    ) -> aiohttp.ClientResponse | None:
         """Update Afero IoT with the new data.
 
         :param device_id: Afero IoT Device ID
@@ -500,7 +500,7 @@ class BaseResourcesController(Generic[AferoResource]):
             self._logger.info(
                 "Unable to update device %s as it does not exist", device_id
             )
-            return
+            return None
         # split devices use <elem>.update_id to specify the correct device id
         with contextlib.suppress(AttributeError):
             update_id = cur_item.update_id
@@ -510,7 +510,7 @@ class BaseResourcesController(Generic[AferoResource]):
             )
             if not device_states:
                 self._logger.debug("No states to send. Skipping")
-                return
+                return None
         else:  # Manually setting states
             device_states = states
         # @TODO - Implement bluetooth logic for update
@@ -520,6 +520,8 @@ class BaseResourcesController(Generic[AferoResource]):
             update_dev = self.generate_update_dev(resp_json["metadeviceId"], states)
             update_dev.id = update_id
             await self._bridge.events.generate_events_from_update(update_dev)
+            return res
+        return None
 
     def generate_update_dev(self, device_id: str, states: list[AferoState]) -> dict:
         """Generate update data for the event controller."""

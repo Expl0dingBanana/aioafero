@@ -5,8 +5,13 @@ from aioafero.errors import DeviceNotFound
 from aioafero.v1.models import SecuritySystemSensor, SecuritySystemSensorPut, features
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
-from .base import AferoBinarySensor, AferoSensor, AferoState, BaseResourcesController
-from .security_system import SENSOR_SPLIT_IDENTIFIER
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .security_system import (
+    BYPASS_MODES,
+    GENERIC_MODES,
+    SENSOR_SPLIT_IDENTIFIER,
+    TRIGGER_MODES,
+)
 
 
 class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSensor]):
@@ -17,18 +22,21 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
     ITEM_CLS = SecuritySystemSensor
     ITEM_MAPPING = {}
 
-    BYPASS_MODES = {0: "Off", 1: "On"}
-    CHIRP_MODES = {0: "Off", 1: "On"}
-    TRIGGER_MODES = {
-        0: "Off",
-        1: "Home",
-        2: "Away",
-        3: "Home/Away",
-    }
-
     SENSOR_TYPES = {
         1: "Motion Sensor",
         2: "Door/Window Sensor",
+    }
+
+    # Binary sensors map key -> alerting value
+    ITEM_BINARY_SENSORS: dict[str, str] = {
+        "tampered": "On",
+        "triggered": "On",
+    }
+    # Elements that map to selects. func class / func instance to name
+    ITEM_SELECTS = {
+        ("chirpMode", None): "Chime",
+        ("triggerType", None): "Alarming State",
+        ("bypassType", None): "Bypass",
     }
 
     async def initialize_elem(self, device: AferoDevice):
@@ -46,52 +54,15 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         device_type: int | None = None
         config_key: str | None = None
         for state in device.states:
-            if state.functionClass == "sensor-state":
-                data = state.value["security-sensor-state"]
-                device_type = data["deviceType"]
-                binary_sensors["tampered"] = AferoBinarySensor(
-                    id="tampered",
-                    owner=device.device_id,
-                    instance="tampered",
-                    current_value=data["tampered"],
-                    _error=1,
-                )
-                binary_sensors["triggered"] = AferoBinarySensor(
-                    id="triggered",
-                    owner=device.device_id,
-                    instance="triggered",
-                    current_value=data["triggered"],
-                    _error=1,
-                )
-                sensors["battery-level"] = AferoSensor(
-                    id=state.functionClass,
-                    owner=device.device_id,
-                    value=data["batteryLevel"],
-                    unit="%",
-                )
-                available = not bool(data["missing"])
-            else:
-                config_key = list(state.value.keys())[0]
-                data = state.value[config_key]
-                selects[(state.functionInstance, "chirpMode")] = features.SelectFeature(
-                    selected=self.CHIRP_MODES.get(data["chirpMode"]),
-                    selects=set(self.CHIRP_MODES.values()),
-                    name="Chirp Mode",
-                )
-                selects[(state.functionInstance, "triggerType")] = (
-                    features.SelectFeature(
-                        selected=self.TRIGGER_MODES.get(data["triggerType"]),
-                        selects=set(self.TRIGGER_MODES.values()),
-                        name="Triggers",
-                    )
-                )
-                selects[(state.functionInstance, "bypassType")] = (
-                    features.SelectFeature(
-                        selected=self.BYPASS_MODES.get(data["bypassType"]),
-                        selects=set(self.BYPASS_MODES.values()),
-                        name="Can Be Bypassed",
-                    )
-                )
+            if select := await self.initialize_select(device.functions, state):
+                selects[select[0]] = select[1]
+            elif state.functionClass == "available":
+                available = state.value
+            elif sensor := await self.initialize_sensor(state, device.id):
+                # Security System Sensors only have binary sensors
+                binary_sensors[sensor.id] = sensor
+            elif state.functionClass == "top-level-key":
+                config_key = state.value
         self._items[device.id] = SecuritySystemSensor(
             [],
             _id=device.id,
@@ -121,7 +92,18 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
 
         :return: States that have been modified
         """
-        return update_from_states(afero_device.states, self[afero_device.id])
+        cur_item = self.get_device(afero_device.id)
+        updated_keys = set()
+        for state in afero_device.states:
+            if state.functionClass == "available":
+                if cur_item.available != state.value:
+                    updated_keys.add("available")
+                cur_item.available = state.value
+            elif (update_key := await self.update_sensor(state, cur_item)) or (
+                update_key := await self.update_select(state, cur_item)
+            ):
+                updated_keys.add(update_key)
+        return updated_keys
 
     async def set_state(
         self,
@@ -136,36 +118,27 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
             self._logger.info("Unable to find device %s", device_id)
             return
         if selects:
-            chirp_modes = {y: x for x, y in self.CHIRP_MODES.items()}
-            trigger_types = {y: x for x, y in self.TRIGGER_MODES.items()}
-            bypass_types = {y: x for x, y in self.BYPASS_MODES.items()}
+            chirp_modes = {y: x for x, y in GENERIC_MODES.items()}
+            trigger_types = {y: x for x, y in TRIGGER_MODES.items()}
+            bypass_types = {y: x for x, y in BYPASS_MODES.items()}
             # Load the current values as it all needs to be sent
             select_vals = {
                 "chirpMode": chirp_modes[
-                    cur_item.selects.get(
-                        (f"{SENSOR_SPLIT_IDENTIFIER}-{cur_item.instance}", "chirpMode")
-                    ).selected
+                    cur_item.selects.get(("chirpMode", None)).selected
                 ],
                 "triggerType": trigger_types[
-                    cur_item.selects.get(
-                        (
-                            f"{SENSOR_SPLIT_IDENTIFIER}-{cur_item.instance}",
-                            "triggerType",
-                        )
-                    ).selected
+                    cur_item.selects.get(("triggerType", None)).selected
                 ],
                 "bypassType": bypass_types[
-                    cur_item.selects.get(
-                        (f"{SENSOR_SPLIT_IDENTIFIER}-{cur_item.instance}", "bypassType")
-                    ).selected
+                    cur_item.selects.get(("bypassType", None)).selected
                 ],
             }
             for select, select_val in selects.items():
-                if select[1] == "chirpMode":
+                if select[0] == "chirpMode":
                     select_vals["chirpMode"] = chirp_modes[select_val]
-                elif select[1] == "triggerType":
+                elif select[0] == "triggerType":
                     select_vals["triggerType"] = trigger_types[select_val]
-                elif select[1] == "bypassType":
+                elif select[0] == "bypassType":
                     select_vals["bypassType"] = bypass_types[select_val]
                 else:
                     continue
@@ -173,59 +146,3 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 sensor_id=cur_item.instance, key_name=cur_item.config_key, **select_vals
             )
             await self.update(cur_item.id, obj_in=update_obj)
-
-
-def update_from_states(
-    valid_states: list[AferoState], cur_item: SecuritySystemSensor
-) -> set[str]:
-    """Update the item from the incoming changes."""
-    updated_keys = set()
-    for state in valid_states:
-        if state.functionClass == "sensor-state":
-            data = state.value["security-sensor-state"]
-            if data["tampered"] != cur_item.binary_sensors["tampered"].current_value:
-                updated_keys.add("tampered")
-                cur_item.binary_sensors["tampered"].current_value = data["tampered"]
-            if data["triggered"] != cur_item.binary_sensors["triggered"].current_value:
-                updated_keys.add("triggered")
-                cur_item.binary_sensors["triggered"].current_value = data["triggered"]
-            if data["batteryLevel"] != cur_item.sensors["battery-level"].value:
-                updated_keys.add("battery-level")
-                cur_item.sensors["battery-level"].value = data["batteryLevel"]
-            if bool(data["missing"]) == cur_item.available:
-                updated_keys.add("available")
-                cur_item.available = not bool(data["missing"])
-        else:
-            top_level_key = list(state.value.keys())[0]
-            data = state.value[top_level_key]
-            if (
-                SecuritySystemSensorController.CHIRP_MODES.get(data["chirpMode"])
-                != cur_item.selects[(state.functionInstance, "chirpMode")].selected
-            ):
-                updated_keys.add("chirpMode")
-                cur_item.selects[
-                    (state.functionInstance, "chirpMode")
-                ].selected = SecuritySystemSensorController.CHIRP_MODES.get(
-                    data["chirpMode"]
-                )
-            if (
-                SecuritySystemSensorController.TRIGGER_MODES.get(data["triggerType"])
-                != cur_item.selects[(state.functionInstance, "triggerType")].selected
-            ):
-                updated_keys.add("triggerType")
-                cur_item.selects[
-                    (state.functionInstance, "triggerType")
-                ].selected = SecuritySystemSensorController.TRIGGER_MODES.get(
-                    data["triggerType"]
-                )
-            if (
-                SecuritySystemSensorController.BYPASS_MODES.get(data["bypassType"])
-                != cur_item.selects[(state.functionInstance, "bypassType")].selected
-            ):
-                updated_keys.add("bypassType")
-                cur_item.selects[
-                    (state.functionInstance, "bypassType")
-                ].selected = SecuritySystemSensorController.BYPASS_MODES.get(
-                    data["bypassType"]
-                )
-    return updated_keys

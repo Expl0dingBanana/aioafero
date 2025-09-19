@@ -119,7 +119,31 @@ def mocked_bridge_req(mocker, aio_sess):
     def emit_event(event_type, data):
         bridge.events.emit(EventType(event_type), data)
 
+    # Enable ad-hoc polls
+    async def generate_events_from_data(data):
+        task = asyncio.create_task(bridge.events.generate_events_from_data(data))
+        await task
+        raw_data = await bridge.events.generate_events_from_data(data)
+        mocker.patch(
+            "aioafero.v1.controllers.event.EventStream.gather_data",
+            return_value=raw_data,
+        )
+        await bridge.async_block_until_done()
+
+    # Fake a poll for discovery
+    async def generate_devices_from_data(devices: list[AferoDevice]):
+        raw_data = [create_hs_raw_from_device(device) for device in devices]
+        mocker.patch(
+            "aioafero.v1.controllers.event.EventStream.gather_data",
+            return_value=raw_data,
+        )
+        await bridge.events.generate_events_from_data(raw_data)
+        await bridge.async_block_until_done()
+
     bridge.emit_event = emit_event
+    bridge.generate_devices_from_data = generate_devices_from_data
+    bridge.generate_events_from_data = generate_events_from_data
+
     bridge.__aenter__ = mocker.AsyncMock(return_value=bridge)
     bridge.__aexit__ = mocker.AsyncMock()
     return bridge

@@ -2,9 +2,10 @@
 
 import pytest
 
+from aioafero.errors import SecuritySystemError
 from aioafero.device import AferoDevice, AferoState, AferoCapability
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions, get_sensor_name
+from aioafero.v1.controllers.security_system import SecuritySystemController, features, security_system_callback, get_valid_states, get_sensor_ids, get_valid_functions, get_sensor_name, get_model_type
 
 from .. import utils
 
@@ -27,6 +28,7 @@ def get_alarm_panel_with_siren() -> AferoDevice:
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
+    mocker.patch("aioafero.v1.controllers.security_system.UPDATE_TIME", 0)
     return mocked_bridge.security_systems
 
 
@@ -157,14 +159,25 @@ async def test_initialize_with_siren(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_disarm(mocked_controller):
+async def test_disarm(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
-    await mocked_controller.disarm(alarm_panel.id)
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="disarmed", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
+    await mocked_controller.disarm(alarm_panel.id, 1234)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "disarmed"
@@ -173,48 +186,215 @@ async def test_disarm(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_arm_home(mocked_controller):
+async def test_disarm_invalid_pin(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(alarm_panel)]
+        [utils.create_hs_raw_from_device(get_alarm_panel_with_siren())]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="arm-away", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
+    with pytest.raises(SecuritySystemError, match="Disarm PIN was not accepted"):
+        await mocked_controller.disarm(alarm_panel.id, 1234)
+        await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[alarm_panel.id]
+    assert dev.alarm_state.mode == "arm-away"
+
+
+def enable_sensors(dev):
+    for state in dev.states:
+        if state.functionClass not in ["sensor-state"] or state.value is None:
+            continue
+        state.value = {
+            'security-sensor-state': {
+                'deviceType': 1,
+                'tampered': 0,
+                'triggered': 0,
+                'missing': 0,
+                'versionBuild': 3,
+                'versionMajor': 2,
+                'versionMinor': 0,
+                'batteryLevel': 100
+            }
+        }
+
+
+def disable_sensors(dev):
+    for state in dev.states:
+        if state.functionClass not in ["sensor-state"] or state.value is None:
+            continue
+        state.value = {
+            'security-sensor-state': {
+                'deviceType': 1,
+                'tampered': 1,
+                'triggered': 1,
+                'missing': 1,
+                'versionBuild': 3,
+                'versionMajor': 2,
+                'versionMinor': 0,
+                'batteryLevel': 100
+            }
+        }
+
+def single_sensor_with_bypass(dev, sensor_id):
+    enable_sensors(dev)
+    for state in dev.states:
+        if state.functionClass == "sensor-state" and state.functionInstance == f"sensor-{sensor_id}":
+            state.value = {
+                'security-sensor-state': {
+                    'deviceType': 1,
+                    'tampered': 0,
+                    'triggered': 1, # Trigger the device, but it will be bypassed
+                    'missing': 0,
+                    'versionBuild': 3,
+                    'versionMajor': 2,
+                    'versionMinor': 0,
+                    'batteryLevel': 100
+                }
+            }
+        if state.functionClass == "sensor-config" and state.functionInstance == f"sensor-{sensor_id}":
+            state.value = {
+                "security-sensor-config-v2": {
+                    "chirpMode": 1,
+                    "triggerType": 3,
+                    "bypassType": 4
+                }
+            }
+
+
+def bypass_all_sensors(dev):
+    for state in dev.states:
+        if state.functionClass == "sensor-state":
+            state.value = {
+                'security-sensor-state': {
+                    'deviceType': 1,
+                    'tampered': 0,
+                    'triggered': 0,
+                    'missing': 0,
+                    'versionBuild': 3,
+                    'versionMajor': 2,
+                    'versionMinor': 0,
+                    'batteryLevel': 100
+                }
+            }
+        if state.functionClass == "sensor-config":
+            state.value = {
+                "security-sensor-config-v2": {
+                    "chirpMode": 1,
+                    "triggerType": 3,
+                    "bypassType": 4
+                }
+            }
+
+
+@pytest.mark.asyncio
+async def test_arm_home(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    enable_sensors(dev)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dev)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="arm-started-stay", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
     await mocked_controller.arm_home(alarm_panel.id)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "arm-started-stay"
-    assert dev.siren_action.result_code == 0
-    assert dev.siren_action.command == 4
 
 
 @pytest.mark.asyncio
-async def test_arm_away(mocked_controller):
+async def test_arm_away(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    enable_sensors(dev)
     await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(alarm_panel)]
+        [utils.create_hs_raw_from_device(dev)]
     )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="arm-started-away", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.arm_away(alarm_panel.id)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "arm-started-away"
-    assert dev.siren_action.result_code == 0
-    assert dev.siren_action.command == 4
 
 
 @pytest.mark.asyncio
-async def test_alarm_trigger(mocked_controller):
+async def test_arm_bad_sensors(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    disable_sensors(dev)
     await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(alarm_panel)]
+        [utils.create_hs_raw_from_device(dev)]
     )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=dev.states)
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    exp_err = "Sensors are open or unavailable: "
+    with pytest.raises(SecuritySystemError, match=exp_err):
+        await mocked_controller.arm_away(alarm_panel.id)
+        await mocked_controller._bridge.async_block_until_done()
+
+
+@pytest.mark.asyncio
+async def test_alarm_trigger(mocked_controller, mocker):
+    dev = utils.create_devices_from_data("security-system.json")[1]
+    enable_sensors(dev)
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dev)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    # Setup the response after disarm
+    panel = utils.create_devices_from_data("security-system.json")[1]
+    new_states = [
+        AferoState(
+            functionClass="alarm-state", value="alarming-sos", lastUpdateTime=0, functionInstance=None
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(panel, state)
+    mocker.patch.object(mocked_controller._bridge, "fetch_device_states", return_value=panel.states)
+    # Execute the test
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     await mocked_controller.alarm_trigger(alarm_panel.id)
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[alarm_panel.id]
     assert dev.alarm_state.mode == "alarming-sos"
-    assert dev.siren_action.result_code == 0
-    assert dev.siren_action.command == 5
 
 
 @pytest.mark.asyncio
@@ -335,7 +515,6 @@ async def test_set_state(mocked_controller):
     await mocked_controller._bridge.async_block_until_done()
     await mocked_controller.set_state(
         alarm_panel.id,
-        mode="alarming-sos",
         numbers={("arm-exit-delay", "away"): 300, ("bad", None): False},
         selects={("song-id", "alarm"): "preset-12", ("bad", None): False},
     )
@@ -349,7 +528,6 @@ async def test_set_state(mocked_controller):
 async def test_set_state_bad_device(mocked_controller):
     await mocked_controller.set_state(
         alarm_panel.id,
-        mode="alarming-sos",
         numbers={("arm-exit-delay", "away"): 300, ("bad", None): False},
         selects={("song-id", "alarm"): "preset-12", ("bad", None): False},
     )
@@ -394,79 +572,22 @@ def test_get_sensor_ids():
 
 def test_get_valid_elements_state():
     assert get_valid_states(alarm_panel.states, 4) == [
-        AferoState(
-            functionClass='sensor-config',
-            value={'security-sensor-config-v2': {'chirpMode': 1, 'triggerType': 3, 'bypassType': 0}},
-            lastUpdateTime=0,
-            functionInstance='sensor-4'
-        ),
-        AferoState(
-            functionClass='sensor-state',
-            value={'security-sensor-state': {'deviceType': 2, 'tampered': 0, 'triggered': 0, 'missing': 0, 'versionBuild': 3, 'versionMajor': 2, 'versionMinor': 0, 'batteryLevel': 100}},
-            lastUpdateTime=0,
-            functionInstance='sensor-4'
-        )
+        AferoState(functionClass='chirpMode', value="On", lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='triggerType', value="Home/Away", lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='bypassType', value="Off", lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='top-level-key', value="security-sensor-config-v2", lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='battery-level', value=100, lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='tampered', value="Off", lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='triggered', value="Off", lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='available', value=True, lastUpdateTime=None, functionInstance=None),
     ]
 
 
 def test_get_valid_functions():
     assert get_valid_functions(alarm_panel.functions, 4) == [
-        {
-        "id": "43ff68d1-3a88-4f61-ae7a-a86f15b235bd",
-        "createdTimestampMs": 1737748109846,
-        "updatedTimestampMs": 1743797379096,
-        "functionClass": "sensor-config",
-        "functionInstance": "sensor-4",
-        "type": "object",
-        "schedulable": False,
-        "values": [
-          {
-            "id": "d804735f-b7aa-4fc6-82d0-8f8d4f76fad2",
-            "createdTimestampMs": 1737748109856,
-            "updatedTimestampMs": 1743797379106,
-            "name": "sensor-config",
-            "deviceValues": [
-              {
-                "id": "53e96640-d090-4d4c-84f8-efd0ba4dfc8f",
-                "createdTimestampMs": 1737748109867,
-                "updatedTimestampMs": 1743797379115,
-                "type": "attribute",
-                "key": "304",
-                "format": "security-sensor-config-v2"
-              }
-            ],
-            "range": {}
-          }
-        ]
-      },
-      {
-        "id": "4bdfa7c0-1b01-4a3a-a4c0-341762f7bc9b",
-        "createdTimestampMs": 1737748109003,
-        "updatedTimestampMs": 1743797382391,
-        "functionClass": "sensor-state",
-        "functionInstance": "sensor-4",
-        "type": "object",
-        "schedulable": False,
-        "values": [
-          {
-            "id": "0733bfc5-f749-41ba-ad6c-d2b933f1d6c8",
-            "createdTimestampMs": 1737748109013,
-            "updatedTimestampMs": 1743797382399,
-            "name": "sensor-state",
-            "deviceValues": [
-              {
-                "id": "bf22481d-df18-4ec0-994e-2ef9590ece8e",
-                "createdTimestampMs": 1737748109023,
-                "updatedTimestampMs": 1743797382407,
-                "type": "attribute",
-                "key": "204",
-                "format": "security-sensor-state"
-              }
-            ],
-            "range": {}
-          }
-        ]
-      },
+        {'functionClass': 'chirpMode', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'On'}]},
+        {'functionClass': 'triggerType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Home'}, {'name': 'Away'}, {'name': 'Home/Away'}]},
+        {'functionClass': 'bypassType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Manual'}, {'name': 'On'}]},
     ]
 
 
@@ -474,7 +595,9 @@ def test_security_system_callback():
     results = security_system_callback(alarm_panel)
     assert results.remove_original is False
     assert len(results.split_devices) == 3
-
+    assert results.split_devices[0].model == "Security System - Motion Sensor"
+    assert results.split_devices[1].model == "Security System - Door/Window Sensor"
+    assert results.split_devices[2].model == "Security System - Unknown"
 
 
 capability_device = AferoDevice(
@@ -526,3 +649,110 @@ capability_device = AferoDevice(
 )
 def test_get_sensor_name(device, sensor_id, expected):
     assert get_sensor_name(device.capabilities, sensor_id) == expected
+
+
+@pytest.mark.parametrize(
+    (("device", "expected")),
+    [
+        # No valid data
+        ([], "Unknown"),
+        # Valid data and valid type
+        (
+            [
+                AferoState(
+                    functionClass="sensor-state",
+                    functionInstance="sensor-4",
+                    value={
+                        "security-sensor-state": {
+                            "deviceType": 1,
+                            "tampered": 0,
+                            "triggered": 0,
+                            "missing": 0,
+                            "versionBuild": 3,
+                            "versionMajor": 2,
+                            "versionMinor": 0,
+                            "batteryLevel": 100
+                        }
+                    },
+                )
+            ],
+            "Motion Sensor",
+        ),
+        # Valid data and invalid type
+        (
+            [
+                AferoState(
+                    functionClass="sensor-state",
+                    functionInstance="sensor-4",
+                    value={
+                        "security-sensor-state": {
+                            "deviceType": 3,
+                            "tampered": 0,
+                            "triggered": 0,
+                            "missing": 0,
+                            "versionBuild": 3,
+                            "versionMajor": 2,
+                            "versionMinor": 0,
+                            "batteryLevel": 100
+                        }
+                    },
+                )
+            ],
+            "Unknown",
+        ),
+    ]
+)
+def test_get_model_type(device, expected):
+    assert get_model_type(device, 4) == expected
+
+
+@pytest.mark.asyncio
+async def test_validate_arm_state(mocked_controller, caplog):
+    caplog.set_level("DEBUG")
+    bridge = mocked_controller._bridge
+    panel = get_alarm_panel_with_siren()
+    single_sensor_with_bypass(panel, 4)
+    await bridge.events.generate_events_from_data(
+        [
+            utils.create_hs_raw_from_device(panel)
+        ]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.validate_arm_state(panel.id, 4)
+    await bridge.async_block_until_done()
+
+
+@pytest.mark.asyncio
+async def test_validate_arm_all_bypassed(mocked_controller, caplog):
+    caplog.set_level("DEBUG")
+    bridge = mocked_controller._bridge
+    panel = get_alarm_panel_with_siren()
+    bypass_all_sensors(panel)
+    await bridge.events.generate_events_from_data(
+        [
+            utils.create_hs_raw_from_device(panel)
+        ]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    with pytest.raises(SecuritySystemError, match="No sensors are configured for the requested mode."):
+        await mocked_controller.validate_arm_state(panel.id, 4)
+        await bridge.async_block_until_done()
+
+
+@pytest.mark.asyncio
+async def test_validate_arm_state_invalid_controller(mocked_controller, mocker):
+    bridge = mocked_controller._bridge
+    panel = get_alarm_panel_with_siren()
+    zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
+    panel.children.append(zandra_light.id)
+    await bridge.events.generate_events_from_data(
+        [
+            utils.create_hs_raw_from_device(zandra_light),
+            utils.create_hs_raw_from_device(panel)
+        ]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    exp_err = "Sensors are open or unavailable: "
+    with pytest.raises(SecuritySystemError, match=exp_err):
+        await mocked_controller.validate_arm_state(panel.id, 4)
+        await bridge.async_block_until_done()

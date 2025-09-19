@@ -7,6 +7,7 @@ __all__ = [
     "EventType",
     "InvalidAuth",
     "InvalidResponse",
+    "SecuritySystemError",
     "anonymize_device",
     "anonymize_devices",
     "get_afero_device",
@@ -29,5 +30,5 @@ finally:
 from . import v1
 from .anonomyize_data import anonymize_device, anonymize_devices
 from .device import AferoDevice, AferoState, get_afero_device
-from .errors import AferoError, InvalidAuth, InvalidResponse
+from .errors import AferoError, InvalidAuth, InvalidResponse, SecuritySystemError
 from .types import EventType

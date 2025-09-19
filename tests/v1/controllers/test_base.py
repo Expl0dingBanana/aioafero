@@ -766,7 +766,7 @@ async def test_initialize(item_types, ex1_rc, mocker):
     ex1_rc._initialized = False
     handle_event = mocker.patch.object(ex1_rc, "_handle_event")
     await ex1_rc.initialize()
-    assert len(ex1_rc._bridge.events._subscribers) == 13
+    assert len(ex1_rc._bridge.events._subscribers) == 14
     assert "nada" in ex1_rc._bridge.events.registered_multiple_devices
     assert ex1_rc._bridge.events.registered_multiple_devices["nada"] == callback
 
@@ -1211,7 +1211,7 @@ async def test_get_device(ex1_rc, starting_items, device_id, expected):
         assert ex1_rc.get_device(device_id) == expected
 
 
-def callback_test(elem, update_vals: dataclass):
+async def callback_test(elem, update_vals: dataclass):
     for f in fields(update_vals):
         if f.name == "callback":
             continue
@@ -1231,6 +1231,7 @@ def callback_test(elem, update_vals: dataclass):
             elem_val.update(cur_val)
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("elem", "update_obj", "mapping", "send_duplicate_states", "expected"),
     [
