@@ -536,7 +536,7 @@ def test_get_valid_functions():
     assert get_valid_functions(alarm_panel.functions, 4) == [
         {'functionClass': 'chirpMode', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'On'}]},
         {'functionClass': 'triggerType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Home'}, {'name': 'Away'}, {'name': 'Home/Away'}]},
-        {'functionClass': 'bypassType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'On'}]},
+        {'functionClass': 'bypassType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Home'}, {'name': 'Away'}, {'name': 'Home/Away'}]},
     ]
 
 

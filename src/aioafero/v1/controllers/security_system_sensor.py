@@ -115,7 +115,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         if selects:
             chirp_modes = {y: x for x, y in GENERIC_MODES.items()}
             trigger_types = {y: x for x, y in TRIGGER_MODES.items()}
-            bypass_types = {y: x for x, y in GENERIC_MODES.items()}
+            bypass_types = {y: x for x, y in TRIGGER_MODES.items()}
             # Load the current values as it all needs to be sent
             select_vals = {
                 "chirpMode": chirp_modes[
@@ -129,11 +129,11 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 ],
             }
             for select, select_val in selects.items():
-                if select[1] == "chirpMode":
+                if select[0] == "chirpMode":
                     select_vals["chirpMode"] = chirp_modes[select_val]
-                elif select[1] == "triggerType":
+                elif select[0] == "triggerType":
                     select_vals["triggerType"] = trigger_types[select_val]
-                elif select[1] == "bypassType":
+                elif select[0] == "bypassType":
                     select_vals["bypassType"] = bypass_types[select_val]
                 else:
                     continue

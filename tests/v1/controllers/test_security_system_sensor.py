@@ -61,8 +61,10 @@ async def test_initialize(mocked_controller):
         ("bypassType", None): features.SelectFeature(
             selected="Off",
             selects={
+                "Away",
+                "Home",
+                "Home/Away",
                 "Off",
-                "On",
             },
             name="Bypass",
         ),
@@ -98,7 +100,7 @@ async def test_update_elem(mocked_controller, caplog):
     new_states = [
         AferoState(functionClass='chirpMode', value='On', lastUpdateTime=None, functionInstance=None),
         AferoState(functionClass='triggerType', value='Away', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='bypassType', value='On', lastUpdateTime=None, functionInstance=None),
+        AferoState(functionClass='bypassType', value='Home/Away', lastUpdateTime=None, functionInstance=None),
         AferoState(functionClass='top-level-key', value='security-sensor-config-v2', lastUpdateTime=None, functionInstance=None),
         AferoState(functionClass='tampered', value='On', lastUpdateTime=None, functionInstance=None),
         AferoState(functionClass='triggered', value='Off', lastUpdateTime=None, functionInstance=None),
@@ -139,10 +141,12 @@ async def test_update_elem(mocked_controller, caplog):
     }
     assert dev.selects == {
         ("bypassType", None): features.SelectFeature(
-            selected="On",
+            selected="Home/Away",
             selects={
+                "Away",
+                "Home",
+                "Home/Away",
                 "Off",
-                "On",
             },
             name="Bypass",
         ),
@@ -190,10 +194,10 @@ async def test_update_security_sensor_no_updates(mocked_controller):
             security_system_sensor_2,
             {
                 "selects": {
-                    ("sensor-2", "chirpMode"): "On",
-                    ("sensor-2", "triggerType"): "Away",
-                    ("sensor-2", "bypassType"): "On",
-                    ("sensor-2", "doesnt_exist"): "On",
+                    ("chirpMode", None): "On",
+                    ("triggerType", None): "Away",
+                    ("bypassType", None): "Home/Away",
+                    ("doesnt_exist", None): "On",
                 }
             },
             [
@@ -201,9 +205,9 @@ async def test_update_security_sensor_no_updates(mocked_controller):
                     "functionClass": "sensor-config",
                     "value": {
                         "security-sensor-config-v2": {
-                            "chirpMode": 0,
+                            "chirpMode": 1,
                             "triggerType": 3,
-                            "bypassType": 0,
+                            "bypassType": 3,
                         }
                     },
                     "functionInstance": "sensor-2",
@@ -234,9 +238,9 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
     await mocked_controller.set_state(device.id, **updates)
     await bridge.async_block_until_done()
     dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
-    assert dev.selects[("chirpMode", None)].selected == 'Off'
+    assert dev.selects[("chirpMode", None)].selected == 'On'
     assert dev.selects[("triggerType", None)].selected == 'Home/Away'
-    assert dev.selects[("bypassType", None)].selected == 'Off'
+    assert dev.selects[("bypassType", None)].selected == 'Home/Away'
 
 
 @pytest.mark.asyncio

@@ -112,7 +112,7 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
                 AferoState(
                     functionClass="bypassType",
                     functionInstance=None,
-                    value=GENERIC_MODES[state.value[top_level_key]["bypassType"]],
+                    value=TRIGGER_MODES[state.value[top_level_key]["bypassType"]],
                 )
             )
             valid_states.append(
@@ -173,7 +173,7 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
                     "functionClass": "bypassType",
                     "functionInstance": func["functionInstance"],
                     "type": "category",
-                    "values": [{"name": x} for x in GENERIC_MODES.values()],
+                    "values": [{"name": x} for x in TRIGGER_MODES.values()],
                 }
             )
     return valid_functions
