@@ -23,7 +23,7 @@ class SecuritySystemKeypad:
     sensors: dict[str, AferoSensor] = field(default_factory=dict)
     binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
-    type: ResourceTypes = ResourceTypes.SECURITY_SYSTEM
+    type: ResourceTypes = ResourceTypes.SECURITY_SYSTEM_KEYPAD
 
     def __init__(self, functions: list, **kwargs):  # noqa: D107
         for key, value in kwargs.items():
