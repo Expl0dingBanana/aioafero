@@ -51,6 +51,9 @@ def populated_entity():
             value=26, step=0.5, min=10, max=37, instance="cooling-target"
         ),
         instances="i dont execute",
+        device_information={},
+        sensors={},
+        binary_sensors={},
     )
 
 
