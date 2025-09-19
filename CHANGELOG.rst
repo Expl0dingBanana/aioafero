@@ -2,6 +2,15 @@
 Changelog
 =========
 
+Version 5.4.0
+=============
+
+ * Fix security sensors not tracking
+ * Ensure binary_sensors are correctly updated
+ * Better handling for security sensors
+ * Set models for sensors
+ * Add security-system-keypad support
+
 Version 5.3.0
 =============
 
