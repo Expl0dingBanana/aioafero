@@ -6,7 +6,12 @@ from aioafero.v1.models import SecuritySystemSensor, SecuritySystemSensorPut, fe
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
-from .security_system import GENERIC_MODES, SENSOR_SPLIT_IDENTIFIER, TRIGGER_MODES
+from .security_system import (
+    BYPASS_MODES,
+    GENERIC_MODES,
+    SENSOR_SPLIT_IDENTIFIER,
+    TRIGGER_MODES,
+)
 
 
 class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSensor]):
@@ -115,7 +120,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         if selects:
             chirp_modes = {y: x for x, y in GENERIC_MODES.items()}
             trigger_types = {y: x for x, y in TRIGGER_MODES.items()}
-            bypass_types = {y: x for x, y in TRIGGER_MODES.items()}
+            bypass_types = {y: x for x, y in BYPASS_MODES.items()}
             # Load the current values as it all needs to be sent
             select_vals = {
                 "chirpMode": chirp_modes[

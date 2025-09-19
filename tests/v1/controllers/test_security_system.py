@@ -246,6 +246,57 @@ def disable_sensors(dev):
             }
         }
 
+def single_sensor_with_bypass(dev, sensor_id):
+    enable_sensors(dev)
+    for state in dev.states:
+        if state.functionClass == "sensor-state" and state.functionInstance == f"sensor-{sensor_id}":
+            state.value = {
+                'security-sensor-state': {
+                    'deviceType': 1,
+                    'tampered': 0,
+                    'triggered': 1, # Trigger the device, but it will be bypassed
+                    'missing': 0,
+                    'versionBuild': 3,
+                    'versionMajor': 2,
+                    'versionMinor': 0,
+                    'batteryLevel': 100
+                }
+            }
+        if state.functionClass == "sensor-config" and state.functionInstance == f"sensor-{sensor_id}":
+            state.value = {
+                "security-sensor-config-v2": {
+                    "chirpMode": 1,
+                    "triggerType": 3,
+                    "bypassType": 4
+                }
+            }
+
+
+def bypass_all_sensors(dev):
+    for state in dev.states:
+        if state.functionClass == "sensor-state":
+            state.value = {
+                'security-sensor-state': {
+                    'deviceType': 1,
+                    'tampered': 0,
+                    'triggered': 0,
+                    'missing': 0,
+                    'versionBuild': 3,
+                    'versionMajor': 2,
+                    'versionMinor': 0,
+                    'batteryLevel': 100
+                }
+            }
+        if state.functionClass == "sensor-config":
+            state.value = {
+                "security-sensor-config-v2": {
+                    "chirpMode": 1,
+                    "triggerType": 3,
+                    "bypassType": 4
+                }
+            }
+
+
 @pytest.mark.asyncio
 async def test_arm_home(mocked_controller, mocker):
     dev = utils.create_devices_from_data("security-system.json")[1]
@@ -536,7 +587,7 @@ def test_get_valid_functions():
     assert get_valid_functions(alarm_panel.functions, 4) == [
         {'functionClass': 'chirpMode', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'On'}]},
         {'functionClass': 'triggerType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Home'}, {'name': 'Away'}, {'name': 'Home/Away'}]},
-        {'functionClass': 'bypassType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Home'}, {'name': 'Away'}, {'name': 'Home/Away'}]},
+        {'functionClass': 'bypassType', 'functionInstance': 'sensor-4', 'type': 'category', 'values': [{'name': 'Off'}, {'name': 'Manual'}, {'name': 'On'}]},
     ]
 
 
@@ -656,6 +707,39 @@ def test_get_model_type(device, expected):
 
 
 @pytest.mark.asyncio
+async def test_validate_arm_state(mocked_controller, caplog):
+    caplog.set_level("DEBUG")
+    bridge = mocked_controller._bridge
+    panel = get_alarm_panel_with_siren()
+    single_sensor_with_bypass(panel, 4)
+    await bridge.events.generate_events_from_data(
+        [
+            utils.create_hs_raw_from_device(panel)
+        ]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.validate_arm_state(panel.id, 4)
+    await bridge.async_block_until_done()
+
+
+@pytest.mark.asyncio
+async def test_validate_arm_all_bypassed(mocked_controller, caplog):
+    caplog.set_level("DEBUG")
+    bridge = mocked_controller._bridge
+    panel = get_alarm_panel_with_siren()
+    bypass_all_sensors(panel)
+    await bridge.events.generate_events_from_data(
+        [
+            utils.create_hs_raw_from_device(panel)
+        ]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    with pytest.raises(SecuritySystemError, match="No sensors are configured for the requested mode."):
+        await mocked_controller.validate_arm_state(panel.id, 4)
+        await bridge.async_block_until_done()
+
+
+@pytest.mark.asyncio
 async def test_validate_arm_state_invalid_controller(mocked_controller, mocker):
     bridge = mocked_controller._bridge
     panel = get_alarm_panel_with_siren()
@@ -670,5 +754,5 @@ async def test_validate_arm_state_invalid_controller(mocked_controller, mocker):
     await mocked_controller._bridge.async_block_until_done()
     exp_err = "Sensors are open or unavailable: "
     with pytest.raises(SecuritySystemError, match=exp_err):
-        await mocked_controller.validate_arm_state(panel.id)
+        await mocked_controller.validate_arm_state(panel.id, 4)
         await bridge.async_block_until_done()

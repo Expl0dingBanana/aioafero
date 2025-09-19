@@ -29,6 +29,11 @@ KNOWN_SENSOR_MODELS = {
     1: "Motion Sensor",
     2: "Door/Window Sensor",
 }
+BYPASS_MODES = {
+    0: "Off",
+    1: "Manual",
+    4: "On",
+}
 
 UPDATE_TIME = 3  # Seconds after performing an action to refresh state
 
@@ -112,7 +117,7 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
                 AferoState(
                     functionClass="bypassType",
                     functionInstance=None,
-                    value=TRIGGER_MODES[state.value[top_level_key]["bypassType"]],
+                    value=BYPASS_MODES[state.value[top_level_key]["bypassType"]],
                 )
             )
             valid_states.append(
@@ -173,7 +178,7 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
                     "functionClass": "bypassType",
                     "functionInstance": func["functionInstance"],
                     "type": "category",
-                    "values": [{"name": x} for x in TRIGGER_MODES.values()],
+                    "values": [{"name": x} for x in BYPASS_MODES.values()],
                 }
             )
     return valid_functions
@@ -414,7 +419,7 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         if command is not None:
             force_mode = True
             if command != 5:
-                await self.validate_arm_state(device_id)
+                await self.validate_arm_state(device_id, command)
             update_obj.siren_action = features.SecuritySensorSirenFeature(
                 result_code=0,
                 command=command,
@@ -476,15 +481,36 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         device.states = states
         await self._bridge.events.generate_events_from_update(device)
 
-    async def validate_arm_state(self, device_id: str) -> bool:
+    async def validate_arm_state(self, device_id: str, arm_type: int) -> bool:
         """Ensure the system can arm."""
         dev = self._bridge.get_afero_device(device_id)
         sensors_with_issues = []
+        num_sensors = 0
         for child in dev.children:
             controller = self._bridge.get_device_controller(child)
             if type(controller).__name__ != "SecuritySystemSensorController":
                 continue
             sensor = controller[child]
+            if (
+                # Generic Bypass
+                sensor.selects.get(("bypassType", None)).selected in ["Manual", "On"]
+                or
+                # Arm Away Bypass
+                (
+                    arm_type == 2
+                    and sensor.selects.get(("triggerType", None)).selected
+                    not in ["Away", "Home/Away"]
+                )
+                or
+                # Arm Home Bypass
+                (
+                    arm_type == 4
+                    and sensor.selects.get(("triggerType", None)).selected
+                    not in ["Home", "Home/Away"]
+                )
+            ):
+                self._logger.debug("Bypassing sensor %s", sensor.id)
+                continue
             if sensor.available is False:
                 sensors_with_issues.append(
                     f"{sensor.device_information.name} (Unavailable)"
@@ -497,8 +523,13 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 sensors_with_issues.append(
                     f"{sensor.device_information.name} (Tampered)"
                 )
+            num_sensors += 1
         if sensors_with_issues:
             raise SecuritySystemError(
                 f"Sensors are open or unavailable: {', '.join(sensors_with_issues)}"
+            )
+        if num_sensors == 0:
+            raise SecuritySystemError(
+                "No sensors are configured for the requested mode."
             )
         return True
