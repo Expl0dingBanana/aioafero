@@ -39,7 +39,7 @@ def empty_entity():
 
 
 def test_init(populated_entity):
-    assert populated_entity._id == "entity-1"
+    assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
     assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.open[None].open is True
