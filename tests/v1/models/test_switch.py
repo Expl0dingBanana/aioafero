@@ -1,40 +1,44 @@
 import pytest
 
-from aioafero.v1.models import features
+from aioafero.v1.models import features, DeviceInformation
 from aioafero.v1.models.switch import Switch
 
 
 @pytest.fixture
 def populated_entity():
     return Switch(
-        functions=[
+        _id="entity-1",
+        available=True,
+        on={None: features.OnFeature(on=True)},
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
-        _id="entity-1",
-        available=True,
-        on={None: features.OnFeature(on=True)},
+        ]
+        )
     )
 
 
 @pytest.fixture
 def empty_entity():
     return Switch(
-        functions=[
+        _id="entity-1",
+        available=True,
+        on=None,
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
-        _id="entity-1",
-        available=True,
-        on=None,
+        ]
+        )
     )
 
 

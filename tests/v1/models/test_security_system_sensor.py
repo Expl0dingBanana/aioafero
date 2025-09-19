@@ -1,20 +1,12 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystemSensor, features
+from aioafero.v1.models import SecuritySystemSensor, features, DeviceInformation
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 
 
 @pytest.fixture
 def populated_entity():
     return SecuritySystemSensor(
-        functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
         _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
         split_identifier="sensor",
         available=True,
@@ -43,20 +35,22 @@ def populated_entity():
                 instance=None,
             ),
         },
-    )
-
-
-@pytest.fixture
-def empty_entity():
-    return SecuritySystemSensor(
-        functions=[
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
+        ]
+        )
+    )
+
+
+@pytest.fixture
+def empty_entity():
+    return SecuritySystemSensor(
         _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
         split_identifier="sensor",
         update_id="7f4e4c01-e799-45c5-9b1a-385433a78edc",
@@ -64,6 +58,16 @@ def empty_entity():
         selects={},
         binary_sensors={},
         sensor={},
+        device_information=DeviceInformation(
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ]
+        )
     )
 
 

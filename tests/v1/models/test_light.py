@@ -7,14 +7,6 @@ from aioafero.v1.models.light import Light
 @pytest.fixture
 def populated_light():
     return Light(
-        functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
         _id="entity-1",
         available=True,
         on=features.OnFeature(on=True),
@@ -31,7 +23,14 @@ def populated_light():
             effect="rainbow", effects={"custom": {"rainbow"}}
         ),
         device_information=DeviceInformation(
-            model="AL-TP-RGBICTW-1"
+            model="AL-TP-RGBICTW-1",
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }]
         )
     )
 
@@ -39,14 +38,6 @@ def populated_light():
 @pytest.fixture
 def empty_light():
     return Light(
-        functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
         _id="entity-1",
         available=True,
         on=None,
@@ -57,7 +48,14 @@ def empty_light():
         dimming=None,
         effect=None,
         device_information=DeviceInformation(
-            model="a21-light"
+            model="a21-light",
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }]
         )
     )
 

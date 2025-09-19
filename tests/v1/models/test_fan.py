@@ -1,20 +1,12 @@
 import pytest
 
-from aioafero.v1.models import features
+from aioafero.v1.models import features, DeviceInformation
 from aioafero.v1.models.fan import Fan
 
 
 @pytest.fixture
 def populated_fan():
     return Fan(
-        functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
         _id="fan-1",
         available=True,
         on=features.OnFeature(on=True),
@@ -23,20 +15,22 @@ def populated_fan():
         preset=features.PresetFeature(
             enabled=True, func_class="preset", func_instance="preset-1"
         ),
-    )
-
-
-@pytest.fixture
-def empty_fan():
-    return Fan(
-        functions=[
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
+        ]
+        )
+    )
+
+
+@pytest.fixture
+def empty_fan():
+    return Fan(
         _id="fan-1",
         available=True,
         on=None,

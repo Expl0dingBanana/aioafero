@@ -64,7 +64,6 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
             elif state.functionClass == "top-level-key":
                 config_key = state.value
         self._items[device.id] = SecuritySystemSensor(
-            functions=[],
             _id=device.id,
             split_identifier=SENSOR_SPLIT_IDENTIFIER,
             config_key=config_key,
@@ -81,6 +80,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 model=self.SENSOR_TYPES.get(device_type, "Unknown"),
                 name=device.friendly_name,
                 parent_id=device.device_id,
+                functions=device.functions,
             ),
         )
         return self._items[device.id]

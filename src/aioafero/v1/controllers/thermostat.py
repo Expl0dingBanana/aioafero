@@ -122,7 +122,6 @@ class ThermostatController(BaseResourcesController[Thermostat]):
             )
 
         self._items[afero_device.id] = Thermostat(
-            functions=afero_device.functions,
             _id=afero_device.id,
             available=available,
             sensors=sensors,

@@ -42,7 +42,6 @@ class SecuritySystemKeypadController(BaseResourcesController[SecuritySystemKeypa
                 selects[select[0]] = select[1]
 
         self._items[afero_device.id] = SecuritySystemKeypad(
-            functions=afero_device.functions,
             _id=afero_device.id,
             available=available,
             binary_sensors=binary_sensors,

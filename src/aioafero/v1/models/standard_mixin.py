@@ -1,6 +1,5 @@
 """Handles generic information related to all devices."""
 
-import contextlib
 from dataclasses import dataclass, field
 
 from . import features
@@ -13,7 +12,6 @@ class StandardMixin:
     """Mixin for standard properties and methods."""
 
     _id: str  # ID used when interacting with Afero
-    functions: list[dict]  # Raw function data from Afero
     available: bool
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
     split_identifier: str | None = None
@@ -32,14 +30,11 @@ class StandardMixin:
     def __post_init__(self):
         """Configure the available instances."""
         instances = {}
-        for function in self.functions or []:
+        for function in self.device_information.functions or []:
             instances[function["functionClass"]] = function.get(
                 "functionInstance", None
             )
         self.instances = instances
-
-        with contextlib.suppress(NameError):
-            del self.functions
 
     def get_instance(self, elem):
         """Lookup the instance associated with the elem."""

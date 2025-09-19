@@ -1,19 +1,11 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystem, features
+from aioafero.v1.models import SecuritySystem, features, DeviceInformation
 
 
 @pytest.fixture
 def populated_entity():
     return SecuritySystem(
-        functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
         _id="entity-1",
         available=True,
         alarm_state=features.ModeFeature(
@@ -42,20 +34,22 @@ def populated_entity():
                 name="Siren Volume",
             ),
         },
-    )
-
-
-@pytest.fixture
-def empty_entity():
-    return SecuritySystem(
-        functions=[
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
+        ]
+        )
+    )
+
+
+@pytest.fixture
+def empty_entity():
+    return SecuritySystem(
         _id="entity-1",
         available=True,
         alarm_state=None,
