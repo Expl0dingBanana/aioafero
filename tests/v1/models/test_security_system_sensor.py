@@ -7,7 +7,7 @@ from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 @pytest.fixture
 def populated_entity():
     return SecuritySystemSensor(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -34,7 +34,7 @@ def populated_entity():
                 _error=1,
             )
         },
-        sensor={
+        sensors={
             "batteryLevel": AferoSensor(
                 id="sensor-state",
                 owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
@@ -43,14 +43,13 @@ def populated_entity():
                 instance=None,
             ),
         },
-        instances="i dont execute",
     )
 
 
 @pytest.fixture
 def empty_entity():
     return SecuritySystemSensor(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -65,7 +64,6 @@ def empty_entity():
         selects={},
         binary_sensors={},
         sensor={},
-        instances="i dont execute",
     )
 
 

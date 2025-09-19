@@ -1,73 +1,30 @@
 """Representation of an Afero Light and its corresponding updates."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import re
 
 from aioafero.v1.models import features
 
-from .resource import DeviceInformation, ResourceTypes
-from .sensor import AferoBinarySensor, AferoSensor
+from .resource import ResourceTypes
+from .standard_mixin import StandardMixin
 
 rgbw_name_search = re.compile(r"RGB\w*W")
 
 
-@dataclass
-class Light:
+@dataclass(kw_only=True)
+class Light(StandardMixin):
     """Representation of an Afero Light."""
-
-    id: str  # ID used when interacting with Afero
-    available: bool
-
-    on: features.OnFeature | None
-    color: features.ColorFeature | None
-    color_mode: features.ColorModeFeature | None
-    color_modes: list[str] | None
-    color_temperature: features.ColorTemperatureFeature | None
-    dimming: features.DimmingFeature | None
-    effect: features.EffectFeature | None
-    supports_white: bool = False
-
-    # Defined at initialization
-    split_identifier: str | None = None
-    instances: dict = field(default_factory=dict, repr=False, init=False)
-    device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=dict)
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.LIGHT
 
-    def __init__(self, functions: list, **kwargs):  # noqa: D107
-        for key, value in kwargs.items():
-            if key == "instances":
-                continue
-            setattr(self, key, value)
-        instances = {}
-        for function in functions:
-            instances[function["functionClass"]] = function.get(
-                "functionInstance", None
-            )
-        self.instances = instances
-        self.supports_white = (
-            rgbw_name_search.search(self.device_information.model) is not None
-        )
-
-    def get_instance(self, elem):
-        """Lookup the instance associated with the elem."""
-        return self.instances.get(elem, None)
-
-    @property
-    def instance(self):
-        """Instance for the split device."""
-        if self.split_identifier:
-            return self.id.rsplit(f"-{self.split_identifier}-", 1)[1]
-        return None
-
-    @property
-    def update_id(self) -> str:
-        """ID used when sending updates to Afero API."""
-        if self.split_identifier:
-            return self.id.rsplit(f"-{self.split_identifier}-", 1)[0]
-        return self.id
+    on: features.OnFeature | None = None
+    color: features.ColorFeature | None = None
+    color_mode: features.ColorModeFeature | None = None
+    color_modes: list[str] | None = None
+    color_temperature: features.ColorTemperatureFeature | None = None
+    dimming: features.DimmingFeature | None = None
+    effect: features.EffectFeature | None = None
+    supports_white: bool = False
 
     @property
     def supports_color(self) -> bool:

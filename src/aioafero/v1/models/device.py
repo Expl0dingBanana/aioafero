@@ -1,20 +1,13 @@
 """Representation of a top-level item."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from .resource import DeviceInformation, ResourceTypes
-from .sensor import AferoBinarySensor, AferoSensor
+from .resource import ResourceTypes
+from .standard_mixin import StandardMixin
 
 
 @dataclass
-class Device:
+class Device(StandardMixin):
     """Representation of an Afero parent item."""
-
-    id: str  # ID used when interacting with Afero
-    available: bool
-
-    device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=dict)
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.PARENT_DEVICE

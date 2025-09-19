@@ -6,7 +6,7 @@ from aioafero.v1.models import SecuritySystem, features
 @pytest.fixture
 def populated_entity():
     return SecuritySystem(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -14,7 +14,7 @@ def populated_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         alarm_state=features.ModeFeature(
             mode="arm-away", modes={"arm-away", "disarmed", "arm-stay", "alarming-sos"}
@@ -42,14 +42,13 @@ def populated_entity():
                 name="Siren Volume",
             ),
         },
-        instances="i dont execute",
     )
 
 
 @pytest.fixture
 def empty_entity():
     return SecuritySystem(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -57,12 +56,11 @@ def empty_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         alarm_state=None,
         numbers={},
         selects={},
-        instances="i dont execute",
     )
 
 

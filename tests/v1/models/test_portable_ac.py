@@ -23,7 +23,7 @@ def populated_entity():
         ),
     }
     return PortableAC(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -31,7 +31,7 @@ def populated_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         current_temperature=features.CurrentTemperatureFeature(
             temperature=35,
@@ -50,7 +50,6 @@ def populated_entity():
         display_celsius=True,
         numbers=numbers,
         selects=selects,
-        instances={"fan-speed": "ac-fan-speed"},
     )
 
 

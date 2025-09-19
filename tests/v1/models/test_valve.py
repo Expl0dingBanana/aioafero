@@ -7,7 +7,7 @@ from aioafero.v1.models.valve import Valve
 @pytest.fixture
 def populated_entity():
     return Valve(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -15,17 +15,16 @@ def populated_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         open={None: features.OpenFeature(open=True)},
-        instances="i dont execute",
     )
 
 
 @pytest.fixture
 def empty_entity():
     return Valve(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -33,15 +32,14 @@ def empty_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         open=None,
-        instances="i dont execute",
     )
 
 
 def test_init(populated_entity):
-    assert populated_entity.id == "entity-1"
+    assert populated_entity._id == "entity-1"
     assert populated_entity.available is True
     assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.open[None].open is True

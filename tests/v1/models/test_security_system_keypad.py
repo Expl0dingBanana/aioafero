@@ -6,7 +6,7 @@ from aioafero.v1.models import SecuritySystemKeypad, features
 @pytest.fixture
 def populated_entity():
     return SecuritySystemKeypad(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -14,7 +14,7 @@ def populated_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         selects={
             ("volume", "buzzer-volume"): features.SelectFeature(
@@ -29,7 +29,6 @@ def populated_entity():
                 name="Buzzer Volume",
             ),
         },
-        instances={"preset": "preset-1"},
     )
 
 

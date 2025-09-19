@@ -6,19 +6,19 @@ from aioafero.util import calculate_hubspace_fahrenheit
 from aioafero.v1.models import features
 
 
-@dataclass
+@dataclass(kw_only=True)
 class HVACMixin:
     """Mixin for HVAC / Temperature related properties and methods."""
 
-    display_celsius: bool | None
-    current_temperature: features.CurrentTemperatureFeature | None
-    fan_running: bool | None
-    fan_mode: features.ModeFeature | None
-    hvac_mode: features.HVACModeFeature | None
-    target_temperature_auto_heating: features.TargetTemperatureFeature | None
-    target_temperature_auto_cooling: features.TargetTemperatureFeature | None
-    target_temperature_heating: features.TargetTemperatureFeature | None
-    target_temperature_cooling: features.TargetTemperatureFeature | None
+    display_celsius: bool | None = None
+    current_temperature: features.CurrentTemperatureFeature | None = None
+    fan_running: bool | None = None
+    fan_mode: features.ModeFeature | None = None
+    hvac_mode: features.HVACModeFeature | None = None
+    target_temperature_auto_heating: features.TargetTemperatureFeature | None = None
+    target_temperature_auto_cooling: features.TargetTemperatureFeature | None = None
+    target_temperature_heating: features.TargetTemperatureFeature | None = None
+    target_temperature_cooling: features.TargetTemperatureFeature | None = None
 
     @property
     def target_temperature(self) -> float | None:

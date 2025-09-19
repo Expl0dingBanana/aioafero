@@ -7,7 +7,7 @@ from aioafero.v1.models.thermostat import Thermostat
 @pytest.fixture
 def populated_entity():
     return Thermostat(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -15,7 +15,7 @@ def populated_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         display_celsius=True,
         current_temperature=features.CurrentTemperatureFeature(
@@ -50,7 +50,6 @@ def populated_entity():
         target_temperature_cooling=features.TargetTemperatureFeature(
             value=26, step=0.5, min=10, max=37, instance="cooling-target"
         ),
-        instances="i dont execute",
         device_information={},
         sensors={},
         binary_sensors={},
@@ -60,8 +59,8 @@ def populated_entity():
 @pytest.fixture
 def empty_entity():
     return Thermostat(
-        [],
-        id="entity-1",
+        functions=[],
+        _id="entity-1",
         available=True,
         display_celsius=None,
         current_temperature=None,
@@ -74,7 +73,6 @@ def empty_entity():
         target_temperature_auto_cooling=None,
         target_temperature_heating=None,
         target_temperature_cooling=None,
-        instances="i dont execute",
     )
 
 

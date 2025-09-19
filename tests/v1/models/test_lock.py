@@ -7,7 +7,7 @@ from aioafero.v1.models.lock import Lock
 @pytest.fixture
 def populated_entity():
     return Lock(
-        [
+        functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
@@ -15,9 +15,8 @@ def populated_entity():
                 "lastUpdateTime": 0,
             }
         ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
-        instances="i dont execute",
         position=features.CurrentPositionFeature(
             position=features.CurrentPositionEnum.LOCKED
         ),

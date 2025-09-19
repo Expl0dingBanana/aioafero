@@ -5,39 +5,15 @@ from dataclasses import dataclass, field
 from aioafero.v1.models import features
 
 from .hvac_mixin import HVACMixin
-from .resource import DeviceInformation, ResourceTypes
-from .sensor import AferoBinarySensor, AferoSensor
+from .resource import ResourceTypes
+from .standard_mixin import StandardMixin
 
 
-@dataclass
-class PortableAC(HVACMixin):
+@dataclass(kw_only=True)
+class PortableAC(HVACMixin, StandardMixin):
     """Representation of an Afero Portable AC."""
 
-    id: str  # ID used when interacting with Afero
-    available: bool
-
-    numbers: dict[tuple[str, str | None], features.NumbersFeature] | None
-    selects: dict[tuple[str, str | None], features.SelectFeature] | None
-
-    # Defined at initialization
-    instances: dict = field(default_factory=dict, repr=False, init=False)
-    device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=dict)
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
-
     type: ResourceTypes = ResourceTypes.PORTABLE_AC
-
-    def __init__(self, functions: list, **kwargs):  # noqa: D107
-        for key, value in kwargs.items():
-            if key == "instances":
-                continue
-            setattr(self, key, value)
-        instances = {}
-        for function in functions:
-            instances[function["functionClass"]] = function.get(
-                "functionInstance", None
-            )
-        self.instances = instances
 
     @property
     def supports_fan_mode(self) -> bool:
