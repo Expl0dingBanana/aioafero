@@ -26,6 +26,13 @@ class Light(StandardMixin):
     effect: features.EffectFeature | None = None
     supports_white: bool = False
 
+    def __post_init__(self):
+        """Determine if white only is supported."""
+        super().__post_init__()
+        model = getattr(getattr(self, "device_information", None), "model", None)
+        if model is not None and rgbw_name_search.search(model):
+            self.supports_white = True
+
     @property
     def supports_color(self) -> bool:
         """Return if this light supports color control."""

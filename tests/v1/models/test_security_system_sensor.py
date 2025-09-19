@@ -53,11 +53,10 @@ def empty_entity():
     return SecuritySystemSensor(
         _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
         split_identifier="sensor",
-        update_id="7f4e4c01-e799-45c5-9b1a-385433a78edc",
         available=True,
         selects={},
         binary_sensors={},
-        sensor={},
+        sensors={},
         device_information=DeviceInformation(
             functions=[
             {

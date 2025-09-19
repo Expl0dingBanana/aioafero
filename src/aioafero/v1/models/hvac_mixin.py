@@ -88,7 +88,7 @@ class HVACMixin:
     def target_temperature_max(self) -> float:
         """Maximum target temperature."""
         set_mode = self.get_mode_to_check()
-        if not set_mode or self.hvac_mode.mode == "auto":
+        if not set_mode or self.hvac_mode.mode in ["auto"]:
             val = self.target_temperature_auto_cooling.max
         else:
             val = getattr(self._get_target_feature(set_mode), "max", None)
@@ -100,7 +100,7 @@ class HVACMixin:
     def target_temperature_min(self) -> float:
         """Minimum target temperature."""
         set_mode = self.get_mode_to_check()
-        if not set_mode or self.hvac_mode.mode == "auto":
+        if not set_mode or self.hvac_mode.mode in ["auto"]:
             val = self.target_temperature_auto_heating.min
         else:
             val = getattr(
