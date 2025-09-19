@@ -1,42 +1,34 @@
 import pytest
 
-from aioafero.v1.models import features
+from aioafero.v1.models import features, DeviceInformation
 from aioafero.v1.models.valve import Valve
 
 
 @pytest.fixture
 def populated_entity():
     return Valve(
-        [
+        _id="entity-1",
+        available=True,
+        open={None: features.OpenFeature(open=True)},
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
-        id="entity-1",
-        available=True,
-        open={None: features.OpenFeature(open=True)},
-        instances="i dont execute",
+        ]
+        ),
     )
 
 
 @pytest.fixture
 def empty_entity():
     return Valve(
-        [
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         open=None,
-        instances="i dont execute",
     )
 
 

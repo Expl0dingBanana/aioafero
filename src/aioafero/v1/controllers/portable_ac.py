@@ -127,8 +127,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
                 display_celsius = state.value == "celsius"
 
         self._items[afero_device.id] = PortableAC(
-            afero_device.functions,
-            id=afero_device.id,
+            _id=afero_device.id,
             available=available,
             current_temperature=current_temperature,
             hvac_mode=hvac_mode,

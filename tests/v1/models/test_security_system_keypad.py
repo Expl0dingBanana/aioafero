@@ -1,20 +1,12 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystemKeypad, features
+from aioafero.v1.models import SecuritySystemKeypad, features, DeviceInformation
 
 
 @pytest.fixture
 def populated_entity():
     return SecuritySystemKeypad(
-        [
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         selects={
             ("volume", "buzzer-volume"): features.SelectFeature(
@@ -29,7 +21,16 @@ def populated_entity():
                 name="Buzzer Volume",
             ),
         },
-        instances={"preset": "preset-1"},
+        device_information=DeviceInformation(
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ]
+        )
     )
 
 
