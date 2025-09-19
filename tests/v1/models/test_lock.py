@@ -1,26 +1,27 @@
 import pytest
 
-from aioafero.v1.models import features
+from aioafero.v1.models import features, DeviceInformation
 from aioafero.v1.models.lock import Lock
 
 
 @pytest.fixture
 def populated_entity():
     return Lock(
-        [
+        _id="entity-1",
+        available=True,
+        position=features.CurrentPositionFeature(
+            position=features.CurrentPositionEnum.LOCKED
+        ),
+        device_information=DeviceInformation(
+            functions=[
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ],
-        id="entity-1",
-        available=True,
-        instances="i dont execute",
-        position=features.CurrentPositionFeature(
-            position=features.CurrentPositionEnum.LOCKED
-        ),
+        ]
+        )
     )
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import PortableAC, features
+from aioafero.v1.models import PortableAC, features, DeviceInformation
 
 
 @pytest.fixture
@@ -23,15 +23,7 @@ def populated_entity():
         ),
     }
     return PortableAC(
-        [
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         current_temperature=features.CurrentTemperatureFeature(
             temperature=35,
@@ -50,7 +42,16 @@ def populated_entity():
         display_celsius=True,
         numbers=numbers,
         selects=selects,
-        instances={"fan-speed": "ac-fan-speed"},
+        device_information=DeviceInformation(
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ]
+        )
     )
 
 
