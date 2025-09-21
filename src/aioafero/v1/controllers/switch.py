@@ -63,8 +63,7 @@ class SwitchController(BaseResourcesController[Switch]):
                 sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Switch(
-            afero_device.functions,
-            id=afero_device.id,
+            _id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,

@@ -61,8 +61,7 @@ class ValveController(BaseResourcesController[Valve]):
                     sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Valve(
-            afero_device.functions,
-            id=afero_device.id,
+            _id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,

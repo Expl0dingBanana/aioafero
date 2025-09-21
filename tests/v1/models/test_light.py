@@ -7,15 +7,7 @@ from aioafero.v1.models.light import Light
 @pytest.fixture
 def populated_light():
     return Light(
-        [
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         on=features.OnFeature(on=True),
         color=features.ColorFeature(red=10, green=20, blue=40),
@@ -30,9 +22,15 @@ def populated_light():
         effect=features.EffectFeature(
             effect="rainbow", effects={"custom": {"rainbow"}}
         ),
-        instances="i dont execute",
         device_information=DeviceInformation(
-            model="AL-TP-RGBICTW-1"
+            model="AL-TP-RGBICTW-1",
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }]
         )
     )
 
@@ -40,15 +38,7 @@ def populated_light():
 @pytest.fixture
 def empty_light():
     return Light(
-        [
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ],
-        id="entity-1",
+        _id="entity-1",
         available=True,
         on=None,
         color=None,
@@ -57,9 +47,15 @@ def empty_light():
         color_temperature=None,
         dimming=None,
         effect=None,
-        instances="i dont execute",
         device_information=DeviceInformation(
-            model="a21-light"
+            model="a21-light",
+            functions=[
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }]
         )
     )
 
@@ -86,7 +82,7 @@ def test_init(populated_light):
     assert populated_light.brightness == 100
     assert populated_light.update_id == "entity-1"
     assert populated_light.instance is None
-    populated_light.id = "entity-beans-1"
+    populated_light._id = "entity-beans-1"
     populated_light.split_identifier = "beans"
     assert populated_light.update_id == "entity"
     assert populated_light.instance == "1"

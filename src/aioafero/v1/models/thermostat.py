@@ -1,53 +1,32 @@
 """Representation of an Afero Thermostat and its corresponding updates."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from aioafero.util import calculate_hubspace_fahrenheit
 from aioafero.v1.models import features
 
-from .resource import DeviceInformation, ResourceTypes
-from .sensor import AferoBinarySensor, AferoSensor
+from .resource import ResourceTypes
+from .standard_mixin import StandardMixin
 
 
-@dataclass
-class Thermostat:
+@dataclass(kw_only=True)
+class Thermostat(StandardMixin):
     """Representation of an Afero Thermostat."""
-
-    id: str  # ID used when interacting with Afero
-    available: bool
-
-    display_celsius: bool | None
-    current_temperature: features.CurrentTemperatureFeature | None
-    fan_running: bool | None
-    fan_mode: features.ModeFeature | None
-    hvac_action: str | None
-    hvac_mode: features.HVACModeFeature | None
-    safety_max_temp: features.TargetTemperatureFeature | None
-    safety_min_temp: features.TargetTemperatureFeature | None
-    target_temperature_auto_heating: features.TargetTemperatureFeature | None
-    target_temperature_auto_cooling: features.TargetTemperatureFeature | None
-    target_temperature_heating: features.TargetTemperatureFeature | None
-    target_temperature_cooling: features.TargetTemperatureFeature | None
-
-    # Defined at initialization
-    instances: dict = field(default_factory=dict, repr=False, init=False)
-    device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    sensors: dict[str, AferoSensor] = field(default_factory=dict)
-    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.THERMOSTAT
 
-    def __init__(self, functions: list, **kwargs):  # noqa: D107
-        for key, value in kwargs.items():
-            if key == "instances":
-                continue
-            setattr(self, key, value)
-        instances = {}
-        for function in functions:
-            instances[function["functionClass"]] = function.get(
-                "functionInstance", None
-            )
-        self.instances = instances
+    display_celsius: bool | None = None
+    current_temperature: features.CurrentTemperatureFeature | None = None
+    fan_running: bool | None = None
+    fan_mode: features.ModeFeature | None = None
+    hvac_action: str | None = None
+    hvac_mode: features.HVACModeFeature | None = None
+    safety_max_temp: features.TargetTemperatureFeature | None = None
+    safety_min_temp: features.TargetTemperatureFeature | None = None
+    target_temperature_auto_heating: features.TargetTemperatureFeature | None = None
+    target_temperature_auto_cooling: features.TargetTemperatureFeature | None = None
+    target_temperature_heating: features.TargetTemperatureFeature | None = None
+    target_temperature_cooling: features.TargetTemperatureFeature | None = None
 
     @property
     def target_temperature(self) -> float | None:
@@ -159,10 +138,6 @@ class Thermostat:
         if self.display_celsius:
             return self.current_temperature.temperature
         return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
-
-    def get_instance(self, elem):
-        """Lookup the instance associated with the elem."""
-        return self.instances.get(elem, None)
 
 
 @dataclass
