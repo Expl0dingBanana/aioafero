@@ -120,7 +120,8 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
                 binary_sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = ExhaustFan(
-            _id=afero_device.id,
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,

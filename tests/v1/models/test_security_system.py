@@ -1,12 +1,20 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystem, features, DeviceInformation
+from aioafero.v1.models import SecuritySystem, features
 
 
 @pytest.fixture
 def populated_entity():
     return SecuritySystem(
-        _id="entity-1",
+        [
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ],
+        id="entity-1",
         available=True,
         alarm_state=features.ModeFeature(
             mode="arm-away", modes={"arm-away", "disarmed", "arm-stay", "alarming-sos"}
@@ -34,27 +42,27 @@ def populated_entity():
                 name="Siren Volume",
             ),
         },
-        device_information=DeviceInformation(
-            functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+        instances="i dont execute",
     )
 
 
 @pytest.fixture
 def empty_entity():
     return SecuritySystem(
-        _id="entity-1",
+        [
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ],
+        id="entity-1",
         available=True,
         alarm_state=None,
         numbers={},
         selects={},
+        instances="i dont execute",
     )
 
 

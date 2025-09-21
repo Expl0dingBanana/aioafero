@@ -336,7 +336,8 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 )
 
         self._items[afero_device.id] = SecuritySystem(
-            _id=afero_device.id,
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,

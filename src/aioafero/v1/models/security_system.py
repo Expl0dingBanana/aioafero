@@ -4,18 +4,41 @@ from dataclasses import dataclass, field
 
 from aioafero.v1.models import features
 
-from .resource import ResourceTypes
-from .standard_mixin import StandardMixin
+from .resource import DeviceInformation, ResourceTypes
+from .sensor import AferoBinarySensor, AferoSensor
 
 
-@dataclass(kw_only=True)
-class SecuritySystem(StandardMixin):
+@dataclass
+class SecuritySystem:
     """Representation of an Afero Security Panel."""
+
+    id: str  # ID used when interacting with Afero
+    available: bool
+
+    alarm_state: features.ModeFeature | None
+    siren_action: features.SecuritySensorSirenFeature | None
+    numbers: dict[tuple[str, str | None], features.NumbersFeature] | None
+    selects: dict[tuple[str, str | None], features.SelectFeature] | None
+
+    # Defined at initialization
+    instances: dict = field(default_factory=dict, repr=False, init=False)
+    device_information: DeviceInformation = field(default_factory=DeviceInformation)
+    sensors: dict[str, AferoSensor] = field(default_factory=dict)
+    binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
 
     type: ResourceTypes = ResourceTypes.SECURITY_SYSTEM
 
-    alarm_state: features.ModeFeature | None = None
-    siren_action: features.SecuritySensorSirenFeature | None = None
+    def __init__(self, functions: list, **kwargs):  # noqa: D107
+        for key, value in kwargs.items():
+            if key == "instances":
+                continue
+            setattr(self, key, value)
+        instances = {}
+        for function in functions:
+            instances[function["functionClass"]] = function.get(
+                "functionInstance", None
+            )
+        self.instances = instances
 
     @property
     def supports_away(self) -> bool:
@@ -46,6 +69,10 @@ class SecuritySystem(StandardMixin):
     def supports_trigger(self) -> bool:
         """States if the panel supports manually triggering."""
         return "alarming-sos" in self.alarm_state.modes
+
+    def get_instance(self, elem):
+        """Lookup the instance associated with the elem."""
+        return self.instances.get(elem, None)
 
 
 @dataclass

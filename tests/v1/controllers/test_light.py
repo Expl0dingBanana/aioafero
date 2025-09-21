@@ -844,19 +844,22 @@ light1_effects = {
     "custom": {"rainbow"},
 }
 light1 = Light(
-    _id="test-light-1",
+    [],
+    id="test-light-1",
     available=True,
     effect=EffectFeature(effect="getting-ready", effects=light1_effects),
     device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update = Light(
-    _id="test-light-1",
+    [],
+    id="test-light-1",
     available=True,
     effect=EffectFeature(effect="rainbow", effects=light1_effects),
 device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update_preset = Light(
-    _id="test-light-1",
+    [],
+    id="test-light-1",
     available=True,
     effect=EffectFeature(effect="fade-3", effects=light1_effects),
 device_information=DeviceInformation(model="TBD"),

@@ -31,13 +31,13 @@ __all__ = [
 ]
 
 
-from .device import Device
+from .device import Device, DeviceInformation
 from .exhaust_fan import ExhaustFan, ExhaustFanPut
 from .fan import Fan, FanPut
 from .light import Light, LightPut
 from .lock import Lock, LockPut
 from .portable_ac import PortableAC, PortableACPut
-from .resource import DeviceInformation, ResourceTypes
+from .resource import ResourceTypes
 from .security_system import SecuritySystem, SecuritySystemPut
 from .security_system_keypad import SecuritySystemKeypad, SecuritySystemKeypadPut
 from .security_system_sensor import SecuritySystemSensor, SecuritySystemSensorPut

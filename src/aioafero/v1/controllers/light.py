@@ -230,7 +230,8 @@ class LightController(BaseResourcesController[Light]):
             break
 
         self._items[afero_device.id] = Light(
-            _id=afero_device.id,
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             split_identifier=afero_device.split_identifier,
             sensors=sensors,
