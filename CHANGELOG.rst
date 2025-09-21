@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.4.1
+=============
+
+ * Revert hvac_mixin as it caused downstream issues
+
 Version 5.4.0
 =============
 
