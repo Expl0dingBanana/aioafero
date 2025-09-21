@@ -1,13 +1,21 @@
 import pytest
 
-from aioafero.v1.models import features, DeviceInformation
+from aioafero.v1.models import features
 from aioafero.v1.models.thermostat import Thermostat
 
 
 @pytest.fixture
 def populated_entity():
     return Thermostat(
-        _id="entity-1",
+        [
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ],
+        id="entity-1",
         available=True,
         display_celsius=True,
         current_temperature=features.CurrentTemperatureFeature(
@@ -42,25 +50,15 @@ def populated_entity():
         target_temperature_cooling=features.TargetTemperatureFeature(
             value=26, step=0.5, min=10, max=37, instance="cooling-target"
         ),
-        device_information=DeviceInformation(
-            functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        ),
-        sensors={},
-        binary_sensors={},
+        instances="i dont execute",
     )
 
 
 @pytest.fixture
 def empty_entity():
     return Thermostat(
-        _id="entity-1",
+        [],
+        id="entity-1",
         available=True,
         display_celsius=None,
         current_temperature=None,
@@ -73,6 +71,7 @@ def empty_entity():
         target_temperature_auto_cooling=None,
         target_temperature_heating=None,
         target_temperature_cooling=None,
+        instances="i dont execute",
     )
 
 

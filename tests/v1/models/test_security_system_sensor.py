@@ -1,12 +1,20 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystemSensor, features, DeviceInformation
+from aioafero.v1.models import SecuritySystemSensor, features
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 
 
 @pytest.fixture
 def populated_entity():
     return SecuritySystemSensor(
+        [
+            {
+                "functionClass": "preset",
+                "functionInstance": "preset-1",
+                "value": "on",
+                "lastUpdateTime": 0,
+            }
+        ],
         _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
         split_identifier="sensor",
         available=True,
@@ -26,7 +34,7 @@ def populated_entity():
                 _error=1,
             )
         },
-        sensors={
+        sensor={
             "batteryLevel": AferoSensor(
                 id="sensor-state",
                 owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
@@ -35,38 +43,29 @@ def populated_entity():
                 instance=None,
             ),
         },
-        device_information=DeviceInformation(
-            functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+        instances="i dont execute",
     )
 
 
 @pytest.fixture
 def empty_entity():
     return SecuritySystemSensor(
-        _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-        split_identifier="sensor",
-        available=True,
-        selects={},
-        binary_sensors={},
-        sensors={},
-        device_information=DeviceInformation(
-            functions=[
+        [
             {
                 "functionClass": "preset",
                 "functionInstance": "preset-1",
                 "value": "on",
                 "lastUpdateTime": 0,
             }
-        ]
-        )
+        ],
+        _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
+        split_identifier="sensor",
+        update_id="7f4e4c01-e799-45c5-9b1a-385433a78edc",
+        available=True,
+        selects={},
+        binary_sensors={},
+        sensor={},
+        instances="i dont execute",
     )
 
 

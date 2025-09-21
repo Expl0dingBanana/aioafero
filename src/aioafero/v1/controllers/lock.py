@@ -57,7 +57,8 @@ class LockController(BaseResourcesController[Lock]):
                     sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Lock(
-            _id=afero_device.id,
+            afero_device.functions,
+            id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,

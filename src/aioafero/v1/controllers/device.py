@@ -51,7 +51,7 @@ class DeviceController(BaseResourcesController[Device]):
                 ble_mac = state.value
 
         self._items[afero_device.id] = Device(
-            _id=afero_device.id,
+            id=afero_device.id,
             available=available,
             sensors=sensors,
             binary_sensors=binary_sensors,
