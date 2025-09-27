@@ -85,3 +85,39 @@ def test_init(populated_entity):
 
 def test_get_instance(populated_entity):
     assert populated_entity.get_instance("preset") == "preset-1"
+
+
+def test_empty():
+    entity = PortableAC(
+        _id="entity-1",
+        available=True,
+        display_celsius=True,
+        device_information=DeviceInformation(functions=[]),
+        numbers={},
+        selects={},
+    )
+    assert entity.get_mode_to_check() is None
+    assert entity.temperature is None
+    assert entity.target_temperature is None
+    assert entity.target_temperature_max is None
+    assert entity.target_temperature_min is None
+    assert entity.supports_fan_mode is False
+    assert entity.supports_temperature_range is False
+
+
+@pytest.mark.parametrize(
+    ("mode", "previous_mode", "expected"),
+    [
+        (None, None, None),
+        ("cool", None, "cool"),
+        ("dehumidify", "cool", "cool"),
+        ("auto-cool", None, "cool"),
+        ("heat", "heat", "heat"),
+        ("heat", None, "heat"),
+        ("fan", None, None),
+    ]
+)
+def test_get_mode_to_check(mode, previous_mode, expected, populated_entity):
+    populated_entity.hvac_mode.mode = mode
+    populated_entity.hvac_mode.previous_mode = previous_mode
+    assert populated_entity.get_mode_to_check() == expected
