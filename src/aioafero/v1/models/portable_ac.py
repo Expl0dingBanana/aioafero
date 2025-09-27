@@ -2,70 +2,53 @@
 
 from dataclasses import dataclass, field
 
-from aioafero.util import calculate_hubspace_fahrenheit
 from aioafero.v1.models import features
 
+from .hvac_mixin import HVACMixin
 from .resource import ResourceTypes
 from .standard_mixin import StandardMixin
 
+mode_checks = {
+    "auto-cool": "cool",
+}
+
 
 @dataclass(kw_only=True)
-class PortableAC(StandardMixin):
+class PortableAC(StandardMixin, HVACMixin):
     """Representation of an Afero Portable AC."""
 
     type: ResourceTypes = ResourceTypes.PORTABLE_AC
 
-    display_celsius: bool | None
-    current_temperature: features.CurrentTemperatureFeature | None
-    hvac_mode: features.HVACModeFeature | None
-    target_temperature_cooling: features.TargetTemperatureFeature | None
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None
     selects: dict[tuple[str, str | None], features.SelectFeature] | None
-
-    @property
-    def target_temperature(self) -> float | None:
-        """Temperature which the HVAC will try to achieve."""
-        if self.display_celsius:
-            return self.target_temperature_cooling.value
-        return calculate_hubspace_fahrenheit(self.target_temperature_cooling.value)
-
-    @property
-    def target_temperature_step(self) -> float:
-        """Smallest increment for adjusting the temperature."""
-        if self.display_celsius:
-            return self.target_temperature_cooling.step
-        return 1
-
-    @property
-    def target_temperature_max(self) -> float:
-        """Maximum target temperature."""
-        if self.display_celsius:
-            return self.target_temperature_cooling.max
-        return calculate_hubspace_fahrenheit(self.target_temperature_cooling.max)
-
-    @property
-    def target_temperature_min(self) -> float | None:
-        """Minimum target temperature."""
-        if self.display_celsius:
-            return self.target_temperature_cooling.min
-        return calculate_hubspace_fahrenheit(self.target_temperature_cooling.min)
 
     @property
     def supports_fan_mode(self) -> bool:
         """Can enable fan-only mode."""
         return False
 
+    def get_mode_to_check(self) -> str | None:
+        """Determine the current mode of the thermostat."""
+        if not self.hvac_mode:
+            return None
+        checked_mode = mode_checks.get(self.hvac_mode.mode, self.hvac_mode.mode)
+        checked_prev_mode = mode_checks.get(
+            self.hvac_mode.previous_mode, self.hvac_mode.previous_mode
+        )
+        if checked_mode in [
+            "cool",
+            "heat",
+            "auto-cool",
+        ]:
+            return checked_mode
+        if checked_mode in ["dehumidify"]:
+            return checked_prev_mode
+        return None
+
     @property
     def supports_temperature_range(self) -> bool:
         """Range which the thermostat will heat / cool."""
         return False
-
-    @property
-    def temperature(self) -> float | None:
-        """Current temperature of the selected mode."""
-        if self.display_celsius:
-            return self.current_temperature.temperature
-        return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
 
 
 @dataclass
