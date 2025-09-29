@@ -120,7 +120,7 @@ class ThermostatController(ClimateController[Thermostat]):
                 if cur_item.fan_running != temp_val:
                     cur_item.fan_running = temp_val
                     updated_keys.add("current-fan-state")
-            if state.functionClass == "fan-mode":
+            elif state.functionClass == "fan-mode":
                 if cur_item.fan_mode.mode != state.value:
                     cur_item.fan_mode.mode = state.value
                     updated_keys.add("fan-mode")
