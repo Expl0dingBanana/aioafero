@@ -2,15 +2,13 @@
 
 import copy
 
-from aioafero import device
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice
 from aioafero.errors import DeviceNotFound
-from aioafero.util import calculate_hubspace_celsius, process_function
 from aioafero.v1.models import features
 from aioafero.v1.models.portable_ac import PortableAC, PortableACPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
-from .base import BaseResourcesController
+from .climate import ClimateController
 from .event import CallbackResponse
 
 SPLIT_IDENTIFIER: str = "portable-ac"
@@ -49,7 +47,7 @@ def portable_ac_callback(afero_device: AferoDevice) -> CallbackResponse:
     )
 
 
-class PortableACController(BaseResourcesController[PortableAC]):
+class PortableACController(ClimateController[PortableAC]):
     """Controller holding and managing Afero IoT resources of type `portable-air-conditioner`."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
@@ -80,63 +78,20 @@ class PortableACController(BaseResourcesController[PortableAC]):
 
         :return: Newly initialized resource
         """
-        available: bool = False
-        # Afero reports in Celsius by default
-        display_celsius: bool = True
-        current_temperature: features.CurrentTemperatureFeature | None = None
-        hvac_mode: features.HVACModeFeature | None = None
-        target_temperature_cooling: features.TargetTemperatureFeature | None = None
-        numbers: dict[tuple[str, str], features.NumbersFeature] = {}
-        selects: dict[tuple[str, str], features.SelectFeature] = {}
-        for state in afero_device.states:
-            func_def = device.get_function_from_device(
-                afero_device.functions, state.functionClass, state.functionInstance
-            )
-            if (
-                state.functionClass == "temperature"
-                and state.functionInstance == "current-temp"
-            ):
-                current_temperature = features.CurrentTemperatureFeature(
-                    temperature=round(state.value, 1),
-                    function_class=state.functionClass,
-                    function_instance=state.functionInstance,
-                )
-            elif (
-                state.functionClass == "temperature"
-                and state.functionInstance == "cooling-target"
-            ):
-                target_temperature_cooling = generate_target_temp(
-                    func_def["values"][0], state
-                )
-
-            elif state.functionClass == "mode":
-                all_modes = set(process_function(afero_device.functions, "mode"))
-                hvac_mode = features.HVACModeFeature(
-                    mode=state.value,
-                    previous_mode=state.value,
-                    modes=all_modes,
-                    supported_modes=all_modes,
-                )
-            elif state.functionClass == "available":
-                available = state.value
-            elif number := await self.initialize_number(func_def, state):
-                numbers[number[0]] = number[1]
-            elif select := await self.initialize_select(afero_device.functions, state):
-                selects[select[0]] = select[1]
-            elif state.functionClass == "temperature-units":
-                display_celsius = state.value == "celsius"
+        climate_data = await self.initialize_climate_elem(afero_device)
 
         self._items[afero_device.id] = PortableAC(
             _id=afero_device.id,
-            available=available,
-            current_temperature=current_temperature,
-            hvac_mode=hvac_mode,
-            target_temperature_cooling=target_temperature_cooling,
-            numbers=numbers,
-            selects=selects,
+            available=climate_data["available"],
+            current_temperature=climate_data["current_temperature"],
+            hvac_mode=climate_data["hvac_mode"],
+            target_temperature_heating=climate_data["target_temperature_heating"],
+            target_temperature_cooling=climate_data["target_temperature_cooling"],
+            numbers=climate_data["numbers"],
+            selects=climate_data["selects"],
             binary_sensors={},
             sensors={},
-            display_celsius=display_celsius,
+            display_celsius=climate_data["display_celsius"],
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,
@@ -158,42 +113,7 @@ class PortableACController(BaseResourcesController[PortableAC]):
 
         :return: States that have been modified
         """
-        updated_keys = set()
-        cur_item = self.get_device(afero_device.id)
-        for state in afero_device.states:
-            if state.functionClass == "available":
-                if cur_item.available != state.value:
-                    cur_item.available = state.value
-                    updated_keys.add("available")
-            elif (
-                state.functionClass == "temperature"
-                and state.functionInstance == "current-temp"
-            ):
-                if cur_item.current_temperature.temperature != round(state.value, 1):
-                    cur_item.current_temperature.temperature = round(state.value, 1)
-                    updated_keys.add(f"temperature-{state.functionInstance}")
-            elif (
-                state.functionClass == "temperature"
-                and state.functionInstance == "cooling-target"
-            ):
-                if cur_item.target_temperature_cooling.value != state.value:
-                    cur_item.target_temperature_cooling.value = state.value
-                    updated_keys.add(f"temperature-{state.functionInstance}")
-            elif state.functionClass == "mode":
-                if cur_item.hvac_mode.mode != state.value:
-                    cur_item.hvac_mode.previous_mode = cur_item.hvac_mode.mode
-                    cur_item.hvac_mode.mode = state.value
-                    updated_keys.add(state.functionClass)
-            elif (update_key := await self.update_number(state, cur_item)) or (
-                update_key := await self.update_select(state, cur_item)
-            ):
-                updated_keys.add(update_key)
-            elif state.functionClass == "temperature-units":
-                new_val: bool = state.value == "celsius"
-                if cur_item.display_celsius != new_val:
-                    cur_item.display_celsius = new_val
-                    updated_keys.add(state.functionClass)
-        return updated_keys
+        return await self.update_climate_elem(afero_device)
 
     async def set_state(self, device_id: str, **kwargs) -> None:
         """Set supported feature(s) to portable ac resource."""
@@ -222,16 +142,11 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     ", ".join(sorted(cur_item.hvac_mode.modes)),
                 )
         if target_temperature is not None:
-            if not cur_item.display_celsius and not kwargs.get("is_celsius", False):
-                target_temperature = calculate_hubspace_celsius(target_temperature)
-            update_obj.target_temperature_cooling = features.TargetTemperatureFeature(
-                value=target_temperature,
-                min=cur_item.target_temperature_cooling.min,
-                max=cur_item.target_temperature_cooling.max,
-                step=cur_item.target_temperature_cooling.step,
-                instance=cur_item.target_temperature_cooling.instance,
-            )
+            kwargs["target_temperature_cooling"] = kwargs.pop("target_temperature")
+
         if numbers:
+            if not update_obj.numbers:
+                update_obj.numbers = {}
             for key, val in numbers.items():
                 if key not in cur_item.numbers:
                     continue
@@ -243,13 +158,9 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     name=cur_item.numbers[key].name,
                     unit=cur_item.numbers[key].unit,
                 )
-                # Currently only ("timer", None) exists
-                update_obj.current_temperature = features.CurrentTemperatureFeature(
-                    temperature=cur_item.current_temperature.temperature + 1,
-                    function_class=cur_item.current_temperature.function_class,
-                    function_instance=cur_item.current_temperature.function_instance,
-                )
         if selects:
+            if not update_obj.selects:
+                update_obj.selects = {}
             for key, val in selects.items():
                 if key not in cur_item.selects:
                     continue
@@ -258,17 +169,4 @@ class PortableACController(BaseResourcesController[PortableAC]):
                     selects=cur_item.selects[key].selects,
                     name=cur_item.selects[key].name,
                 )
-        await self.update(device_id, obj_in=update_obj)
-
-
-def generate_target_temp(
-    func_def: dict, state: AferoState
-) -> features.TargetTemperatureFeature:
-    """Determine the target temp based on the function definition."""
-    return features.TargetTemperatureFeature(
-        value=round(state.value, 2),
-        step=func_def["range"]["step"],
-        min=func_def["range"]["min"],
-        max=func_def["range"]["max"],
-        instance=state.functionInstance,
-    )
+        await self.set_climate_state(device_id, update_obj, **kwargs)
