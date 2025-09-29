@@ -17,6 +17,9 @@ from .. import utils
 portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 portable_ac_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
 
+portable_ac_swing = utils.create_devices_from_data("myko-portable-ac-with-swing.json")[1]
+portable_ac_swing_id = "c31e1854-87de-47a7-ac62-f1cefe3ecba4"
+
 
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
@@ -95,6 +98,48 @@ async def test_initialize(mocked_controller):
         ("fan-speed", "ac-fan-speed"): features.SelectFeature(
             selected="fan-speed-auto",
             selects={"fan-speed-auto", "fan-speed-2-100", "fan-speed-2-050"},
+            name="Fan Speed",
+        ),
+        ("sleep", None): features.SelectFeature(
+            selected="off",
+            selects={"on", "off"},
+            name="Sleep Mode",
+        ),
+    }
+    assert dev.target_temperature_heating is None
+    assert dev.target_temperature_auto_heating is None
+    assert dev.target_temperature_auto_cooling is None
+
+
+@pytest.mark.asyncio
+async def test_initialize_swing(mocked_controller):
+    await mocked_controller.initialize_elem(portable_ac_swing)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == portable_ac_swing_id
+    assert dev.available is True
+    assert dev.current_temperature == features.CurrentTemperatureFeature(
+        temperature=21,
+        function_class="temperature",
+        function_instance="current-temp",
+    )
+    assert dev.hvac_mode == features.HVACModeFeature(
+        mode="cool",
+        previous_mode="cool",
+        modes={"fan", "dehumidify", "heat", "cool"},
+        supported_modes={"fan", "dehumidify", "heat", "cool"},
+    )
+    assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
+        value=21, step=1, min=16, max=31, instance="cooling-target"
+    )
+    assert dev.target_temperature_heating == features.TargetTemperatureFeature(
+        value=31, step=1, min=16, max=31, instance="heating-target"
+    )
+    assert dev.numbers == {}
+    assert dev.selects == {
+        ("fan-speed", "ac-fan-speed"): features.SelectFeature(
+            selected="fan-speed-3-033",
+            selects={"fan-speed-3-100", "fan-speed-3-033", "fan-speed-3-066"},
             name="Fan Speed",
         ),
         ("sleep", None): features.SelectFeature(
