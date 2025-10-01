@@ -171,6 +171,10 @@ class AferoBridgeV1:
         """Get all tracked devices."""
         return set(self._known_devs.keys())
 
+    async def otp_login(self, otp_code: str) -> None:
+        """Perform OTP login with the provided code."""
+        await self._auth.perform_otp_login(otp_code)
+
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
     ) -> None:

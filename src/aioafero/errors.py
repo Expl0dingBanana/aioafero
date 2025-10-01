@@ -27,3 +27,7 @@ class InvalidResponse(AferoError):
 
 class SecuritySystemError(AferoError):
     """Generic exception for Afero Security System issues."""
+
+
+class MissingOTP(AferoError):
+    """One-time password is required but was not provided."""

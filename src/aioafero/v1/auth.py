@@ -18,7 +18,7 @@ from aiohttp import ClientResponseError, ContentTypeError
 from bs4 import BeautifulSoup
 from securelogging import LogRedactorMessage, add_secret, remove_secret
 
-from aioafero.errors import InvalidAuth, InvalidResponse
+from aioafero.errors import InvalidAuth, InvalidResponse, MissingOTP
 
 from . import v1_const
 
@@ -98,6 +98,7 @@ class AferoAuth:
             "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["AUTH_OPENID_HOST"],
         }
+        self._otp_data: dict = {}
 
     @property
     async def is_expired(self) -> bool:
@@ -215,6 +216,7 @@ class AferoAuth:
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
             "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
+            "x-requested-with": "io.afero.partner.hubspace",
         }
         auth_data = {
             "username": self._username,
@@ -238,11 +240,49 @@ class AferoAuth:
             allow_redirects=False,
         )
         self.logger.debug(STATUS_CODE, response.status)
+        if await AferoAuth.requires_otp(response):
+            self._otp_data = {
+                "params": params,
+                "headers": headers,
+                "cookies": {
+                    cookie.key: cookie.value for cookie in response.cookies.values()
+                },
+            }
+            raise MissingOTP()
         if response.status != 302:
             raise InvalidAuth(
                 "Unable to authenticate with the supplied username / password"
             )
         return await AferoAuth.parse_code(response)
+
+    async def perform_otp_login(self, otp_code: str) -> None:
+        """Perform otp login."""
+        if self._otp_data == {}:
+            raise MissingOTP("No OTP data available to perform login")
+        self.logger.debug("Performing otp login")
+        otp_data = {
+            "action": "submit",
+            "flowName": "doLogIn",
+            "emailCode": otp_code,
+        }
+        url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+        response = await self._bridge.request(
+            "POST",
+            url,
+            include_token=False,
+            params=self._otp_data["params"],
+            data=otp_data,
+            headers=self._otp_data["headers"],
+            cookies=self._otp_data["cookies"],
+            allow_redirects=False,
+        )
+        # TODO: Handle invalid OTP code response
+        return await AferoAuth.parse_code(response)
+
+    @staticmethod
+    async def requires_otp(response: aiohttp.ClientResponse) -> bool:
+        """Determine if the user requires otp."""
+        return "kc-otp-login-form" in await response.text()
 
     @staticmethod
     async def parse_code(response: aiohttp.ClientResponse) -> str:
