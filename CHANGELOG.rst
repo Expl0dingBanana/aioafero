@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.5.0
+=============
+
+ * Add support for air swing on portable ACs
+
 Version 5.4.1
 =============
 
