@@ -147,6 +147,11 @@ async def test_initialize_swing(mocked_controller):
             selects={"on", "off"},
             name="Sleep Mode",
         ),
+        ("air-swing", None): features.SelectFeature(
+            selected="on",
+            selects={"on", "off"},
+            name="Swing",
+        ),
     }
 
 
