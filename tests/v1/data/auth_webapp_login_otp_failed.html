@@ -1,0 +1,480 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" class="login-pf">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link rel="icon" href="#" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign in</title>
+    <link
+      href="/auth/resources/t64bh/common/keycloak/node_modules/@patternfly/patternfly/patternfly.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/common/keycloak/node_modules/patternfly/dist/css/patternfly.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/common/keycloak/node_modules/patternfly/dist/css/patternfly-additions.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/common/keycloak/lib/pficon/pficon.css"
+      rel="stylesheet"
+    />
+
+    <link
+      href="/auth/resources/t64bh/login/hubspace/css/login.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/login/hubspace/css/styles.css?v=3.7"
+      rel="stylesheet"
+    />
+    <script type="text/javascript">
+      function getUrlVars() {
+        var vars = [],
+          hash;
+        var hashes = window.location.href
+          .slice(window.location.href.indexOf("?") + 1)
+          .split("&");
+
+        for (var i = 0; i < hashes.length; i++) {
+          hash = hashes[i].split("=");
+          vars.push(hash[0]);
+          vars[hash[0]] = hash[1];
+        }
+
+        return vars;
+      }
+      function togglePassword(id) {
+        var passwordField = document.getElementById(id);
+        var passwordFieldToggle = document.getElementById("bt-toggle-" + id);
+        if (passwordField.getAttribute("type") === "password") {
+          passwordField.setAttribute("type", "text");
+          passwordFieldToggle.value = "Hide";
+        } else {
+          passwordField.setAttribute("type", "password");
+          passwordFieldToggle.value = "Show";
+        }
+      }
+
+      function clickLocale() {
+        var localeDropdown = document.querySelector("#kc-locale ul");
+        localeDropdown.style.display =
+          localeDropdown.style.display != "block" ? "block" : "none";
+      }
+
+      document.addEventListener("DOMContentLoaded", function (event) {
+        var usernameField = document.getElementById("username");
+        var usernameInput = getUrlVars()["username"];
+        var url = window.location.href;
+        var localeDropdown = document.getElementById("kc-locale");
+        if (usernameInput) {
+          usernameField.value = decodeURIComponent(usernameInput);
+        }
+        var acceptChk = document.getElementById("acceptterms");
+        if (acceptChk) {
+          acceptChk.onclick = function () {
+            var login = document.getElementById("login-button");
+            console.log("Disabled " + login.disabled);
+
+            if (acceptChk.checked) {
+              console.log("enable");
+              login.disabled = false;
+            } else {
+              console.log("disable");
+              login.disabled = true;
+            }
+          };
+        }
+        if (url.indexOf("kc_action") > -1 || url.indexOf("execution") > -1) {
+          if (localeDropdown) {
+            localeDropdown.style.display = "none";
+          }
+        }
+      });
+    </script>
+    <script>
+      if (typeof history.replaceState === "function") {
+        history.replaceState(
+          {},
+          "some title",
+          "https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?execution=execution&client_id=hubspace_android&tab_id=tab_id",
+        );
+      }
+    </script>
+  </head>
+
+  <body class="">
+    <div class="login-pf-page">
+      <div id="kc-header" class="login-pf-page-header">
+        <img
+          src="/auth/resources/t64bh/login/hubspace/img/hubspace-mobile-logo.png"
+          alt="Hubspace logo"
+        />
+      </div>
+      <div class="card-pf">
+        <header class="login-pf-header">
+          <div id="kc-locale">
+            <div id="kc-locale-wrapper" class="">
+              <div class="kc-dropdown" id="kc-locale-dropdown">
+                <button
+                  id="kc-current-locale-link"
+                  type="button"
+                  onClick="clickLocale()"
+                  tabindex="0"
+                >
+                  English
+                </button>
+                <ul>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=tab_id&amp;execution=execution&amp;kc_locale=en"
+                      >English</a
+                    >
+                  </li>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=tab_id&amp;execution=execution&amp;kc_locale=fr"
+                      >Français</a
+                    >
+                  </li>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=tab_id&amp;execution=execution&amp;kc_locale=es"
+                      >Español</a
+                    >
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </header>
+        <div id="kc-content">
+          <div id="kc-content-wrapper">
+            <div class="alert alert-error">
+              <span class="fa fa-fw fa-exclamation-circle"></span>
+
+              <span class="kc-feedback-text">Invalid access code.</span>
+            </div>
+
+            <form
+              id="kc-otp-login-form"
+              class="form-horizontal"
+              action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=session_code&amp;execution=execution&amp;client_id=hubspace_android&amp;tab_id=tab_id"
+              method="post"
+              onsubmit="return submitForm()"
+            >
+              <input type="hidden" id="action-hidden" name="action" value="" />
+              <input
+                type="hidden"
+                id="flowName-hidden"
+                name="flowName"
+                value="doLogIn"
+              />
+              <div class="form-group">
+                <div class="form-group" id="otp-info">
+                  <div id="kc-username">
+                    <label id="kc-attempted-username">
+                      <span> We have sent a one-time code to </span><br />
+                      <span id="kc-user-email">
+                        chris.dohmen11+accounts.hubspaceconnect.com.test@gmail.com
+                      </span>
+                      <br /><br />
+                      <span> Please enter the code below. </span>
+                    </label>
+                  </div>
+                </div>
+                <div class="code-valid-message">
+                  <center>
+                    <p>
+                      The code is valid for the next 5 minutes. <br />
+                      Please check your email and make sure to look in your spam
+                      or junk folder if you don‘t see it.
+                    </p>
+                  </center>
+                </div>
+
+                <div
+                  id="kc-form-options"
+                  class="col-xs-12 col-sm-12 col-md-12 col-lg-12"
+                >
+                  <div class="">
+                    <div id="otp-inputs">
+                      <input
+                        type="text"
+                        maxlength="6"
+                        id="otp1"
+                        class="otp-input"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        autocomplete="one-time-code"
+                        oninput="moveFocus(this, 'otp2'); checkOtpCompletion()"
+                      />
+                      <input
+                        type="text"
+                        maxlength="1"
+                        id="otp2"
+                        class="otp-input"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        oninput="moveFocus(this, 'otp3'); checkOtpCompletion()"
+                      />
+                      <input
+                        type="text"
+                        maxlength="1"
+                        id="otp3"
+                        class="otp-input"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        oninput="moveFocus(this, 'otp4'); checkOtpCompletion()"
+                      />
+                      <input
+                        type="text"
+                        maxlength="1"
+                        id="otp4"
+                        class="otp-input"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        oninput="moveFocus(this, 'otp5'); checkOtpCompletion()"
+                      />
+                      <input
+                        type="text"
+                        maxlength="1"
+                        id="otp5"
+                        class="otp-input"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        oninput="moveFocus(this, 'otp6'); checkOtpCompletion()"
+                      />
+                      <input
+                        type="text"
+                        maxlength="1"
+                        id="otp6"
+                        class="otp-input"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        oninput="checkOtpCompletion()"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div id="kc-form-buttons">
+                  <div class="">
+                    <input
+                      id="confirm-btn"
+                      class="pf-c-button btn-default btn-lg"
+                      type="submit"
+                      value="Confirm"
+                      onclick="setActionValue('submit')"
+                      disabled
+                    />
+                    <input
+                      id="resend-code"
+                      class="pf-c-button btn-default btn-lg"
+                      type="submit"
+                      value="Resend Code"
+                      onclick="setActionValue('resendOtp')"
+                    />
+                  </div>
+                </div>
+
+                <p id="countdown-message">
+                  Please wait for <span id="countdown"></span> seconds before
+                  requesting another one-time code.
+                </p>
+              </div>
+            </form>
+            <script>
+              /**
+               *
+               * This script handles UI behavior and form submission for a One-Time Password (OTP) login screen.
+               * It manages the following functionalities:
+               *
+               * 1. **Update Email Link Behavior**:
+               *    - Adds a click event listener to the "Update Email" link.
+               *    - Prevents the default link behavior and sets a hidden action value (`updateEmail`) before submitting the OTP login form.
+               *
+               * 2. **OTP Resend Countdown Logic**:
+               *    - Checks if an OTP resend was requested using `localStorage` ("resendOtpRequested").
+               *    - Uses `currentWaitTime` from `localStorage` to determine the remaining wait time (defaults to 90 seconds).
+               *    - If countdown is active:
+               *        - Disables the "Resend Code" button.
+               *        - Displays a countdown timer updated every second.
+               *        - Once the timer reaches zero:
+               *            - Re-enables the resend button.
+               *            - Hides the countdown message.
+               *            - Clears related values from `localStorage`.
+               *
+               * 3. **Locale Dropdown Hiding**:
+               *    - Automatically hides the locale/language selector dropdown when on the OTP screen.
+               *
+               * Additional Notes:
+               * - The countdown time is persisted using `localStorage` so it continues even if the user refreshes the page.
+               * - The current locale is stored in `sessionStorage`, but in this snippet it's only retrieved and not used.
+               */
+
+              document.addEventListener("DOMContentLoaded", function () {
+                var updateEmailLink =
+                  document.getElementById("update-email-link");
+                var form = document.getElementById("kc-otp-login-form");
+                if (updateEmailLink) {
+                  updateEmailLink.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    setActionValue("updateEmailAction");
+                    form.submit();
+                  });
+                }
+                var urlParams = new URLSearchParams(window.location.search);
+                var isResendOtpRequested =
+                  localStorage.getItem("resendOtpRequested");
+                if (isResendOtpRequested) {
+                  var totalWaitTime = 90;
+                  var currentWaitTime = localStorage.getItem("currentWaitTime");
+                  if (currentWaitTime) {
+                    totalWaitTime = Number(currentWaitTime);
+                  }
+                }
+                var button = document.getElementById("resend-code");
+                var countdownElement = document.getElementById("countdown");
+                var countdownContainer =
+                  document.getElementById("countdown-message");
+                var localeSet = sessionStorage.getItem("currentLocale");
+                countdownContainer.style.display = "none";
+                if (totalWaitTime && totalWaitTime > 0) {
+                  button.disabled = true;
+                  countdownElement.innerHTML = 90;
+                  var interval = setInterval(function () {
+                    if (totalWaitTime <= 0) {
+                      clearInterval(interval);
+                      button.disabled = false;
+                      countdownContainer.style.display = "none";
+                      localStorage.removeItem("currentWaitTime");
+                      localStorage.removeItem("resendOtpRequested");
+                    } else {
+                      countdownContainer.style.display = "block";
+                      countdownElement.innerHTML = totalWaitTime;
+                      totalWaitTime--;
+                      localStorage.setItem("currentWaitTime", totalWaitTime);
+                    }
+                  }, 1000); // Update countdown every second
+                }
+                // Code to hide the locale dropdown when user is navigated to One-time code screen
+                var localeDropdownElement =
+                  document.getElementById("kc-locale-dropdown");
+                if (localeDropdownElement) {
+                  localeDropdownElement.style.display = "none";
+                }
+              });
+
+              function setActionValue(action) {
+                document.getElementById("action-hidden").value = action;
+              }
+
+              function moveFocus(current, nextId) {
+                if (current.value.length == current.maxLength) {
+                  document.getElementById(nextId).focus();
+                }
+              }
+
+              var resendCodeElement = document.getElementById("resend-code");
+              if (resendCodeElement) {
+                resendCodeElement.addEventListener("click", function () {
+                  localStorage.setItem("resendOtpRequested", true);
+                });
+              }
+
+              // Handle paste functionality
+              document.querySelectorAll(".otp-input").forEach((input) => {
+                input.addEventListener("paste", function (e) {
+                  e.preventDefault();
+                  const paste = e.clipboardData.getData("text").slice(0, 6);
+                  for (let i = 0; i < paste.length; i++) {
+                    const otpInput = document.getElementById("otp" + (i + 1));
+                    otpInput.value = paste[i];
+                  }
+                  // Focus the last OTP input after pasting
+                  document.getElementById("otp6").focus();
+                  checkOtpCompletion(); // Check if the OTP is fully entered after paste
+                });
+              });
+
+              document
+                .getElementById("otp1")
+                .addEventListener("input", function (e) {
+                  e.preventDefault();
+                  window.scroll(0, 0);
+                  if (e.target.value.length === 1) {
+                    const nextInput = document.getElementById("otp2");
+                    if (nextInput) {
+                      nextInput.focus();
+                    }
+                  }
+                  if (e.target.value.length === 6) {
+                    const paste = e.target.value;
+                    for (let i = 0; i < paste.length; i++) {
+                      const otpInput = document.getElementById("otp" + (i + 1));
+                      otpInput.value = paste[i];
+                    }
+                    document.getElementById("otp6").focus();
+                    checkOtpCompletion();
+                  }
+                });
+
+              // New function to check if all OTP inputs are filled
+              function checkOtpCompletion() {
+                let otpComplete = true;
+                for (let i = 1; i <= 6; i++) {
+                  if (document.getElementById("otp" + i).value === "") {
+                    otpComplete = false;
+                    break;
+                  }
+                }
+                const confirmButton = document.getElementById("confirm-btn");
+                if (otpComplete) {
+                  confirmButton.disabled = false;
+                } else {
+                  confirmButton.disabled = true;
+                }
+              }
+
+              document.querySelectorAll(".otp-input").forEach((input) => {
+                input.addEventListener("keydown", function (e) {
+                  if (e.key === "Backspace" && input.value === "") {
+                    const prevInput = input.previousElementSibling;
+                    if (prevInput) {
+                      prevInput.focus();
+                    }
+                  }
+                });
+              });
+
+              function submitForm() {
+                let otp = "";
+                for (let i = 1; i <= 6; i++) {
+                  otp += document.getElementById("otp" + i).value;
+                }
+                const enteredCodeInput = document.createElement("input");
+                enteredCodeInput.name = "emailCode";
+                enteredCodeInput.value = otp;
+                enteredCodeInput.type = "hidden";
+                document
+                  .getElementById("kc-otp-login-form")
+                  .appendChild(enteredCodeInput);
+                return true;
+              }
+            </script>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

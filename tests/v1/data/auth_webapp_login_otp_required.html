@@ -1,0 +1,576 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" class="login-pf">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link rel="icon" href="#" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sign in</title>
+    <link
+      href="/auth/resources/t64bh/common/keycloak/node_modules/@patternfly/patternfly/patternfly.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/common/keycloak/node_modules/patternfly/dist/css/patternfly.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/common/keycloak/node_modules/patternfly/dist/css/patternfly-additions.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/common/keycloak/lib/pficon/pficon.css"
+      rel="stylesheet"
+    />
+
+    <link
+      href="/auth/resources/t64bh/login/hubspace/css/login.css"
+      rel="stylesheet"
+    />
+    <link
+      href="/auth/resources/t64bh/login/hubspace/css/styles.css?v=3.7"
+      rel="stylesheet"
+    />
+    <script type="text/javascript">
+      function getUrlVars() {
+        var vars = [],
+          hash;
+        var hashes = window.location.href
+          .slice(window.location.href.indexOf("?") + 1)
+          .split("&");
+
+        for (var i = 0; i < hashes.length; i++) {
+          hash = hashes[i].split("=");
+          vars.push(hash[0]);
+          vars[hash[0]] = hash[1];
+        }
+
+        return vars;
+      }
+      function togglePassword(id) {
+        var passwordField = document.getElementById(id);
+        var passwordFieldToggle = document.getElementById("bt-toggle-" + id);
+        if (passwordField.getAttribute("type") === "password") {
+          passwordField.setAttribute("type", "text");
+          passwordFieldToggle.value = "Hide";
+        } else {
+          passwordField.setAttribute("type", "password");
+          passwordFieldToggle.value = "Show";
+        }
+      }
+
+      function clickLocale() {
+        var localeDropdown = document.querySelector("#kc-locale ul");
+        localeDropdown.style.display =
+          localeDropdown.style.display != "block" ? "block" : "none";
+      }
+
+      document.addEventListener("DOMContentLoaded", function (event) {
+        var usernameField = document.getElementById("username");
+        var usernameInput = getUrlVars()["username"];
+        var url = window.location.href;
+        var localeDropdown = document.getElementById("kc-locale");
+        if (usernameInput) {
+          usernameField.value = decodeURIComponent(usernameInput);
+        }
+        var acceptChk = document.getElementById("acceptterms");
+        if (acceptChk) {
+          acceptChk.onclick = function () {
+            var login = document.getElementById("login-button");
+            console.log("Disabled " + login.disabled);
+
+            if (acceptChk.checked) {
+              console.log("enable");
+              login.disabled = false;
+            } else {
+              console.log("disable");
+              login.disabled = true;
+            }
+          };
+        }
+        if (url.indexOf("kc_action") > -1 || url.indexOf("execution") > -1) {
+          if (localeDropdown) {
+            localeDropdown.style.display = "none";
+          }
+        }
+      });
+    </script>
+  </head>
+
+  <body class="">
+    <div class="login-pf-page">
+      <div id="kc-header" class="login-pf-page-header">
+        <img
+          src="/auth/resources/t64bh/login/hubspace/img/hubspace-mobile-logo.png"
+          alt="Hubspace logo"
+        />
+      </div>
+      <div class="card-pf">
+        <header class="login-pf-header">
+          <div id="kc-locale">
+            <div id="kc-locale-wrapper" class="">
+              <div class="kc-dropdown" id="kc-locale-dropdown">
+                <button
+                  id="kc-current-locale-link"
+                  type="button"
+                  onClick="clickLocale()"
+                  tabindex="0"
+                >
+                  English
+                </button>
+                <ul>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=tab_id&amp;execution=execution&amp;kc_locale=en"
+                      >English</a
+                    >
+                  </li>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=tab_id&amp;execution=execution&amp;kc_locale=fr"
+                      >Français</a
+                    >
+                  </li>
+                  <li class="kc-dropdown-item">
+                    <a
+                      href="/auth/realms/thd/login-actions/authenticate?client_id=hubspace_android&amp;tab_id=tab_id&amp;execution=execution&amp;kc_locale=es"
+                      >Español</a
+                    >
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <h1 id="kc-page-title">
+            Sign In
+
+            <script>
+              document.addEventListener("DOMContentLoaded", function () {
+                var url = window.location.href;
+                if (url.indexOf("UPDATE_EMAIL") > -1) {
+                  var element = document.getElementById("forgot-password");
+                  if (element) {
+                    element.style.display = "none";
+                  }
+                }
+                /**
+                 * Sets a cookie with the specified name and value.
+                 *
+                 * @param {string} name - The name of the cookie.
+                 * @param {string} value - The value of the cookie.
+                 * @param {number} secs - Cookie expiry time in seconds (default: 10 seconds)
+                 */
+                function setCookie(name, value, secs = 10) {
+                  const date = new Date();
+                  date.setTime(date.getTime() + secs * 1000);
+                  const expires = "expires=" + date.toUTCString();
+                  document.cookie =
+                    name + "=" + value + ";" + expires + ";path=/";
+                }
+
+                /**
+                 * Retrieves the value of a specific cookie by its name.
+                 *
+                 * @param {string} name - The name of the cookie to retrieve.
+                 * @returns {string|null} The cookie value, or null if the cookie doesn't exist.
+                 */
+                function getCookie(name) {
+                  const nameEQ = name + "=";
+                  const cookies = document.cookie.split(";");
+                  for (let i = 0; i < cookies.length; i++) {
+                    let c = cookies[i].trim();
+                    if (c.indexOf(nameEQ) === 0) {
+                      return c.substring(nameEQ.length, c.length);
+                    }
+                  }
+                  return null;
+                }
+
+                /**
+                 * Deletes a cookie by setting its expiry to the past
+                 *
+                 * @param {string} name - The name of the cookie to delete.
+                 */
+                function deleteCookie(name) {
+                  document.cookie =
+                    name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                }
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const isAccountManagement = urlParams.has("kc_action");
+
+                // Hide registration button for account management flows
+                if (isAccountManagement) {
+                  const regButton = document.getElementsByClassName(
+                    "register-action-button",
+                  )[0];
+                  if (regButton) {
+                    regButton.style.display = "none";
+                  }
+                }
+
+                // This update improves the user experience for mobile users accessing Keycloak's account management flows (e.g., Update Password, Update Email, Setup MFA, Manage Sessions) when
+                // using an offline session. Previously, when re-authentication was required, users had to manually enter their username. With this change, the username is pre-filled
+                // automatically from the login_hint parameter in the URL or from a stored cookie. The username field is also disabled to prevent modifications,
+                // ensuring secure access to the user's account management flows.
+
+                // Functional Requirements
+                // Pre-fill Username: If a login_hint is provided in the URL or retrieved from the stored cookie (hint_value),
+                // the username field is automatically populated with the user's email.
+                // Disable Username Field: The username field is disabled, ensuring the user cannot modify the pre-filled value.
+                // Cookie Storage: The login_hint value is stored in a cookie (hint_value) with a 5-minute expiration,
+                // maintaining the username pre-fill across page reloads or navigation events.
+                if (urlParams.has("login_hint") || getCookie("hint_value")) {
+                  const userNameField = document.getElementById("username");
+                  const userEmail =
+                    urlParams.get("login_hint") || getCookie("hint_value");
+
+                  if (userNameField && userEmail) {
+                    userNameField.value = userEmail;
+                    userNameField.readOnly = true;
+                  }
+                }
+
+                // Add form submit handler to store username on submit for account management flows
+                const loginForm = document.getElementById("kc-form-login");
+                if (loginForm && isAccountManagement) {
+                  loginForm.addEventListener("submit", function (event) {
+                    const userNameField = document.getElementById("username");
+                    if (userNameField && userNameField.value.trim()) {
+                      // Store username in cookie with short TTL (10 sec) for error scenarios
+                      setCookie("hint_value", userNameField.value.trim());
+                    }
+                  });
+                }
+
+                // Clean up cookie for regular login flows (when kc_action is not present)
+                if (!isAccountManagement && getCookie("hint_value")) {
+                  // Delete the cookie to prevent interference with regular login
+                  deleteCookie("hint_value");
+                }
+              });
+            </script>
+          </h1>
+        </header>
+        <div id="kc-content">
+          <div id="kc-content-wrapper">
+            <div id="kc-form">
+              <div id="kc-form-wrapper">
+                <form
+                  id="kc-form-login"
+                  onsubmit="login.disabled = true; return true;"
+                  action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=session_code&amp;execution=execution&amp;client_id=hubspace_android&amp;tab_id=tab_id"
+                  method="post"
+                >
+                  <div class="form-group">
+                    <label for="username" class="form-label">Email</label>
+
+                    <input
+                      tabindex="0"
+                      id="username"
+                      class="form-control"
+                      name="username"
+                      value=""
+                      type="email"
+                      inputmode="email"
+                      autofocus
+                      autocomplete="username"
+                    />
+                  </div>
+
+                  <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input
+                      tabindex="0"
+                      id="password"
+                      class="form-control"
+                      name="password"
+                      type="password"
+                      autocomplete="current-password"
+                    />
+                    <div class="password-toggle-label">
+                      <input
+                        type="button"
+                        class="bt-password-toggle"
+                        id="bt-toggle-password"
+                        onClick="togglePassword('password')"
+                        value="Show"
+                      />
+                    </div>
+                  </div>
+
+                  <div id="kc-form-buttons" class="form-group">
+                    <input
+                      type="hidden"
+                      id="id-hidden-input"
+                      name="credentialId"
+                    />
+                    <input
+                      tabindex="0"
+                      class="pf-c-button pf-m-primary btn-block btn-lg"
+                      name="login"
+                      id="kc-login"
+                      type="submit"
+                      value="Sign In"
+                    />
+                  </div>
+                  <div
+                    id="kc-form-buttons"
+                    class="form-group register-action-button"
+                  >
+                    <a
+                      tabindex="0"
+                      href="/auth/realms/thd/login-actions/registration?client_id=hubspace_android&amp;tab_id=tab_id"
+                      class="btn reg-button"
+                      >Register</a
+                    >
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <script>
+              document.addEventListener("DOMContentLoaded", function () {
+                var url = window.location.href;
+                if (url.indexOf("UPDATE_EMAIL") > -1) {
+                  var element = document.getElementById("forgot-password");
+                  if (element) {
+                    element.style.display = "none";
+                  }
+                }
+                /**
+                 * Sets a cookie with the specified name and value.
+                 *
+                 * @param {string} name - The name of the cookie.
+                 * @param {string} value - The value of the cookie.
+                 * @param {number} secs - Cookie expiry time in seconds (default: 10 seconds)
+                 */
+                function setCookie(name, value, secs = 10) {
+                  const date = new Date();
+                  date.setTime(date.getTime() + secs * 1000);
+                  const expires = "expires=" + date.toUTCString();
+                  document.cookie =
+                    name + "=" + value + ";" + expires + ";path=/";
+                }
+
+                /**
+                 * Retrieves the value of a specific cookie by its name.
+                 *
+                 * @param {string} name - The name of the cookie to retrieve.
+                 * @returns {string|null} The cookie value, or null if the cookie doesn't exist.
+                 */
+                function getCookie(name) {
+                  const nameEQ = name + "=";
+                  const cookies = document.cookie.split(";");
+                  for (let i = 0; i < cookies.length; i++) {
+                    let c = cookies[i].trim();
+                    if (c.indexOf(nameEQ) === 0) {
+                      return c.substring(nameEQ.length, c.length);
+                    }
+                  }
+                  return null;
+                }
+
+                /**
+                 * Deletes a cookie by setting its expiry to the past
+                 *
+                 * @param {string} name - The name of the cookie to delete.
+                 */
+                function deleteCookie(name) {
+                  document.cookie =
+                    name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                }
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const isAccountManagement = urlParams.has("kc_action");
+
+                // Hide registration button for account management flows
+                if (isAccountManagement) {
+                  const regButton = document.getElementsByClassName(
+                    "register-action-button",
+                  )[0];
+                  if (regButton) {
+                    regButton.style.display = "none";
+                  }
+                }
+
+                // This update improves the user experience for mobile users accessing Keycloak's account management flows (e.g., Update Password, Update Email, Setup MFA, Manage Sessions) when
+                // using an offline session. Previously, when re-authentication was required, users had to manually enter their username. With this change, the username is pre-filled
+                // automatically from the login_hint parameter in the URL or from a stored cookie. The username field is also disabled to prevent modifications,
+                // ensuring secure access to the user's account management flows.
+
+                // Functional Requirements
+                // Pre-fill Username: If a login_hint is provided in the URL or retrieved from the stored cookie (hint_value),
+                // the username field is automatically populated with the user's email.
+                // Disable Username Field: The username field is disabled, ensuring the user cannot modify the pre-filled value.
+                // Cookie Storage: The login_hint value is stored in a cookie (hint_value) with a 5-minute expiration,
+                // maintaining the username pre-fill across page reloads or navigation events.
+                if (urlParams.has("login_hint") || getCookie("hint_value")) {
+                  const userNameField = document.getElementById("username");
+                  const userEmail =
+                    urlParams.get("login_hint") || getCookie("hint_value");
+
+                  if (userNameField && userEmail) {
+                    userNameField.value = userEmail;
+                    userNameField.readOnly = true;
+                  }
+                }
+
+                // Add form submit handler to store username on submit for account management flows
+                const loginForm = document.getElementById("kc-form-login");
+                if (loginForm && isAccountManagement) {
+                  loginForm.addEventListener("submit", function (event) {
+                    const userNameField = document.getElementById("username");
+                    if (userNameField && userNameField.value.trim()) {
+                      // Store username in cookie with short TTL (10 sec) for error scenarios
+                      setCookie("hint_value", userNameField.value.trim());
+                    }
+                  });
+                }
+
+                // Clean up cookie for regular login flows (when kc_action is not present)
+                if (!isAccountManagement && getCookie("hint_value")) {
+                  // Delete the cookie to prevent interference with regular login
+                  deleteCookie("hint_value");
+                }
+              });
+            </script>
+
+            <div id="kc-info" class="login-pf-signup">
+              <div id="kc-info-wrapper" class="">
+                <span id="forgot-password"
+                  ><a
+                    tabindex="0"
+                    href="/auth/realms/thd/login-actions/reset-credentials?client_id=hubspace_android&amp;tab_id=tab_id"
+                    >Forgot Password?</a
+                  ></span
+                >
+
+                <script>
+                  document.addEventListener("DOMContentLoaded", function () {
+                    var url = window.location.href;
+                    if (url.indexOf("UPDATE_EMAIL") > -1) {
+                      var element = document.getElementById("forgot-password");
+                      if (element) {
+                        element.style.display = "none";
+                      }
+                    }
+                    /**
+                     * Sets a cookie with the specified name and value.
+                     *
+                     * @param {string} name - The name of the cookie.
+                     * @param {string} value - The value of the cookie.
+                     * @param {number} secs - Cookie expiry time in seconds (default: 10 seconds)
+                     */
+                    function setCookie(name, value, secs = 10) {
+                      const date = new Date();
+                      date.setTime(date.getTime() + secs * 1000);
+                      const expires = "expires=" + date.toUTCString();
+                      document.cookie =
+                        name + "=" + value + ";" + expires + ";path=/";
+                    }
+
+                    /**
+                     * Retrieves the value of a specific cookie by its name.
+                     *
+                     * @param {string} name - The name of the cookie to retrieve.
+                     * @returns {string|null} The cookie value, or null if the cookie doesn't exist.
+                     */
+                    function getCookie(name) {
+                      const nameEQ = name + "=";
+                      const cookies = document.cookie.split(";");
+                      for (let i = 0; i < cookies.length; i++) {
+                        let c = cookies[i].trim();
+                        if (c.indexOf(nameEQ) === 0) {
+                          return c.substring(nameEQ.length, c.length);
+                        }
+                      }
+                      return null;
+                    }
+
+                    /**
+                     * Deletes a cookie by setting its expiry to the past
+                     *
+                     * @param {string} name - The name of the cookie to delete.
+                     */
+                    function deleteCookie(name) {
+                      document.cookie =
+                        name +
+                        "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                    }
+
+                    const urlParams = new URLSearchParams(
+                      window.location.search,
+                    );
+                    const isAccountManagement = urlParams.has("kc_action");
+
+                    // Hide registration button for account management flows
+                    if (isAccountManagement) {
+                      const regButton = document.getElementsByClassName(
+                        "register-action-button",
+                      )[0];
+                      if (regButton) {
+                        regButton.style.display = "none";
+                      }
+                    }
+
+                    // This update improves the user experience for mobile users accessing Keycloak's account management flows (e.g., Update Password, Update Email, Setup MFA, Manage Sessions) when
+                    // using an offline session. Previously, when re-authentication was required, users had to manually enter their username. With this change, the username is pre-filled
+                    // automatically from the login_hint parameter in the URL or from a stored cookie. The username field is also disabled to prevent modifications,
+                    // ensuring secure access to the user's account management flows.
+
+                    // Functional Requirements
+                    // Pre-fill Username: If a login_hint is provided in the URL or retrieved from the stored cookie (hint_value),
+                    // the username field is automatically populated with the user's email.
+                    // Disable Username Field: The username field is disabled, ensuring the user cannot modify the pre-filled value.
+                    // Cookie Storage: The login_hint value is stored in a cookie (hint_value) with a 5-minute expiration,
+                    // maintaining the username pre-fill across page reloads or navigation events.
+                    if (
+                      urlParams.has("login_hint") ||
+                      getCookie("hint_value")
+                    ) {
+                      const userNameField = document.getElementById("username");
+                      const userEmail =
+                        urlParams.get("login_hint") || getCookie("hint_value");
+
+                      if (userNameField && userEmail) {
+                        userNameField.value = userEmail;
+                        userNameField.readOnly = true;
+                      }
+                    }
+
+                    // Add form submit handler to store username on submit for account management flows
+                    const loginForm = document.getElementById("kc-form-login");
+                    if (loginForm && isAccountManagement) {
+                      loginForm.addEventListener("submit", function (event) {
+                        const userNameField =
+                          document.getElementById("username");
+                        if (userNameField && userNameField.value.trim()) {
+                          // Store username in cookie with short TTL (10 sec) for error scenarios
+                          setCookie("hint_value", userNameField.value.trim());
+                        }
+                      });
+                    }
+
+                    // Clean up cookie for regular login flows (when kc_action is not present)
+                    if (!isAccountManagement && getCookie("hint_value")) {
+                      // Delete the cookie to prevent interference with regular login
+                      deleteCookie("hint_value");
+                    }
+                  });
+                </script>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

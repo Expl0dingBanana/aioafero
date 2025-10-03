@@ -29,5 +29,13 @@ class SecuritySystemError(AferoError):
     """Generic exception for Afero Security System issues."""
 
 
-class MissingOTP(AferoError):
-    """One-time password is required but was not provided."""
+class OTPError(AferoError):
+    """Issue occurred with OTP authentication."""
+
+
+class OTPRequired(AferoError):
+    """One-time password is required for login."""
+
+
+class InvalidOTP(OTPError):
+    """One-time password provided is invalid."""

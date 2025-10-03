@@ -7,7 +7,7 @@ __all__ = [
     "EventType",
     "InvalidAuth",
     "InvalidResponse",
-    "MissingOTP",
+    "OTPError",
     "SecuritySystemError",
     "anonymize_device",
     "anonymize_devices",
@@ -35,7 +35,7 @@ from .errors import (
     AferoError,
     InvalidAuth,
     InvalidResponse,
-    MissingOTP,
+    OTPError,
     SecuritySystemError,
 )
 from .types import EventType
