@@ -95,7 +95,6 @@ class AferoAuth:
         self._token_headers: dict[str, str] = {
             "Content-Type": "application/x-www-form-urlencoded",
             "accept-encoding": "gzip",
-            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["AUTH_OPENID_HOST"],
         }
         self._otp_data: dict = {}
@@ -204,7 +203,6 @@ class AferoAuth:
         params = extract_login_codes(data, self._afero_client)
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "x-requested-with": "io.afero.partner.hubspace",
         }
         auth_data = {

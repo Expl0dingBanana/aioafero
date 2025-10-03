@@ -348,6 +348,10 @@ async def test_generate_refresh_token(
             )
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
+    # Add in the user-agent that is generated from the bridge
+    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
+        client_name="aioafero"
+    )
     assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "authorization_code",
@@ -460,6 +464,10 @@ async def test_generate_refresh_token_from_refresh(
             await hs_auth.generate_refresh_token()
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
+    # Add in the user-agent that is generated from the bridge
+    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
+        client_name="aioafero"
+    )
     assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "refresh_token",

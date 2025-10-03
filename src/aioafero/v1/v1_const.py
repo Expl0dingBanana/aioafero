@@ -1,5 +1,6 @@
 """Constants for accessing Afero API."""
 
+from string import Template
 from typing import Final
 
 AFERO_CLIENTS: Final[dict[str, dict[str, str]]] = {
@@ -24,7 +25,9 @@ AFERO_CLIENTS: Final[dict[str, dict[str, str]]] = {
 
 AFERO_GENERICS: Final[dict[str, str]] = {
     # Generics
-    "DEFAULT_USERAGENT": "Dart/3.1 (dart:io)",
+    "DEFAULT_USERAGENT": Template(
+        "Mozilla/5.0 (Linux; Android 15; ${client_name} Build/test; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/138.0.7204.63 Mobile Safari/537.36"
+    ),
     # API Endpoints
     "API_DEVICE_ENDPOINT": "/v1/accounts/{}/metadevices",
     "API_DEVICE_STATE_ENDPOINT": "/v1/accounts/{}/metadevices/{}/state",
