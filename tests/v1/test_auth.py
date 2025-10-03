@@ -8,7 +8,6 @@ from urllib.parse import urlencode
 
 import aiohttp
 import pytest
-import pytest_asyncio
 
 from aioafero.v1 import auth, v1_const
 
