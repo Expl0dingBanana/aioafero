@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.6.0
+=============
+
+ * Enable OTP login workflow
+
 Version 5.5.0
 =============
 
