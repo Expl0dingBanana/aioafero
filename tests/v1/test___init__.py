@@ -15,8 +15,16 @@ from aioafero.v1.controllers.switch import SwitchController
 from aioafero.v1.controllers.valve import ValveController
 from aiohttp.client_exceptions import ClientResponseError
 from dataclasses import asdict
+from aioafero.v1 import auth
+import json
+from urllib.parse import urlencode
 
 from . import utils
+
+
+async def build_url(base_url: str, qs: dict[str, str]) -> str:
+    return f"{base_url}?{urlencode(qs)}"
+
 
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 
@@ -448,3 +456,49 @@ def test_get_device_controller(mocked_bridge):
     assert mocked_bridge.get_device_controller(zandra_light.id) == mocked_bridge.lights
     with pytest.raises(DeviceNotFound):
         mocked_bridge.get_device_controller("nope")
+
+
+@pytest.mark.asyncio
+async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, caplog):
+    caplog.set_level(0)
+    mocked_bridge_req._web_session = aio_sess
+    hs_auth = mocked_bridge_req._auth
+    challenge = await hs_auth.generate_challenge_data()
+    hs_auth._bridge._web_session = aio_sess
+    auth_sess_data = auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id")
+    url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
+    hs_auth._otp_data = {
+        "params": url_params,
+        "headers": {},
+        "challenge": challenge,
+    }
+    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+    url = await build_url(url, url_params)
+    # Successful OTP POST
+    otp_post_response = {
+        "status": 302,
+        "headers": {
+            "location": (
+                "hubspace-app://loginredirect"
+                "?session_state=sess-state"
+                "&iss=https%3A%2F%2Faccounts.hubspaceconnect.com"
+                "%2Fauth%2Frealms%2Fthd&code=code"
+            )
+        },
+    }
+    mock_aioresponse.post(url, **otp_post_response)
+    # Successful authorization_code generation
+    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
+    resp_data = {
+        "refresh_token": "refresh_token",
+        "access_token": "access_token",
+        "id_token": "id_token",
+    }
+    mock_aioresponse.post(url, status=200, body=json.dumps(resp_data))
+    await mocked_bridge_req.otp_login("123456")
+    assert mocked_bridge_req._auth._token_data == auth.TokenData(
+        token="id_token",
+        access_token="access_token",
+        refresh_token="refresh_token",
+        expiration=mocker.ANY,
+    )

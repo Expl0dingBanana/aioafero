@@ -8,7 +8,6 @@ from urllib.parse import urlencode
 
 import aiohttp
 import pytest
-import pytest_asyncio
 
 from aioafero.v1 import auth, v1_const
 
@@ -46,42 +45,46 @@ async def test_is_expired(time_offset, is_expired, hs_auth):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "page_filename,err_msg,expected",
+    "page_filename,form_id,err_msg,expected",
     [
         # Valid
         (
             "auth_webapp_login.html",
+            "kc-form-login",
             None,
             auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id"),
         ),
         # page is missing expected id
         (
             "auth_webapp_login_missing.html",
+            "kc-form-login",
             "Unable to parse login page",
             None,
         ),
         # form field is missing expected attribute
         (
             "auth_webapp_login_bad_format.html",
+            "kc-form-login",
             "Unable to extract login url",
             None,
         ),
         # URL missing expected elements
         (
             "auth_webapp_login_bad_qs.html",
+            "kc-form-login",
             "Unable to parse login url",
             None,
         ),
     ],
 )
-async def test_extract_login_data(page_filename, err_msg, expected):
+async def test_extract_login_data(page_filename, form_id, err_msg, expected):
     with open(os.path.join(current_path, "data", page_filename)) as f:
         page_data = f.read()
     if expected:
-        assert await auth.extract_login_data(page_data) == expected
+        assert await auth.extract_login_data(page_data, form_id) == expected
     else:
         with pytest.raises(auth.InvalidResponse, match=err_msg):
-            await auth.extract_login_data(page_data)
+            await auth.extract_login_data(page_data, form_id)
 
 
 @pytest.mark.asyncio
@@ -93,7 +96,7 @@ async def test_extract_login_data(page_filename, err_msg, expected):
         # Valid auth passed to generate_code
         (
             "auth_webapp_login.html",
-            ("url_sess_code", "url_exec_code", "url_tab_id"),
+            auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id"),
             False,
             {"status": 200},
             None,
@@ -101,7 +104,7 @@ async def test_extract_login_data(page_filename, err_msg, expected):
         # Random error
         (
             "auth_webapp_login.html",
-            ("url_sess_code", "url_exec_code", "url_tab_id"),
+            auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id"),
             False,
             {"status": 400},
             auth.InvalidResponse,
@@ -161,8 +164,7 @@ async def test_webapp_login(
             generate_code.asset_not_called()
             parse_code.assert_called_once()
         else:
-            exp = list(gc_exp)
-            generate_code.assert_called_once_with(*exp)
+            generate_code.assert_called_once_with(gc_exp, challenge)
             parse_code.assert_not_called()
     else:
         with pytest.raises(expected_err):
@@ -177,41 +179,40 @@ async def test_generate_challenge_data():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "session_code, execution, tab_id, response, expected_err, expected",
+    "auth_data, response, expected_err, expected",
     [
         # Invalid response
         (
-            "sess_code",
-            "execution",
-            "tab_id",
+            auth.AuthSessionData("sess_code", "execution", "tab_id"),
             {"status": 200},
             auth.InvalidAuth,
             None,
         ),
         # Invalid Location
         (
-            "sess_code",
-            "execution",
-            "tab_id",
+            auth.AuthSessionData("sess_code", "execution", "tab_id"),
             {"status": 302, "headers": {"location": "nope"}},
             auth.InvalidResponse,
             None,
         ),
         # Valid location
         (
-            "sess_code",
-            "execution",
-            "tab_id",
+            auth.AuthSessionData("sess_code", "execution", "tab_id"),
             {"status": 302, "headers": {"location": "https://cool.beans?code=beans"}},
             None,
             "beans",
         ),
+        # OTP login required
+        (
+            auth.AuthSessionData("sess_code", "execution", "tab_id"),
+            {"status": 200, "headers": {"location": "https://cool.beans?code=beans"}, "body": '<form id="kc-otp-login-form" class="form-horizontal" action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=session_code&amp;execution=execution&amp;client_id=hubspace_android&amp;tab_id=tab_id" method="post" onsubmit="return submitForm()">'},
+            auth.OTPRequired,
+            None,
+        )
     ],
 )
 async def test_generate_code(
-    session_code,
-    execution,
-    tab_id,
+    auth_data,
     response,
     expected_err,
     expected,
@@ -220,22 +221,22 @@ async def test_generate_code(
     aio_sess,
 ):
     params = {
-        "session_code": session_code,
-        "execution": execution,
+        "session_code": auth_data.session_code,
+        "execution": auth_data.execution,
         "client_id": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_CLIENT_ID"],
-        "tab_id": tab_id,
+        "tab_id": auth_data.tab_id,
     }
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
     url = await build_url(url, params)
     aioresponses.post(url, **response)
     if not expected_err:
         assert (
-            await hs_auth.generate_code(session_code, execution, tab_id)
+            await hs_auth.generate_code(auth_data, None)
             == expected
         )
     else:
         with pytest.raises(expected_err):
-            await hs_auth.generate_code(session_code, execution, tab_id)
+            await hs_auth.generate_code(auth_data, None)
 
 
 @pytest.mark.asyncio
@@ -346,6 +347,10 @@ async def test_generate_refresh_token(
             )
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
+    # Add in the user-agent that is generated from the bridge
+    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
+        client_name="aioafero"
+    )
     assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "authorization_code",
@@ -458,6 +463,10 @@ async def test_generate_refresh_token_from_refresh(
             await hs_auth.generate_refresh_token()
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
+    # Add in the user-agent that is generated from the bridge
+    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
+        client_name="aioafero"
+    )
     assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "refresh_token",
@@ -662,3 +671,132 @@ def test_property_refresh_token(bridge):
         datetime.datetime.now().timestamp() + 120,
     )
     assert _auth.refresh_token == "refresh_token"
+
+
+@pytest.mark.parametrize(
+    ("page_filename", "expected"),
+    [
+        # Valid OTP error
+        ("auth_webapp_login_otp_failed.html", "Invalid access code."),
+        # Can't find OTP error
+        ("auth_webapp_login.html", "Unknown error"),
+    ]
+)
+def test_get_kc_error(page_filename, expected):
+    with open(os.path.join(current_path, "data", page_filename)) as f:
+        page_data = f.read()
+    assert auth.get_kc_error(page_data) == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("page_filename", "response", "expected_code", "expected_error", "expected_error_match"),
+    [
+        # Valid OTP submission
+        (
+            None,
+            {
+                "status": 302,
+                "headers": {
+                    "location": (
+                        "hubspace-app://loginredirect"
+                        "?session_state=sess-state"
+                        "&iss=https%3A%2F%2Faccounts.hubspaceconnect.com"
+                        "%2Fauth%2Frealms%2Fthd&code=code"
+                    )
+                },
+            },
+            "code",
+            None,
+            None,
+        ),
+        # Invalid OTP provided
+        (
+            "auth_webapp_login_otp_failed.html",
+            {
+                "status": 200,
+            },
+            None,
+            auth.InvalidOTP,
+            "Invalid access code.",
+        ),
+    ]
+)
+async def test_submit_otp(
+    page_filename,
+    response,
+    expected_code,
+    expected_error,
+    expected_error_match,
+    mock_aioresponse,
+    aio_sess,
+    hs_auth,
+):
+    challenge = await hs_auth.generate_challenge_data()
+    hs_auth._bridge._web_session = aio_sess
+    auth_sess_data = auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id")
+    url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
+    hs_auth._otp_data = {
+        "params": url_params,
+        "headers": {},
+        "challenge": challenge,
+    }
+    if page_filename:
+        with open(os.path.join(current_path, "data", page_filename)) as f:
+            response["body"] = f.read()
+    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+    url = await build_url(url, url_params)
+    mock_aioresponse.post(url, **response)
+    if expected_code:
+        assert (await hs_auth.submit_otp("123456")) == expected_code
+    else:
+        with pytest.raises(expected_error, match=expected_error_match):
+            await hs_auth.submit_otp("123456")
+
+
+@pytest.mark.asyncio
+async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth, mocker):
+    challenge = await hs_auth.generate_challenge_data()
+    hs_auth._bridge._web_session = aio_sess
+    auth_sess_data = auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id")
+    url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
+    hs_auth._otp_data = {
+        "params": url_params,
+        "headers": {},
+        "challenge": challenge,
+    }
+    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+    url = await build_url(url, url_params)
+    # Successful OTP POST
+    otp_post_response = {
+        "status": 302,
+        "headers": {
+            "location": (
+                "hubspace-app://loginredirect"
+                "?session_state=sess-state"
+                "&iss=https%3A%2F%2Faccounts.hubspaceconnect.com"
+                "%2Fauth%2Frealms%2Fthd&code=code"
+            )
+        },
+    }
+    mock_aioresponse.post(url, **otp_post_response)
+    # Successful authorization_code generation
+    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
+    resp_data = {
+        "refresh_token": "refresh_token",
+        "access_token": "access_token",
+        "id_token": "id_token",
+    }
+    mock_aioresponse.post(url, status=200, body=json.dumps(resp_data))
+    assert await hs_auth.perform_otp_login("123456") == auth.TokenData(
+        token="id_token",
+        access_token="access_token",
+        refresh_token="refresh_token",
+        expiration=mocker.ANY,
+    )
+
+@pytest.mark.asyncio
+async def test_perform_otp_login_not_ready(hs_auth):
+    hs_auth._otp_data = {}
+    with pytest.raises(auth.OTPRequired):
+        await hs_auth.perform_otp_login("123456")

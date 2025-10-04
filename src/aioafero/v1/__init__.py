@@ -104,6 +104,7 @@ class AferoBridgeV1:
         afero_client: str | None = "hubspace",
         hide_secrets: bool = True,
         poll_version: bool = True,
+        client_name: str | None = "aioafero",
     ):
         """Create a bridge that communicates with Afero IoT API."""
         if hide_secrets:
@@ -122,6 +123,7 @@ class AferoBridgeV1:
             afero_client=afero_client,
             hide_secrets=hide_secrets,
         )
+        self.client_name = client_name
         self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
         if len(self.logger.handlers) == 0:
             self.logger.addHandler(logging.StreamHandler())
@@ -170,6 +172,10 @@ class AferoBridgeV1:
     def tracked_devices(self) -> set:
         """Get all tracked devices."""
         return set(self._known_devs.keys())
+
+    async def otp_login(self, otp_code: str) -> None:
+        """Perform OTP login with the provided code."""
+        await self._auth.perform_otp_login(otp_code)
 
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
@@ -445,7 +451,9 @@ class AferoBridgeV1:
     def get_headers(self, **kwargs):
         """Get default headers for an API call."""
         headers: dict[str, str] = {
-            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
+            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
+                client_name=self.client_name
+            ),
             "accept-encoding": "gzip",
         }
         headers.update(kwargs)

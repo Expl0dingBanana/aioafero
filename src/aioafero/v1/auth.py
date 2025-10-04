@@ -18,7 +18,7 @@ from aiohttp import ClientResponseError, ContentTypeError
 from bs4 import BeautifulSoup
 from securelogging import LogRedactorMessage, add_secret, remove_secret
 
-from aioafero.errors import InvalidAuth, InvalidResponse
+from aioafero.errors import InvalidAuth, InvalidOTP, InvalidResponse, OTPRequired
 
 from . import v1_const
 
@@ -95,9 +95,9 @@ class AferoAuth:
         self._token_headers: dict[str, str] = {
             "Content-Type": "application/x-www-form-urlencoded",
             "accept-encoding": "gzip",
-            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["AUTH_OPENID_HOST"],
         }
+        self._otp_data: dict = {}
 
     @property
     async def is_expired(self) -> bool:
@@ -161,18 +161,14 @@ class AferoAuth:
             raise InvalidResponse("Unable to query login page") from err
         if response.status == 200:
             contents = await response.text()
-            login_data = await extract_login_data(contents)
+            login_data = await extract_login_data(contents, "kc-form-login")
             self.logger.debug(
                 ("WebApp Login:\n\tSession Code: %s\n\tExecution: %s\n\tTab ID:%s"),
                 login_data.session_code,
                 login_data.execution,
                 login_data.tab_id,
             )
-            return await self.generate_code(
-                login_data.session_code,
-                login_data.execution,
-                login_data.tab_id,
-            )
+            return await self.generate_code(login_data, challenge)
         if response.status == 302:
             self.logger.debug("Hubspace returned an active session")
             return await AferoAuth.parse_code(response)
@@ -194,7 +190,7 @@ class AferoAuth:
         return chal
 
     async def generate_code(
-        self, session_code: str, execution: str, tab_id: str
+        self, data: AuthSessionData, challenge: AuthChallenge
     ) -> str:
         """Finalize login to Afero IoT page.
 
@@ -204,17 +200,10 @@ class AferoAuth:
         :return: code for generating tokens
         """
         self.logger.debug("Generating code")
-        params = {
-            "session_code": session_code,
-            "execution": execution,
-            "client_id": v1_const.AFERO_CLIENTS[self._afero_client][
-                "AUTH_DEFAULT_CLIENT_ID"
-            ],
-            "tab_id": tab_id,
-        }
+        params = extract_login_codes(data, self._afero_client)
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"],
+            "x-requested-with": "io.afero.partner.hubspace",
         }
         auth_data = {
             "username": self._username,
@@ -238,11 +227,28 @@ class AferoAuth:
             allow_redirects=False,
         )
         self.logger.debug(STATUS_CODE, response.status)
+        # If OTP is required, a 200 will be returned. If a 302 is returned, then there
+        # is no OTP required.
+        content = await response.text()
+        if await AferoAuth.requires_otp(content):
+            login_data = await extract_login_data(content, "kc-otp-login-form")
+            otp_params = extract_login_codes(login_data, self._afero_client)
+            self._otp_data = {
+                "params": otp_params,
+                "headers": headers,
+                "challenge": challenge,
+            }
+            raise OTPRequired
         if response.status != 302:
             raise InvalidAuth(
                 "Unable to authenticate with the supplied username / password"
             )
         return await AferoAuth.parse_code(response)
+
+    @staticmethod
+    async def requires_otp(content: str) -> bool:
+        """Determine if the user requires otp."""
+        return "kc-otp-login-form" in content
 
     @staticmethod
     async def parse_code(response: aiohttp.ClientResponse) -> str:
@@ -359,6 +365,55 @@ class AferoAuth:
         self.logger.debug("Successfully generated a refresh token")
         return refresh_token
 
+    async def perform_otp_login(self, otp_code: str) -> TokenData:
+        """Perform otp login to generate a refresh token.
+
+        :return: Refresh token for the auth
+        """
+        if self._otp_data == {}:
+            raise OTPRequired("No OTP data available to perform login")
+        self.logger.debug("Performing otp login")
+        code: str = await self.submit_otp(otp_code)
+        refresh_token = await self.generate_refresh_token(
+            code=code, challenge=self._otp_data["challenge"]
+        )
+        self.logger.debug("Successfully generated a refresh token")
+        self._token_data = refresh_token
+        self._otp_data = {}
+        return refresh_token
+
+    async def submit_otp(self, otp_code: str) -> None:
+        """Submit OTP code to continue the login process.
+
+        :param otp_code: OTP code provided by the user
+
+        :return: Code used for generating a refresh token
+        """
+        otp_data = {
+            "action": "submit",
+            "flowName": "doLogIn",
+            "emailCode": otp_code,
+        }
+        url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+        response = await self._bridge.request(
+            "POST",
+            url,
+            include_token=False,
+            params=self._otp_data["params"],
+            data=otp_data,
+            headers=self._otp_data["headers"],
+            allow_redirects=False,
+        )
+        if response.status != 302:
+            self.logger.warning("OTP code was invalid. Re-enter the OTP code.")
+            content = await response.text()
+            kc_error = get_kc_error(content)
+            login_data = await extract_login_data(content, "kc-otp-login-form")
+            otp_params = extract_login_codes(login_data, self._afero_client)
+            self._otp_data["params"] = otp_params
+            raise InvalidOTP(kc_error)
+        return await AferoAuth.parse_code(response)
+
     async def token(self, retry: bool = True) -> str:
         """Generate the token required to make Afero API calls."""
         invalidate_refresh_token = False
@@ -388,14 +443,14 @@ class AferoAuth:
         return self._token_data.token
 
 
-async def extract_login_data(page: str) -> AuthSessionData:
+async def extract_login_data(page: str, form_login_element: str) -> AuthSessionData:
     """Extract the required login data from the auth page.
 
     :param page: the response from performing a GET against
     v1_const.AFERO_CLIENTS[self._afero_client]['OPENID_URL']
     """
     auth_page = BeautifulSoup(page, features="html.parser")
-    login_form = auth_page.find("form", id="kc-form-login")
+    login_form = auth_page.find("form", id=form_login_element)
     if login_form is None:
         raise InvalidResponse("Unable to parse login page")
     try:
@@ -412,3 +467,21 @@ async def extract_login_data(page: str) -> AuthSessionData:
         )
     except (KeyError, IndexError) as err:
         raise InvalidResponse("Unable to parse login url") from err
+
+
+def extract_login_codes(data: AuthSessionData, client: str) -> dict:
+    return {
+        "session_code": data.session_code,
+        "execution": data.execution,
+        "client_id": v1_const.AFERO_CLIENTS[client]["AUTH_DEFAULT_CLIENT_ID"],
+        "tab_id": data.tab_id,
+    }
+
+
+def get_kc_error(page: str) -> str:
+    """Extract the error message from the otp page."""
+    auth_page = BeautifulSoup(page, features="html.parser")
+    error_div = auth_page.find("span", class_="kc-feedback-text")
+    if error_div is None:
+        return "Unknown error"
+    return error_div.text.strip()

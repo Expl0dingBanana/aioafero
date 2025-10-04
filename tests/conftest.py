@@ -12,6 +12,14 @@ from aioafero.v1.auth import TokenData
 from aioafero.v1.controllers.event import EventType
 from tests.v1.utils import create_hs_raw_from_device
 from aioafero.v1.controllers.base import BaseResourcesController, dataclass_to_afero
+import securelogging
+
+
+@pytest.fixture(autouse=True)
+def reset_logging_secrets():
+    securelogging._called_from_test = True
+    securelogging.reset_secrets()
+    yield
 
 
 @pytest_asyncio.fixture(scope="function")
