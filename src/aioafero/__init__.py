@@ -6,8 +6,10 @@ __all__ = [
     "AferoState",
     "EventType",
     "InvalidAuth",
+    "InvalidOTP",
     "InvalidResponse",
     "OTPError",
+    "OTPRequired",
     "SecuritySystemError",
     "anonymize_device",
     "anonymize_devices",
@@ -34,8 +36,10 @@ from .device import AferoDevice, AferoState, get_afero_device
 from .errors import (
     AferoError,
     InvalidAuth,
+    InvalidOTP,
     InvalidResponse,
     OTPError,
+    OTPRequired,
     SecuritySystemError,
 )
 from .types import EventType
