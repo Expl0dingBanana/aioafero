@@ -84,7 +84,6 @@ async def test_initialize(mocked_controller):
             instance=None,
         ),
     }
-    assert dev.display_celsius is True
 
 
 @pytest.mark.asyncio
@@ -191,7 +190,7 @@ async def test_update_elem_no_prev_mode_change(mocked_controller):
     dev = mocked_controller[thermostat_id]
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "heat"
-    assert updates == {"mode", "temperature-units"}
+    assert updates == {"mode"}
 
 
 @pytest.mark.asyncio
@@ -280,39 +279,6 @@ async def test_set_state(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_in_f(mocked_controller):
-    await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(thermostat)]
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    assert len(mocked_controller.items) == 1
-    mocked_controller[thermostat_id].hvac_mode.mode = "heat"
-    mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
-    mocked_controller[thermostat_id].display_celsius = False
-    await mocked_controller.set_state(
-        thermostat_id,
-        hvac_mode="cool",
-        safety_max_temp=95,
-        safety_min_temp=46,
-        target_temperature_auto_heating=72,
-        target_temperature_auto_cooling=73,
-        target_temperature_heating=63,
-        target_temperature_cooling=64,
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    dev = mocked_controller[thermostat_id]
-    assert dev.fan_mode.mode == "auto"
-    assert dev.fan_running is False
-    assert dev.hvac_mode.mode == "cool"
-    assert dev.safety_max_temp.value == 35
-    assert dev.safety_min_temp.value == 8
-    assert dev.target_temperature_auto_heating.value == 22
-    assert dev.target_temperature_auto_cooling.value == 23
-    assert dev.target_temperature_heating.value == 17
-    assert dev.target_temperature_cooling.value == 18
-
-
-@pytest.mark.asyncio
 async def test_set_state_in_f_force_c(mocked_controller):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
@@ -321,7 +287,6 @@ async def test_set_state_in_f_force_c(mocked_controller):
     assert len(mocked_controller.items) == 1
     mocked_controller[thermostat_id].hvac_mode.mode = "heat"
     mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
-    mocked_controller[thermostat_id].display_celsius = False
     await mocked_controller.set_state(
         thermostat_id,
         hvac_mode="cool",

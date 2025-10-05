@@ -11,6 +11,7 @@ __all__ = [
     "OTPError",
     "OTPRequired",
     "SecuritySystemError",
+    "TemperatureUnit",
     "anonymize_device",
     "anonymize_devices",
     "get_afero_device",
@@ -42,4 +43,4 @@ from .errors import (
     OTPRequired,
     SecuritySystemError,
 )
-from .types import EventType
+from .types import EventType, TemperatureUnit

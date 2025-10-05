@@ -39,7 +39,6 @@ def populated_entity():
         target_temperature_cooling=features.TargetTemperatureFeature(
             value=26, step=0.5, min=10, max=37, instance="cooling-target"
         ),
-        display_celsius=True,
         numbers=numbers,
         selects=selects,
         device_information=DeviceInformation(
@@ -74,13 +73,6 @@ def test_init(populated_entity):
     assert populated_entity.target_temperature_step == 0.5
     assert populated_entity.supports_fan_mode is False
     assert populated_entity.supports_temperature_range is False
-    # Test in F
-    populated_entity.display_celsius = False
-    assert populated_entity.temperature == 95
-    assert populated_entity.target_temperature == 79
-    assert populated_entity.target_temperature_max == 99
-    assert populated_entity.target_temperature_min == 50
-    assert populated_entity.target_temperature_step == 1
 
 
 def test_get_instance(populated_entity):
@@ -91,7 +83,6 @@ def test_empty():
     entity = PortableAC(
         _id="entity-1",
         available=True,
-        display_celsius=True,
         device_information=DeviceInformation(functions=[]),
         numbers={},
         selects={},

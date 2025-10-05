@@ -3,7 +3,7 @@ import logging
 
 import pytest
 import asyncio
-from aioafero import AferoDevice, AferoState
+from aioafero import AferoDevice, AferoState, TemperatureUnit
 from aioafero.device import get_afero_device
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, models, v1_const
@@ -24,6 +24,9 @@ from aioafero.v1.models.resource import DeviceInformation
 import pytest_asyncio
 
 from .. import utils
+
+_LOGGER = logging.getLogger(__name__)
+
 
 
 @dataclass
@@ -904,6 +907,13 @@ async def test__process_state_update(ex1_rc):
 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
+    ("temperature_unit"),
+    [
+        (TemperatureUnit.CELSIUS),
+        (TemperatureUnit.FAHRENHEIT),
+    ]
+)
+@pytest.mark.parametrize(
     "response, response_err, states, expected_call, expected, messages",
     [
         # Happy path
@@ -934,6 +944,7 @@ async def test__process_state_update(ex1_rc):
                     "host": v1_const.AFERO_CLIENTS["hubspace"]["API_DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
+                "params": {},
             },
             True,
             [],
@@ -966,6 +977,7 @@ async def test__process_state_update(ex1_rc):
                     "host": v1_const.AFERO_CLIENTS["hubspace"]["API_DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
+                "params": {},
             },
             False,
             ["Invalid update provided for cool using"],
@@ -998,6 +1010,7 @@ async def test__process_state_update(ex1_rc):
                     "host": v1_const.AFERO_CLIENTS["hubspace"]["API_DATA_HOST"],
                     "content-type": "application/json; charset=utf-8",
                 },
+                "params": {},
             },
             False,
             ["Maximum retries exceeded for cool"],
@@ -1005,6 +1018,7 @@ async def test__process_state_update(ex1_rc):
     ],
 )
 async def test_update_afero_api(
+    temperature_unit,
     response,
     response_err,
     states,
@@ -1016,11 +1030,19 @@ async def test_update_afero_api(
     caplog,
 ):
     device_id = "cool"
-    url = ex1_rc._bridge.generate_api_url(v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
+    ex1_rc._bridge.temperature_unit = temperature_unit
+    mock_response_url = ex1_rc._bridge.generate_api_url(v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
         ex1_rc._bridge.account_id, str(device_id)
     ))
+    query_url = mock_response_url[:]
+    if temperature_unit == TemperatureUnit.FAHRENHEIT:
+        expected_call["params"]["units"] = temperature_unit.value
+        mock_response_url = f"{mock_response_url}?units={temperature_unit.value}"
+    else:
+        # There is something weird with the tests where this is leaking from previous tests
+        expected_call["params"].pop("units", None)
     if response:
-        mock_aioresponse.put(url, **response)
+        mock_aioresponse.put(mock_response_url, **response)
     if response_err:
         ex1_rc._bridge.request.side_effect = response_err
     if expected:
@@ -1028,7 +1050,8 @@ async def test_update_afero_api(
     else:
         assert await ex1_rc.update_afero_api(device_id, states) == expected
     if expected_call:
-        ex1_rc._bridge.request.assert_called_with("put", url, **expected_call)
+        
+        ex1_rc._bridge.request.assert_called_with("put", query_url, **expected_call)
     else:
         ex1_rc._bridge.request.assert_not_called()
     for message in messages:

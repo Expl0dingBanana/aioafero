@@ -128,7 +128,7 @@ All examples assume you entered the shell with ``python -m asyncio``
     # Query the API and populate the controllers
     await bridge.initialize()
     # If OTP is enabled on the account, it will need to be provided here
-    await bridge.otp_login("<OTP_CODE>"))
+    await bridge.otp_login("<OTP_CODE>")
     # Turn on the light that matches id="84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6"
     await bridge.lights.turn_off("84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6")
 

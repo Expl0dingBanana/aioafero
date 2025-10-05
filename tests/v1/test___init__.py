@@ -5,7 +5,7 @@ import pytest
 
 from aioafero import EventType, InvalidAuth, AferoDevice, AferoState
 from aioafero.errors import DeviceNotFound, AferoError, ExceededMaximumRetries
-from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const
+from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const, TemperatureUnit
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -124,22 +124,31 @@ async def test_initialize(bridge_with_acct, mocker):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "expected_val,error",
+    "expected_val,error,temperature_unit",
     [
         # good data
-        ([], False),
+        ([], False, TemperatureUnit.FAHRENHEIT),
+        ([], False, TemperatureUnit.CELSIUS),
         # bad data
-        ("i dont know", True),
+        ("i dont know", True, TemperatureUnit.CELSIUS),
     ],
 )
-async def test_fetch_data(expected_val, error, mocked_bridge_req, mocker):
+async def test_fetch_data(expected_val, error, temperature_unit, mocked_bridge_req, mocker):
     expected = mocker.Mock()
+    mocked_bridge_req.temperature_unit = temperature_unit
     mocker.patch.object(
         expected, "json", side_effect=mocker.AsyncMock(return_value=expected_val)
     )
     mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
     if not error:
         assert await mocked_bridge_req.fetch_data() == expected_val
+        call = mocked_bridge_req.request.call_args
+        params = call[1]["params"]
+        if temperature_unit == TemperatureUnit.FAHRENHEIT:
+            assert "units" in params
+            assert params["units"] == TemperatureUnit.FAHRENHEIT.value
+        else:
+            assert "units" not in params
     else:
         with pytest.raises(TypeError):
             await mocked_bridge_req.fetch_data()

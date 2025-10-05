@@ -3,8 +3,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from aioafero.util import calculate_hubspace_fahrenheit
-
 from . import features
 
 
@@ -12,7 +10,6 @@ from . import features
 class HVACMixin(ABC):
     """Mixin for HVAC properties and methods."""
 
-    display_celsius: bool | None = None
     current_temperature: features.CurrentTemperatureFeature | None = None
     fan_running: bool | None = None
     fan_mode: features.ModeFeature | None = None
@@ -37,10 +34,7 @@ class HVACMixin(ABC):
         target_feature = self._get_target_feature(self.get_mode_to_check())
         if not target_feature:
             return None
-        celsius: float | None = getattr(target_feature, "value", None)
-        if self.display_celsius:
-            return celsius
-        return calculate_hubspace_fahrenheit(celsius)
+        return getattr(target_feature, "value", None)
 
     @abstractmethod
     def get_mode_to_check(self) -> str | None:
@@ -64,9 +58,7 @@ class HVACMixin(ABC):
         else:
             target_feature = self._get_target_feature(set_mode)
             val = getattr(target_feature, "step", 0.5)
-        if self.display_celsius:
-            return val
-        return 1
+        return val
 
     @property
     def target_temperature_max(self) -> float | None:
@@ -79,12 +71,7 @@ class HVACMixin(ABC):
             target_feature = self._get_target_feature(set_mode)
             val = getattr(target_feature, "max", None)
 
-        if val is None:
-            return None
-
-        if self.display_celsius:
-            return val
-        return calculate_hubspace_fahrenheit(val)
+        return val
 
     @property
     def target_temperature_min(self) -> float | None:
@@ -97,18 +84,12 @@ class HVACMixin(ABC):
             target_feature = self._get_target_feature(set_mode)
             val = getattr(target_feature, "min", None)
 
-        if val is None:
-            return None
-
-        if self.display_celsius:
-            return val
-        return calculate_hubspace_fahrenheit(val)
+        return val
 
     @property
     def temperature(self) -> float | None:
         """Current temperature of the selected mode."""
         if self.current_temperature is None:
             return None
-        if self.display_celsius:
-            return self.current_temperature.temperature
-        return calculate_hubspace_fahrenheit(self.current_temperature.temperature)
+
+        return self.current_temperature.temperature

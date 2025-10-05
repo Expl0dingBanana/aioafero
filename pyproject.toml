@@ -55,6 +55,8 @@ addopts = "--cov --cov-report term-missing"
 testpaths = [
     "tests"
 ]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 
 [tool.ruff]

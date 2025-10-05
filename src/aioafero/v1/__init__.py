@@ -38,6 +38,7 @@ from aioafero.errors import (
     ExceededMaximumRetries,
     InvalidAuth,
 )
+from aioafero.types import TemperatureUnit
 
 from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
@@ -90,7 +91,30 @@ type AferoController = (
 
 
 class AferoBridgeV1:
-    """Controls Afero IoT devices on v1 API."""
+    """Controls Afero IoT devices on v1 API.
+
+    This class serves as the main entry point for interacting with the Afero API.
+    It handles authentication, device discovery, state management, and event handling.
+
+    :param username: The username for the Afero-backed account (e.g., Hubspace).
+    :param password: The password for the Afero-backed account.
+    :param refresh_token: An optional refresh token to bypass initial login.
+    :param session: An optional `aiohttp.ClientSession` to use for requests.
+        If not provided, a new session will be created.
+    :param polling_interval: The interval in seconds between polling the Afero API
+        for device state updates. Defaults to 30.
+    :param afero_client: The Afero client identifier (e.g., "hubspace", "myko").
+        Defaults to "hubspace".
+    :param hide_secrets: If True, sensitive information will be redacted from logs.
+        Defaults to True.
+    :param poll_version: If True, device version information will be polled periodically.
+        Defaults to True.
+    :param client_name: A name for the client to be used in the User-Agent header.
+        Defaults to "aioafero".
+    :param temperature_unit: The desired temperature unit for API responses.
+        Defaults to `TemperatureUnit.FAHRENHEIT`.
+
+    """
 
     _web_session: aiohttp.ClientSession | None = None
 
@@ -105,8 +129,9 @@ class AferoBridgeV1:
         hide_secrets: bool = True,
         poll_version: bool = True,
         client_name: str | None = "aioafero",
+        temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
     ):
-        """Create a bridge that communicates with Afero IoT API."""
+        """Initialize the AferoBridgeV1 instance."""
         if hide_secrets:
             self.secret_logger = LogRedactorMessage
         else:
@@ -124,6 +149,7 @@ class AferoBridgeV1:
             hide_secrets=hide_secrets,
         )
         self.client_name = client_name
+        self.temperature_unit = temperature_unit
         self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
         if len(self.logger.handlers) == 0:
             self.logger.addHandler(logging.StreamHandler())
@@ -183,7 +209,11 @@ class AferoBridgeV1:
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
     ) -> None:
-        """Add a device to the list of known devices."""
+        """Add a device to the list of known devices and map it to its controller.
+
+        :param device_id: The unique identifier of the device.
+        :param controller: The controller instance responsible for the device.
+        """
         self._known_devs[device_id] = controller
 
     def get_device_controller(self, device_id: str) -> BaseResourcesController:
@@ -194,20 +224,33 @@ class AferoBridgeV1:
             raise DeviceNotFound(f"Unable to find device {device_id}") from err
 
     def remove_device(self, device_id: str) -> None:
-        """Remove a device from the list of known devices."""
+        """Remove a device from the list of known devices.
+
+        :param device_id: The unique identifier of the device to remove.
+        """
         with contextlib.suppress(KeyError):
             self._known_devs.pop(device_id)
         with contextlib.suppress(KeyError):
             self._known_afero_devices.pop(device_id)
 
     def add_afero_dev(self, device: AferoDevice, device_id: str | None = None) -> None:
-        """Add a tracked afero device."""
+        """Add a raw AferoDevice object to the internal cache.
+
+        :param device: The `AferoDevice` object to cache.
+        :param device_id: The ID to use for caching. If None, `device.id` is used.
+        """
         if not device_id:
             device_id = device.id
         self._known_afero_devices[device_id] = device
 
     def get_afero_device(self, device_id: str) -> AferoDevice | None:
-        """Get the afero device for a given id."""
+        """Get the raw AferoDevice object for a given ID.
+
+        :param device_id: The unique identifier of the device.
+
+        :return: The `AferoDevice` object if found, otherwise raises `DeviceNotFound`.
+        :raises DeviceNotFound: If the device with the given ID is not found.
+        """
         try:
             return self._known_afero_devices[device_id]
         except KeyError as err:
@@ -224,25 +267,43 @@ class AferoBridgeV1:
         return self._afero_client
 
     def add_controller(self, name: str, controller_type: type) -> None:
-        """Add a controller to the list of controllers."""
+        """Add and instantiate a controller.
+
+        The instantiated controller will be available as an attribute on the bridge
+        instance with the provided name.
+
+        :param name: The attribute name for the controller on the bridge instance.
+        :param controller_type: The class of the controller to instantiate.
+        """
         self._controllers[name] = controller_type(self)
         setattr(self, name, self._controllers[name])
 
     def set_token_data(self, data: TokenData) -> None:
-        """Set TokenData used for querying the API."""
+        """Set TokenData used for querying the API.
+
+        :param data: The `TokenData` object to set.
+        """
         self._auth.set_token_data(data)
 
     def set_polling_interval(self, polling_interval: int) -> None:
-        """Set the time between polling Afero API."""
+        """Set the time between polling Afero API.
+
+        :param polling_interval: The polling interval in seconds.
+        """
         self._events.polling_interval = polling_interval
 
     def generate_api_url(self, endpoint: str) -> str:
-        """Generate a URL for the Afero API."""
+        """Generate a URL for the Afero API.
+
+        :param endpoint: The API endpoint path.
+
+        :return: The fully qualified API URL.
+        """
         endpoint = endpoint.removeprefix("/")
         return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['API_HOST']}/{endpoint}"
 
     async def close(self) -> None:
-        """Close connection and cleanup."""
+        """Close connection and clean up resources."""
         for task in self._scheduled_tasks:
             task.cancel()
             await task
@@ -258,9 +319,9 @@ class AferoBridgeV1:
     ) -> Callable:
         """Subscribe to status changes for all resources.
 
-        Returns:
-            function to unsubscribe.
+        :param callback: The function to call when an event occurs.
 
+        :return: A function that can be called to unsubscribe from the events.
         """
         unsubscribes = [
             controller.subscribe(callback) for controller in self.controllers
@@ -273,7 +334,11 @@ class AferoBridgeV1:
         return unsubscribe
 
     async def get_account_id(self) -> str:
-        """Lookup the account ID associated with the login."""
+        """Lookup the account ID associated with the login.
+
+        :return: The account ID.
+        :raises AferoError: If no account ID is found in the API response.
+        """
         if not self._account_id:
             self.logger.debug("Querying API for account id")
             headers = {"host": v1_const.AFERO_CLIENTS[self._afero_client]["API_HOST"]}
@@ -315,7 +380,12 @@ class AferoBridgeV1:
             self.add_job(asyncio.create_task(self.events.wait_for_first_poll()))
 
     async def fetch_data(self, version_poll=False) -> list[dict[Any, str]]:
-        """Query the API."""
+        """Query the API for all device data.
+
+        :param version_poll: If True, also poll for device version information.
+
+        :return: A list of dictionaries, each representing a device.
+        """
         task = asyncio.create_task(self._fetch_data(version_poll))
         self.add_job(task)
         await task
@@ -328,6 +398,8 @@ class AferoBridgeV1:
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }
         params = {"expansions": "state,capabilities,semantics"}
+        if self.temperature_unit == TemperatureUnit.FAHRENHEIT:
+            params["units"] = self.temperature_unit.value
         url = self.generate_api_url(
             v1_const.AFERO_GENERICS["API_DEVICE_ENDPOINT"].format(self.account_id)
         )
@@ -356,7 +428,12 @@ class AferoBridgeV1:
         return data
 
     async def fetch_device_states(self, device_id) -> list[dict[Any, str]]:
-        """Query the API for new device states."""
+        """Query the API for new device states.
+
+        :param device_id: The ID of the device to fetch states for.
+
+        :return: A list of `AferoState` objects representing the device's states.
+        """
         task = asyncio.create_task(self._fetch_device_states(device_id))
         self.add_job(task)
         await task
@@ -391,7 +468,12 @@ class AferoBridgeV1:
         return states
 
     async def get_device_version(self, device_id: str) -> dict:
-        """Query the API for device version information."""
+        """Query the API for device version information.
+
+        :param device_id: The ID of the device to get version info for.
+
+        :return: A dictionary containing version information.
+        """
         endpoint = v1_const.AFERO_GENERICS["API_DEVICE_VERSIONS_ENDPOINT"].format(
             self.account_id, device_id
         )
@@ -404,9 +486,15 @@ class AferoBridgeV1:
     async def create_request(
         self, method: str, url: str, include_token: bool, **kwargs
     ) -> Generator[aiohttp.ClientResponse, None, None]:
-        """Make a request to any path with V2 request method (auth in header).
+        """Create and manage an `aiohttp` request.
 
-        Returns a generator with aiohttp ClientResponse.
+        This is an async context manager that handles session creation and
+        authentication headers.
+
+        :param method: The HTTP method (e.g., "GET", "POST").
+        :param url: The URL for the request.
+        :param include_token: If True, an Authorization header with a bearer token
+            will be included.
         """
         if self._web_session is None:
             connector = aiohttp.TCPConnector(
@@ -431,7 +519,15 @@ class AferoBridgeV1:
     async def request(
         self, method: str, url: str, include_token: bool = True, **kwargs
     ) -> aiohttp.ClientResponse:
-        """Make request on the api and return response data."""
+        """Make a request to the API with automatic retries.
+
+        :param method: The HTTP method.
+        :param url: The request URL.
+        :param include_token: Whether to include the auth token. Defaults to True.
+
+        :return: The `aiohttp.ClientResponse` object.
+        :raises ExceededMaximumRetries: If the request fails after all retries.
+        """
         retries = 0
         with self.secret_logger():
             self.logger.info("Making request [%s] to %s with %s", method, url, kwargs)
@@ -460,6 +556,8 @@ class AferoBridgeV1:
 
         :param device_id: ID for the device
         :param states: List of states to send
+
+        :raises DeviceNotFound: If the device with the given ID is not found.
         """
         controller = self._known_devs.get(device_id)
         if not controller:
@@ -467,7 +565,11 @@ class AferoBridgeV1:
         await controller.update(device_id, states=states)
 
     def get_headers(self, **kwargs):
-        """Get default headers for an API call."""
+        """Get default headers for an API call.
+
+        :param kwargs: Additional headers to include.
+        :return: A dictionary of headers.
+        """
         headers: dict[str, str] = {
             "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
                 client_name=self.client_name
@@ -483,16 +585,16 @@ class AferoBridgeV1:
         self._adhoc_tasks.append(task)
 
     async def async_block_until_done(self):
-        """Sync call for ensuring all processing is done."""
+        """Block until all ad-hoc and event queue tasks are completed."""
         await asyncio.gather(*self._adhoc_tasks)
         await self.events.async_block_until_done()
 
     async def initialize_cleanup(self) -> None:
-        """Create the job that removes finished tasks."""
+        """Start the background task that cleans up completed ad-hoc tasks."""
         self._scheduled_tasks.append(asyncio.create_task(self.__cleanup_processor()))
 
     async def __cleanup_processor(self) -> None:
-        """Remove finished tasks."""
+        """Periodically remove finished tasks from the ad-hoc task list."""
         with contextlib.suppress(asyncio.CancelledError):
             while True:
                 for task in self._adhoc_tasks[:]:

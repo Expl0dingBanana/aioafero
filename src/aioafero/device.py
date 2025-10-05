@@ -193,4 +193,25 @@ def get_function_from_device(
     return None
 
 
+def get_capability_from_device(
+    capabilities: list[AferoCapability],
+    function_class: str,
+    function_instance: str | None = None,
+) -> AferoCapability | None:
+    """Find a capability from a device.
+
+    :param capabilities: List of capabilities to search through
+    :param function_class: Function class to find
+    :param function_instance: Function instance to find. Default: None
+    """
+    for cap in capabilities:
+        if (
+            cap.functionClass != function_class
+            or cap.functionInstance != function_instance
+        ):
+            continue
+        return cap
+    return None
+
+
 AferoResource = TypeVar("AferoResource")

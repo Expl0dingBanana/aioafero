@@ -20,6 +20,7 @@ from aioafero.device import (
     get_afero_device,
 )
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
+from aioafero.types import TemperatureUnit
 from aioafero.util import process_function
 from aioafero.v1 import v1_const
 from aioafero.v1.models.features import NumbersFeature, SelectFeature
@@ -465,8 +466,13 @@ class BaseResourcesController(Generic[AferoResource]):
             "content-type": "application/json; charset=utf-8",
         }
         payload = {"metadeviceId": str(device_id), "values": states}
+        params = {}
+        if self._bridge.temperature_unit == TemperatureUnit.FAHRENHEIT:
+            params["units"] = TemperatureUnit.FAHRENHEIT.value
         try:
-            res = await self._bridge.request("put", url, json=payload, headers=headers)
+            res = await self._bridge.request(
+                "put", url, json=payload, headers=headers, params=params
+            )
         except ExceededMaximumRetries:
             self._logger.warning("Maximum retries exceeded for %s", device_id)
             return False

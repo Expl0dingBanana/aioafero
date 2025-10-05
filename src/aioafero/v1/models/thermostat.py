@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 
-from aioafero.util import calculate_hubspace_fahrenheit
 from aioafero.v1.models import features
 
 from .hvac_mixin import HVACMixin
@@ -22,14 +21,9 @@ class Thermostat(StandardMixin, HVACMixin):
     @property
     def target_temperature_range(self) -> tuple[float, float]:
         """Range which the thermostat supports."""
-        if self.display_celsius:
-            return (
-                self.target_temperature_auto_heating.value,
-                self.target_temperature_auto_cooling.value,
-            )
         return (
-            calculate_hubspace_fahrenheit(self.target_temperature_auto_heating.value),
-            calculate_hubspace_fahrenheit(self.target_temperature_auto_cooling.value),
+            self.target_temperature_auto_heating.value,
+            self.target_temperature_auto_cooling.value,
         )
 
     def get_mode_to_check(self) -> str | None:

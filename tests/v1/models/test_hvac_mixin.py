@@ -36,21 +36,18 @@ def populatedEntity():
         ),
         fan_running=False,
         fan_mode=features.ModeFeature(mode="off", modes={"on", "off"}),
-        display_celsius=True,
     )
 
 
 @pytest.mark.parametrize(
-    ("mode", "celsius", "expected"), [
-        ("cool", True, 26),
-        ("heat", True, 19),
-        ("dry", True, None),
-        ("heat", False, 66),
+    ("mode", "expected"), [
+        ("cool", 26),
+        ("heat", 19),
+        ("dry", None),
     ]
 )
-def test_target_temperature(mode, celsius, expected, populatedEntity, mocker):
+def test_target_temperature(mode, expected, populatedEntity, mocker):
     populatedEntity.hvac_mode.mode = mode
-    populatedEntity.display_celsius = celsius
     assert populatedEntity.target_temperature == expected
 
 
@@ -73,71 +70,54 @@ def test__get_target_feature(mode, expected, populatedEntity):
     populatedEntity.hvac_mode.mode = mode
     assert populatedEntity._get_target_feature(mode) == expected
 
-@pytest.mark.parametrize(("mode", "expected", "celsius"), [
-    ("cool", 0.5, True),
-    ("heat", 0.5, True),
-    (None, 0.5, True),
-    ("cool", 1, False),
+@pytest.mark.parametrize(("mode", "expected"), [
+    ("cool", 0.5),
+    ("heat", 0.5),
+    (None, 0.5),
 ])
-def test_target_temperature_step(mode, expected, celsius, populatedEntity):
+def test_target_temperature_step(mode, expected, populatedEntity):
     populatedEntity.hvac_mode.mode = mode
-    populatedEntity.display_celsius = celsius
     assert populatedEntity.target_temperature_step == expected
 
 
-@pytest.mark.parametrize(("mode", "celsius", "is_set", "expected"), [
-    ("cool", True, True, 37),
-    ("cool", False, True, 99),
-    ("auto", True, True, 32),
-    ("cool", True, None, None),
-    ("heat", True, True, 32),
+@pytest.mark.parametrize(("mode", "is_set", "expected"), [
+    ("cool", True, 37),
+    ("auto", True, 32),
+    ("cool", None, None),
+    ("heat", True, 32),
 ])
-def test_target_temperature_max(mode, celsius, is_set, expected, populatedEntity):
+def test_target_temperature_max(mode, is_set, expected, populatedEntity):
     populatedEntity.hvac_mode.mode = mode
-    populatedEntity.display_celsius = celsius
     if not is_set:
         populatedEntity.target_temperature_cooling = None
         populatedEntity.target_temperature_auto_cooling = None
     assert populatedEntity.target_temperature_max == expected
 
 
-@pytest.mark.parametrize(("mode", "celsius", "is_set", "expected"), [
-    ("heat", True, True, 4),
-    ("heat", False, True, 39),
-    ("auto", True, True, 4),
-    ("heat", True, None, None),
+@pytest.mark.parametrize(("mode", "is_set", "expected"), [
+    ("heat", True, 4),
+    ("auto", True, 4),
+    ("heat", None, None),
 ])
-def test_target_temperature_min(mode, celsius, is_set, expected, populatedEntity):
+def test_target_temperature_min(mode, is_set, expected, populatedEntity):
     populatedEntity.hvac_mode.mode = mode
-    populatedEntity.display_celsius = celsius
     if not is_set:
         populatedEntity.target_temperature_heating = None
         populatedEntity.target_temperature_auto_heating = None
     assert populatedEntity.target_temperature_min == expected
 
 
-@pytest.mark.parametrize(("current_temperature", "celsius", "expected"), [
-    (None, None, None),
+@pytest.mark.parametrize(("current_temperature", "expected"), [
+    (None, None),
     (
         features.CurrentTemperatureFeature(
             temperature=35,
             function_class="temperature",
             function_instance="current-temp",
         ),
-        True,
         35,
     ),
-    (
-        features.CurrentTemperatureFeature(
-            temperature=35,
-            function_class="temperature",
-            function_instance="current-temp",
-        ),
-        False,
-        95,
-    ),
 ])
-def test_temperature(populatedEntity, current_temperature, celsius, expected):
+def test_temperature(populatedEntity, current_temperature, expected):
     populatedEntity.current_temperature = current_temperature
-    populatedEntity.display_celsius = celsius
     assert populatedEntity.temperature == expected
