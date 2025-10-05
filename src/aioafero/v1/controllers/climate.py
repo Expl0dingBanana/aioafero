@@ -4,7 +4,6 @@ from typing import TypeVar
 
 from aioafero import device
 from aioafero.device import AferoDevice, AferoResource, AferoState
-from aioafero.errors import DeviceNotFound
 from aioafero.util import calculate_hubspace_celsius, process_function
 from aioafero.v1.models import features
 
@@ -95,8 +94,6 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                 )
             elif state.functionClass == "available":
                 climate_data["available"] = state.value
-            elif number := await self.initialize_number(func_def, state):
-                climate_data["numbers"][number[0]] = number[1]
             elif select := await self.initialize_select(afero_device.functions, state):
                 climate_data["selects"][select[0]] = select[1]
             elif state.functionClass == "temperature-units":
@@ -125,12 +122,11 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                     updated_keys.add("available")
             elif state.functionClass == "temperature":
                 if state.functionInstance == "current-temp":
-                    if cur_item.current_temperature:
-                        temp_value = cur_item.current_temperature.temperature
-                        rounded_val = round(state.value, 1)
-                        if temp_value != rounded_val:
-                            cur_item.current_temperature.temperature = rounded_val
-                            updated_keys.add(f"temperature-{state.functionInstance}")
+                    temp_value = cur_item.current_temperature.temperature
+                    rounded_val = round(state.value, 1)
+                    if temp_value != rounded_val:
+                        cur_item.current_temperature.temperature = rounded_val
+                        updated_keys.add(f"temperature-{state.functionInstance}")
                 elif state.functionInstance in temperature_mapping:
                     temp_item = getattr(
                         cur_item, temperature_mapping.get(state.functionInstance), None
@@ -158,11 +154,7 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
 
     async def set_climate_state(self, device_id: str, update_obj, **kwargs) -> None:
         """Set climate state."""
-        try:
-            cur_item = self.get_device(device_id)
-        except DeviceNotFound:
-            self._logger.info("Unable to find device %s", device_id)
-            return
+        cur_item = self.get_device(device_id)
 
         is_celsius = kwargs.get("is_celsius", False)
 
@@ -179,20 +171,19 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
             temp_val = kwargs.get(kwarg_name)
             if temp_val is not None:
                 cur_temp_feature = getattr(cur_item, attr_name, None)
-                if cur_temp_feature:
-                    if not cur_item.display_celsius and not is_celsius:
-                        temp_val = calculate_hubspace_celsius(temp_val)
+                if not cur_item.display_celsius and not is_celsius:
+                    temp_val = calculate_hubspace_celsius(temp_val)
 
-                    setattr(
-                        update_obj,
-                        attr_name,
-                        features.TargetTemperatureFeature(
-                            value=temp_val,
-                            min=cur_temp_feature.min,
-                            max=cur_temp_feature.max,
-                            step=cur_temp_feature.step,
-                            instance=cur_temp_feature.instance,
-                        ),
-                    )
+                setattr(
+                    update_obj,
+                    attr_name,
+                    features.TargetTemperatureFeature(
+                        value=temp_val,
+                        min=cur_temp_feature.min,
+                        max=cur_temp_feature.max,
+                        step=cur_temp_feature.step,
+                        instance=cur_temp_feature.instance,
+                    ),
+                )
 
         await self.update(device_id, obj_in=update_obj)

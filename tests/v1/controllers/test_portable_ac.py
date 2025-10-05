@@ -237,7 +237,7 @@ async def test_set_state(mocked_controller):
         portable_ac_id,
         hvac_mode="cool",
         target_temperature=22.5,
-        selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
+        selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100", ("nope", "exist", None): "nope"},
     )
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller.items[0]

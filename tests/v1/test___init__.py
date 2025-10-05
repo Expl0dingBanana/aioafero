@@ -502,3 +502,23 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
         refresh_token="refresh_token",
         expiration=mocker.ANY,
     )
+
+
+@pytest.mark.asyncio
+def test_unsubscribe():
+    bridge = AferoBridgeV1("username", "password")
+
+    def whatever(*args, **kwargs):
+        pass
+
+    # Ensure at least two controllers are initialized to validate unsubscribe functionality
+    bridge.devices._initialized = True
+    bridge.fans._initialized = True
+    unsub = bridge.subscribe(whatever)
+    assert bridge.devices._subscribers == {"*": [(whatever, None)]}
+    assert bridge.fans._subscribers == {"*": [(whatever, None)]}
+    assert callable(unsub)
+    unsub()
+    assert bridge.devices._subscribers == {"*": []}
+    assert bridge.fans._subscribers == {"*": []}
+

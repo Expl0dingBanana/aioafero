@@ -56,12 +56,6 @@ class PortableACController(ClimateController[PortableAC]):
     ITEM_MAPPING = {
         "hvac_mode": "mode",
     }
-    # Sensors map functionClass -> Unit
-    ITEM_SENSORS: dict[str, str] = {}
-    # Binary sensors map key -> alerting value
-    ITEM_BINARY_SENSORS: dict[str, str] = {}
-    # Elements that map to numbers. func class / func instance to unit
-    ITEM_NUMBERS: dict[tuple[str, str | None], str] = {}
     # Elements that map to Select. func class / func instance to name
     ITEM_SELECTS = {
         ("fan-speed", "ac-fan-speed"): "Fan Speed",
@@ -88,7 +82,7 @@ class PortableACController(ClimateController[PortableAC]):
             hvac_mode=climate_data["hvac_mode"],
             target_temperature_heating=climate_data["target_temperature_heating"],
             target_temperature_cooling=climate_data["target_temperature_cooling"],
-            numbers=climate_data["numbers"],
+            numbers={},
             selects=climate_data["selects"],
             binary_sensors={},
             sensors={},
@@ -121,8 +115,7 @@ class PortableACController(ClimateController[PortableAC]):
         update_obj = PortableACPut()
         hvac_mode: str | None = kwargs.get("hvac_mode")
         target_temperature: float | None = kwargs.get("target_temperature")
-        numbers: dict[tuple[str, str | None], float] | None = kwargs.get("numbers")
-        selects: dict[tuple[str, str | None], str] | None = kwargs.get("selects")
+        selects: dict[tuple[str, str | None], str] | None = kwargs.get("selects", {})
         try:
             cur_item = self.get_device(device_id)
         except DeviceNotFound:
@@ -145,29 +138,12 @@ class PortableACController(ClimateController[PortableAC]):
         if target_temperature is not None:
             kwargs["target_temperature_cooling"] = kwargs.pop("target_temperature")
 
-        if numbers:
-            if not update_obj.numbers:
-                update_obj.numbers = {}
-            for key, val in numbers.items():
-                if key not in cur_item.numbers:
-                    continue
-                update_obj.numbers[key] = features.NumbersFeature(
-                    value=val,
-                    min=cur_item.numbers[key].min,
-                    max=cur_item.numbers[key].max,
-                    step=cur_item.numbers[key].step,
-                    name=cur_item.numbers[key].name,
-                    unit=cur_item.numbers[key].unit,
-                )
-        if selects:
-            if not update_obj.selects:
-                update_obj.selects = {}
-            for key, val in selects.items():
-                if key not in cur_item.selects:
-                    continue
-                update_obj.selects[key] = features.SelectFeature(
-                    selected=val,
-                    selects=cur_item.selects[key].selects,
-                    name=cur_item.selects[key].name,
-                )
+        for key, val in selects.items():
+            if key not in cur_item.selects:
+                continue
+            update_obj.selects[key] = features.SelectFeature(
+                selected=val,
+                selects=cur_item.selects[key].selects,
+                name=cur_item.selects[key].name,
+            )
         await self.set_climate_state(device_id, update_obj, **kwargs)
