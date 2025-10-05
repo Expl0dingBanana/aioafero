@@ -22,10 +22,6 @@ class FanController(BaseResourcesController[Fan]):
         "speed": "fan-speed",
         "direction": "fan-reverse",
     }
-    # Sensors map functionClass -> Unit
-    ITEM_SENSORS: dict[str, str] = {}
-    # Binary sensors map key -> alerting value
-    ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str) -> None:
         """Turn on the fan."""
@@ -94,11 +90,6 @@ class FanController(BaseResourcesController[Fan]):
                 )
             elif state.functionClass == "available":
                 available = state.value
-            elif sensor := await self.initialize_sensor(state, afero_device.device_id):
-                if isinstance(sensor, AferoBinarySensor):
-                    binary_sensors[sensor.id] = sensor
-                else:
-                    sensors[sensor.id] = sensor
 
         self._items[afero_device.id] = Fan(
             _id=afero_device.id,
@@ -162,8 +153,6 @@ class FanController(BaseResourcesController[Fan]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
-            elif update_key := await self.update_sensor(state, cur_item):
-                updated_keys.add(update_key)
 
         return updated_keys
 

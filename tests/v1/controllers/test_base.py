@@ -1554,3 +1554,20 @@ def test_get_afero_state_from_feature(
 def test_get_afero_states_from_list(states, expected, mocker):
     mocker.patch("time.time", return_value=12345)
     assert get_afero_states_from_list(states) == expected
+
+
+def test_unsubscribe(ex1_rc):
+    assert ex1_rc._subscribers == {"*": []}
+
+    def whatever(*args, **kwargs):
+        pass
+
+    unsub = ex1_rc.subscribe(whatever, id_filter="beans")
+    unsub2 = ex1_rc.subscribe(whatever, id_filter="beans2")
+    assert ex1_rc._subscribers == {"*": [], "beans": [(whatever, None)], "beans2": [(whatever, None)]}
+    ex1_rc._subscribers = {"*": [], "beans": [(whatever, None)]}
+    # Ensure no error if unsub called if its somehow removed
+    unsub2()
+    ex1_rc._subscribers = {"*": [], "beans": [(whatever, None)]}
+    unsub()
+    assert ex1_rc._subscribers == {"*": [], "beans": []}

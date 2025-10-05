@@ -562,3 +562,7 @@ standard = {"heat", "cool", "off", "fan", "auto"}
 )
 def test_get_supported_modes(system_type, modes, expected):
     assert get_supported_modes(system_type, modes) == expected
+
+
+async def set_state_invalid_device(mocked_controller):
+    assert await mocked_controller.set_state("invalid", hvac_mode="cool") is None

@@ -140,6 +140,8 @@ class EffectFeature:
                 continue
             seq_key = effect_group
             break
+        if seq_key is None:
+            return []
         preset_val = self.effect if self.effect in self.effects["preset"] else seq_key
         states.append(
             {

@@ -8,7 +8,6 @@ from aioafero.v1.models import features
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 from aioafero.v1.models.thermostat import Thermostat, ThermostatPut
 
-from .base import AferoBinarySensor
 from .climate import ClimateController
 
 
@@ -22,8 +21,6 @@ class ThermostatController(ClimateController[Thermostat]):
         "fan_mode": "fan-mode",
         "hvac_mode": "mode",
     }
-    # Sensors map functionClass -> Unit
-    ITEM_SENSORS: dict[str, str] = {}
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {
         "filter-replacement": "replacement-needed",
@@ -58,16 +55,12 @@ class ThermostatController(ClimateController[Thermostat]):
             elif state.functionClass == "system-type":
                 system_type = state.value
             elif sensor := await self.initialize_sensor(state, afero_device.id):
-                if isinstance(sensor, AferoBinarySensor):
-                    climate_data["binary_sensors"][sensor.id] = sensor
-                else:
-                    climate_data["sensors"][sensor.id] = sensor
+                climate_data["binary_sensors"][sensor.id] = sensor
 
         # Determine supported modes
-        if climate_data["hvac_mode"] and system_type:
-            climate_data["hvac_mode"].supported_modes = get_supported_modes(
-                system_type, climate_data["hvac_mode"].modes
-            )
+        climate_data["hvac_mode"].supported_modes = get_supported_modes(
+            system_type, climate_data["hvac_mode"].modes
+        )
 
         self._items[afero_device.id] = Thermostat(
             _id=afero_device.id,
@@ -128,8 +121,6 @@ class ThermostatController(ClimateController[Thermostat]):
                 if cur_item.hvac_action != state.value:
                     cur_item.hvac_action = state.value
                     updated_keys.add(state.functionClass)
-            elif update_key := await self.update_sensor(state, cur_item):
-                updated_keys.add(update_key)
         return updated_keys
 
     async def set_fan_mode(self, device_id: str, fan_mode: str) -> None:

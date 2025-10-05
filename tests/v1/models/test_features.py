@@ -89,8 +89,12 @@ def test_EffectFeature():
     ]
     assert feat.is_preset("fade-3")
     assert not feat.is_preset("rainbow")
+    # effect does not exist
+    feat.effect = "nope"
+    assert feat.api_value == []
     feat = features.EffectFeature(effect="fade-3", effects={"custom": {"rainbow"}})
     assert not feat.is_preset("rainbow")
+    
 
 
 def test_HVACModeFeature():
