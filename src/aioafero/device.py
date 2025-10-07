@@ -7,7 +7,7 @@ __all__ = [
     "get_afero_device",
     "get_function_from_device",
 ]
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 import logging
 from typing import Any, TypeVar
 
@@ -45,6 +45,12 @@ class AferoCapability:
     def options(self) -> dict[str, Any]:
         """Return the options for the capability."""
         return self._opts
+
+    def raw_dump(self) -> dict[str, Any]:
+        """Return the raw dump of the capability."""
+        cap_dict = {k: v for k, v in asdict(self).items() if k != "_opts"}
+        cap_dict.update(self._opts)
+        return cap_dict
 
 
 @dataclass

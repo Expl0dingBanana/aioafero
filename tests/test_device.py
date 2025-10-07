@@ -470,3 +470,18 @@ capabilities = [
 )
 def test_get_capability_from_device(capabilities, func_class, func_instance, expected):
     assert device.get_capability_from_device(capabilities, func_class, func_instance) == expected
+
+
+def test_capability_raw_dump():
+    cap = capabilities[0]
+    assert cap.raw_dump() == {
+        "functionClass": "temperature",
+        "type": "numeric",
+        "schedulable": True,
+        "functionInstance": "cooling-target",
+        "range": {
+            "min": 60,
+            "max": 86,
+            "step": 1
+        }
+    }
