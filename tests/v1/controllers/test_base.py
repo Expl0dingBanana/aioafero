@@ -496,10 +496,24 @@ async def ex1_rc(bridge_with_acct_req):
 
 
 @pytest_asyncio.fixture
+async def ex1_rc_mocked(mocked_bridge):
+    mocked_bridge.add_controller("ex1", Example1ResourceController)
+    await mocked_bridge.initialize()
+    yield mocked_bridge.ex1
+
+
+@pytest_asyncio.fixture
 async def ex2_rc(bridge_with_acct_req):
     bridge_with_acct_req.add_controller("ex2", Example2ResourceController)
     await bridge_with_acct_req.initialize()
     yield bridge_with_acct_req.ex2
+
+
+@pytest_asyncio.fixture
+async def ex2_rc_mocked(mocked_bridge):
+    mocked_bridge.add_controller("ex2", Example2ResourceController)
+    await mocked_bridge.initialize()
+    yield mocked_bridge.ex2
 
 
 def test_init(ex1_rc):
@@ -1093,8 +1107,9 @@ async def test_update_dev_not_found(ex1_rc, caplog):
     ],
 )
 async def test_update(
-    obj_in, states, expected_states, expected_item, successful, ex1_rc, mocker
+    obj_in, states, expected_states, expected_item, successful, ex1_rc_mocked, mocker
 ):
+    ex1_rc = ex1_rc_mocked
     await ex1_rc.initialize()
     mocker.patch("time.time", return_value=12345)
     await ex1_rc._bridge.events.generate_events_from_data(
@@ -1169,8 +1184,9 @@ async def test_update(
     ],
 )
 async def test_update_dict(
-    device, obj_in, states, expected_states, expected_item, successful, ex2_rc, mocker
+    device, obj_in, states, expected_states, expected_item, successful, ex2_rc_mocked, mocker
 ):
+    ex2_rc = ex2_rc_mocked
     await ex2_rc.initialize()
     mocker.patch("time.time", return_value=12345)
     ex2_rc._items[device.id] = await ex2_rc.initialize_elem(device)

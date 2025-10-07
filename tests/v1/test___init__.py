@@ -113,22 +113,14 @@ def test_set_polling_interval(mocked_bridge):
     assert mocked_bridge.events._polling_interval == 10
 
 
-@pytest.mark.skip(reason="Not yet implemented")
 @pytest.mark.asyncio
-async def test_close():
-    pass
-
-
-@pytest.mark.skip(reason="Not yet implemented")
-def test_subscribe():
-    pass
-
-
-@pytest.mark.skip(reason="Not yet implemented")
-@pytest.mark.asyncio
-async def test_initialize():
-    pass
-
+async def test_initialize(bridge_with_acct, mocker):
+    mocker.patch.object(bridge_with_acct, "request")
+    mocker.patch.object(bridge_with_acct, "get_account_id", return_value="mocked-account-id")
+    mocker.patch.object(bridge_with_acct.events, "wait_for_first_poll")
+    mocker.patch.object(bridge_with_acct.devices, "_initialized", True)
+    await bridge_with_acct.initialize()
+    await bridge_with_acct.async_block_until_done()
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -521,4 +513,3 @@ def test_unsubscribe():
     unsub()
     assert bridge.devices._subscribers == {"*": []}
     assert bridge.fans._subscribers == {"*": []}
-

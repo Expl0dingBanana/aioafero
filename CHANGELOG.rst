@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.6.1
+=============
+
+ * Fix an issue where async_block_until_done stated all tasks were done when they were not
+
 Version 5.6.0
 =============
 

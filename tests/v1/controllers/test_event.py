@@ -733,3 +733,17 @@ async def test_emit_resource_filter_exception(bridge, caplog):
     stream.subscribe(min, resource_filter=(ResourceTypes.LIGHT.value,))
     stream.emit(event.EventType.RESOURCE_UPDATED, event_to_emit)
     assert "Unhandled exception. Please open a bug report" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_wait_for_first_poll(bridge):
+    stream = bridge.events
+    await stream.stop()
+    assert stream._first_poll_completed is True
+    stream._first_poll_completed = False
+    task = asyncio.create_task(stream.wait_for_first_poll())
+    await asyncio.sleep(0.1)
+    assert task.done() is False
+    stream._first_poll_completed = True
+    await asyncio.sleep(0.1)
+    assert task.done() is True
