@@ -41,6 +41,7 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
     mocker.patch.object(
         bridge, "fetch_data", side_effect=mocker.AsyncMock(return_value=[])
     )
+    mocker.patch.object(bridge.events, "_first_poll_completed", True)
     mocker.patch.object(bridge, "_web_session", aio_sess)
 
     bridge.set_token_data(
@@ -113,6 +114,7 @@ def mocked_bridge_req(mocker, aio_sess):
     mocker.patch.object(bridge, "fetch_data", side_effect=bridge.fetch_data)
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     mocker.patch.object(bridge, "_web_session", aio_sess)
+    mocker.patch.object(bridge.events, "_first_poll_completed", True)
     bridge._auth._token_data = TokenData(
         "mock-token",
         None,
@@ -163,7 +165,9 @@ async def bridge(mocker):
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
     mocker.patch.object(bridge, "fetch_data", return_value=[])
     mocker.patch.object(bridge, "request", side_effect=mocker.AsyncMock())
+    mocker.patch.object(bridge.events, "_first_poll_completed", True)
     await bridge.initialize()
+    await bridge.async_block_until_done()
     yield bridge
     await bridge.close()
 
@@ -185,6 +189,7 @@ async def bridge_with_acct_req(mocker):
     bridge = AferoBridgeV1("user", "passwd")
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
+    mocker.patch.object(bridge.events, "_first_poll_completed", True)
     bridge._auth._token_data = TokenData(
             "mock-token",
             None,
@@ -192,6 +197,7 @@ async def bridge_with_acct_req(mocker):
             expiration=datetime.datetime.now().timestamp() + 200,
         )
     await bridge.initialize()
+    await bridge.async_block_until_done()
     yield bridge
     await bridge.close()
 

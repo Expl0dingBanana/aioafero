@@ -86,6 +86,7 @@ class EventStream:
         self._multiple_device_finder: dict[str, callable] = {}
         self._version_poll_time: datetime.datetime | None = None
         self._version_poll_enabled: bool = poll_version
+        self._first_poll_completed: bool = False
 
     @property
     def connected(self) -> bool:
@@ -127,6 +128,11 @@ class EventStream:
             self._version_poll_time = now
             return True
         return False
+
+    async def wait_for_first_poll(self) -> None:
+        """Wait until the first poll has completed."""
+        while not self._first_poll_completed:
+            await asyncio.sleep(0.05)
 
     async def initialize(self) -> None:
         """Start the polling processes."""
@@ -395,6 +401,7 @@ class EventStream:
                 await self.generate_events_from_data(data)
             except Exception:
                 self._logger.exception("Unable to process Afero IoT data. %s", data)
+            self._first_poll_completed = True
 
     async def __event_reader(self) -> None:
         """Poll the current states."""

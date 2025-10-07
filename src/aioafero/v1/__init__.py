@@ -175,7 +175,10 @@ class AferoBridgeV1:
 
     async def otp_login(self, otp_code: str) -> None:
         """Perform OTP login with the provided code."""
-        await self._auth.perform_otp_login(otp_code)
+        task = asyncio.create_task(self._auth.perform_otp_login(otp_code))
+        self.add_job(task)
+        await task
+        return task.result()
 
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
@@ -297,20 +300,28 @@ class AferoBridgeV1:
         return self._account_id
 
     async def initialize(self) -> None:
-        """Initialize the bridge for communication with Afero API."""
+        """Initialize the bridge for communication with Afero API.
+
+        To ensure the bridge is fully initialized, call async_block_until_done().
+        """
         if len(self._scheduled_tasks) == 0:
-            await self.initialize_cleanup()
             await self.get_account_id()
-            await asyncio.gather(
-                *[
-                    controller.initialize()
-                    for controller in self._controllers.values()
-                    if not controller.initialized
-                ]
-            )
-            await self._events.initialize()
+            for controller in self._controllers.values():
+                if controller.initialized:
+                    continue
+                self.add_job(asyncio.create_task(controller.initialize()))
+            self.add_job(asyncio.create_task(self.initialize_cleanup()))
+            self.add_job(asyncio.create_task(self.events.initialize()))
+            self.add_job(asyncio.create_task(self.events.wait_for_first_poll()))
 
     async def fetch_data(self, version_poll=False) -> list[dict[Any, str]]:
+        """Query the API."""
+        task = asyncio.create_task(self._fetch_data(version_poll))
+        self.add_job(task)
+        await task
+        return task.result()
+
+    async def _fetch_data(self, version_poll=False) -> list[dict[Any, str]]:
         """Query the API."""
         self.logger.debug("Querying API for all data")
         headers = {
@@ -345,6 +356,13 @@ class AferoBridgeV1:
         return data
 
     async def fetch_device_states(self, device_id) -> list[dict[Any, str]]:
+        """Query the API for new device states."""
+        task = asyncio.create_task(self._fetch_device_states(device_id))
+        self.add_job(task)
+        await task
+        return task.result()
+
+    async def _fetch_device_states(self, device_id) -> list[dict[Any, str]]:
         """Query the API for new device states."""
         self.logger.debug("Querying the API for updated states for %s", device_id)
         headers = {
