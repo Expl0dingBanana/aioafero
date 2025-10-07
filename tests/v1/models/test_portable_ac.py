@@ -94,6 +94,7 @@ def test_empty():
     assert entity.target_temperature_min is None
     assert entity.supports_fan_mode is False
     assert entity.supports_temperature_range is False
+    assert entity.target_temperature_step == 1
 
 
 @pytest.mark.parametrize(

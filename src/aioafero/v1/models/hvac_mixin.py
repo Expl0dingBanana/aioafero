@@ -54,11 +54,17 @@ class HVACMixin(ABC):
         """Smallest increment for adjusting the temperature."""
         set_mode = self.get_mode_to_check()
         if not set_mode:
-            val = 0.5  # Default from Hubspace
-        else:
-            target_feature = self._get_target_feature(set_mode)
-            val = getattr(target_feature, "step", 0.5)
-        return val
+            for mode in [
+                self.target_temperature_heating,
+                self.target_temperature_cooling,
+                self.target_temperature_auto_heating,
+                self.target_temperature_auto_cooling,
+            ]:
+                if mode is not None:
+                    return mode.step
+            return 1
+        target_feature = self._get_target_feature(set_mode)
+        return getattr(target_feature, "step", 0.5)
 
     @property
     def target_temperature_max(self) -> float | None:
