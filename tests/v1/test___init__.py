@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from aioafero import EventType, InvalidAuth, AferoDevice, AferoState
+from aioafero import EventType, InvalidAuth, AferoDevice, AferoState, TemperatureUnit
 from aioafero.errors import DeviceNotFound, AferoError, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const, TemperatureUnit
 from aioafero.v1.controllers.device import DeviceController
@@ -522,3 +522,19 @@ def test_unsubscribe():
     unsub()
     assert bridge.devices._subscribers == {"*": []}
     assert bridge.fans._subscribers == {"*": []}
+
+
+@pytest.mark.parametrize(
+    ("start_unit", "new_unit", "called"), [
+        # No change
+        (TemperatureUnit.CELSIUS, TemperatureUnit.CELSIUS, False),
+        # Change detected
+        (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT, True),
+    ]
+)
+async def test_adjust_temperature_unit(start_unit, new_unit, called, mocked_bridge, mocker):
+    mocker.patch.object(mocked_bridge, "temperature_unit", start_unit)
+    mocker.patch.object(mocked_bridge, "add_job", side_effect=mocked_bridge.add_job)
+    await mocked_bridge.adjust_temperature_unit(new_unit)
+    assert mocked_bridge.temperature_unit == new_unit
+    assert mocked_bridge.add_job.called == called

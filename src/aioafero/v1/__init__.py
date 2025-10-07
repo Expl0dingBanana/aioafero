@@ -112,7 +112,7 @@ class AferoBridgeV1:
     :param client_name: A name for the client to be used in the User-Agent header.
         Defaults to "aioafero".
     :param temperature_unit: The desired temperature unit for API responses.
-        Defaults to `TemperatureUnit.FAHRENHEIT`.
+        Defaults to `TemperatureUnit.CELSIUS`.
 
     """
 
@@ -601,3 +601,15 @@ class AferoBridgeV1:
                     if task.done():
                         self._adhoc_tasks.remove(task)
                 await asyncio.sleep(1)
+
+    async def adjust_temperature_unit(
+        self,
+        temperature_unit: TemperatureUnit,
+    ) -> None:
+        """Adjust the temperature unit for API responses.
+
+        :param temperature_unit: The desired temperature unit for API responses.
+        """
+        if self.temperature_unit != temperature_unit:
+            self.temperature_unit = temperature_unit
+            self.add_job(asyncio.create_task(self.events.perform_poll()))
