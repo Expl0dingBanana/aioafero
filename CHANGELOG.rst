@@ -5,7 +5,7 @@ Changelog
 Version 6.0.1
 =============
 
- * Fix an issue where DeviceController would re-use existing devices if it was
+ * Fix an issue where DeviceController would reuse existing devices if it was
    within the same memory space.
 
 Version 6.0.0
