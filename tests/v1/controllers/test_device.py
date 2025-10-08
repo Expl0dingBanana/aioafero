@@ -19,8 +19,7 @@ door_lock = utils.create_devices_from_data("door-lock-TBD.json")[0]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    controller = DeviceController(mocked_bridge)
-    return controller
+    return mocked_bridge.devices
 
 
 @pytest.fixture
@@ -363,3 +362,10 @@ async def test__process_update_response(mocked_controller, mocker):
         ),
     )
     handle_event.assert_not_called()
+
+
+def test_instanced_known_devs(mocked_bridge):
+    """Test that there is no overlap between sensor and binary_sensor IDs."""
+    c1 = DeviceController(mocked_bridge)
+    c2 = DeviceController(mocked_bridge)
+    assert id(c1._known_parents) != id(c2._known_parents)

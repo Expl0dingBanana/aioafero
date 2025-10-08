@@ -23,7 +23,11 @@ class DeviceController(BaseResourcesController[Device]):
     ITEM_BINARY_SENSORS: dict[str, str] = {
         "error": "alerting",
     }
-    _known_parents: dict[str, str] = {}
+
+    def __init__(self, *args, **kwargs):
+        """Initialize instance."""
+        super().__init__(*args, **kwargs)
+        self._known_parents: dict[str, str] = {}
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Device:
         """Initialize the element.
