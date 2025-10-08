@@ -1,6 +1,7 @@
 """aioafero API."""
 
 __all__ = [
+    "AferoCapability",
     "AferoDevice",
     "AferoError",
     "AferoState",
@@ -11,6 +12,7 @@ __all__ = [
     "OTPError",
     "OTPRequired",
     "SecuritySystemError",
+    "TemperatureUnit",
     "anonymize_device",
     "anonymize_devices",
     "get_afero_device",
@@ -32,7 +34,7 @@ finally:
 
 from . import v1
 from .anonomyize_data import anonymize_device, anonymize_devices
-from .device import AferoDevice, AferoState, get_afero_device
+from .device import AferoCapability, AferoDevice, AferoState, get_afero_device
 from .errors import (
     AferoError,
     InvalidAuth,
@@ -42,4 +44,4 @@ from .errors import (
     OTPRequired,
     SecuritySystemError,
 )
-from .types import EventType
+from .types import EventType, TemperatureUnit

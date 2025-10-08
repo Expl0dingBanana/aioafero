@@ -440,3 +440,48 @@ def test_get_afero_device():
         data = json.load(fh)
     dev = device.get_afero_device(data[0])
     assert len(dev.capabilities) == 102
+
+
+capabilities = [
+    device.AferoCapability(
+        **{
+            "functionClass": "temperature",
+            "type": "numeric",
+            "schedulable": True,
+            "functionInstance": "cooling-target",
+            "_opts": {
+                "range": {
+                    "min": 60,
+                    "max": 86,
+                    "step": 1
+                }
+            }
+        }
+    )
+]
+
+@pytest.mark.parametrize(
+    ("capabilities", "func_class", "func_instance", "expected"),
+    [
+        (capabilities, "temperature", "cooling-target", capabilities[0]),
+        (capabilities, "temperature", "heating-target", None),
+        (capabilities, "none-instance", "heating-target", None),
+    ],
+)
+def test_get_capability_from_device(capabilities, func_class, func_instance, expected):
+    assert device.get_capability_from_device(capabilities, func_class, func_instance) == expected
+
+
+def test_capability_raw_dump():
+    cap = capabilities[0]
+    assert cap.raw_dump() == {
+        "functionClass": "temperature",
+        "type": "numeric",
+        "schedulable": True,
+        "functionInstance": "cooling-target",
+        "range": {
+            "min": 60,
+            "max": 86,
+            "step": 1
+        }
+    }

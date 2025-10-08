@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "5.6.1"
+version = "5.7.0"
 dependencies = [
   "aiohttp",
   "beautifulsoup4",
@@ -55,6 +55,8 @@ addopts = "--cov --cov-report term-missing"
 testpaths = [
     "tests"
 ]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 
 [tool.ruff]

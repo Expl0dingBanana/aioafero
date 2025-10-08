@@ -20,6 +20,9 @@ portable_ac_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
 portable_ac_swing = utils.create_devices_from_data("myko-portable-ac-with-swing.json")[1]
 portable_ac_swing_id = "c31e1854-87de-47a7-ac62-f1cefe3ecba4"
 
+portable_ac_f = utils.create_devices_from_data("portable-ac-f.json")[0]
+portable_ac_f_id = "67fc0e41-9e20-47b4-b015-cad08df65f7c"
+
 
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
@@ -92,6 +95,45 @@ async def test_initialize(mocked_controller):
     )
     assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
         value=22, step=0.5, min=16, max=30, instance="cooling-target"
+    )
+    assert dev.numbers == {}
+    assert dev.selects == {
+        ("fan-speed", "ac-fan-speed"): features.SelectFeature(
+            selected="fan-speed-auto",
+            selects={"fan-speed-auto", "fan-speed-2-100", "fan-speed-2-050"},
+            name="Fan Speed",
+        ),
+        ("sleep", None): features.SelectFeature(
+            selected="off",
+            selects={"on", "off"},
+            name="Sleep Mode",
+        ),
+    }
+    assert dev.target_temperature_heating is None
+    assert dev.target_temperature_auto_heating is None
+    assert dev.target_temperature_auto_cooling is None
+
+
+@pytest.mark.asyncio
+async def test_initialize_f(mocked_controller):
+    await mocked_controller.initialize_elem(portable_ac_f)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == portable_ac_f_id
+    assert dev.available is True
+    assert dev.current_temperature == features.CurrentTemperatureFeature(
+        temperature=82,
+        function_class="temperature",
+        function_instance="current-temp",
+    )
+    assert dev.hvac_mode == features.HVACModeFeature(
+        mode="auto-cool",
+        previous_mode="auto-cool",
+        modes={"fan", "auto-cool", "dehumidify", "cool"},
+        supported_modes={"fan", "auto-cool", "dehumidify", "cool"},
+    )
+    assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
+        value=60, step=1, min=60, max=86, instance="cooling-target"
     )
     assert dev.numbers == {}
     assert dev.selects == {
@@ -209,7 +251,6 @@ async def test_update_elem(mocked_controller):
         "temperature-current-temp",
         "mode",
         "select-('fan-speed', 'ac-fan-speed')",
-        "temperature-units",
     }
 
 
@@ -231,7 +272,6 @@ async def test_set_state(mocked_controller):
         [utils.create_hs_raw_from_device(portable_ac)]
     )
     await mocked_controller._bridge.async_block_until_done()
-    mocked_controller[portable_ac_id].display_celsius = True
     assert len(mocked_controller.items) == 1
     await mocked_controller.set_state(
         portable_ac_id,
@@ -245,50 +285,6 @@ async def test_set_state(mocked_controller):
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
-
-
-@pytest.mark.asyncio
-async def test_set_state_in_f(mocked_controller):
-    await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(portable_ac)]
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    assert len(mocked_controller.items) == 1
-    await mocked_controller.set_state(
-        portable_ac_id,
-        hvac_mode="cool",
-        target_temperature=76,
-        selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    dev = mocked_controller.items[0]
-    assert dev.target_temperature_cooling.value == 24.5
-    assert dev.hvac_mode.mode == "cool"
-    assert dev.hvac_mode.previous_mode == "auto-cool"
-    assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
-
-
-@pytest.mark.asyncio
-async def test_set_state_in_f_force_c(mocked_controller):
-    await mocked_controller._bridge.events.generate_events_from_data(
-        [utils.create_hs_raw_from_device(portable_ac)]
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    assert len(mocked_controller.items) == 1
-    await mocked_controller.set_state(
-        portable_ac_id,
-        hvac_mode="cool",
-        target_temperature=24.5,
-        selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
-        is_celsius=True,
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    dev = mocked_controller.items[0]
-    assert dev.target_temperature_cooling.value == 24.5
-    assert dev.hvac_mode.mode == "cool"
-    assert dev.hvac_mode.previous_mode == "auto-cool"
-    assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
-
 
 @pytest.mark.asyncio
 async def test_set_state_invalid_dev(mocked_controller):

@@ -9,7 +9,6 @@ def populated_entity():
     return Thermostat(
         _id="entity-1",
         available=True,
-        display_celsius=True,
         current_temperature=features.CurrentTemperatureFeature(
             temperature=12,
             function_class="temperature",
@@ -62,7 +61,6 @@ def empty_entity():
     return Thermostat(
         _id="entity-1",
         available=True,
-        display_celsius=None,
         current_temperature=None,
         fan_mode=None,
         hvac_action=None,
@@ -159,19 +157,6 @@ def test_init(populated_entity):
     assert populated_entity.target_temperature == 19
     populated_entity.hvac_mode.previous_mode = "i-dont-exist"
     assert populated_entity.target_temperature is None
-    # Test F
-    populated_entity.display_celsius = False
-    populated_entity.hvac_mode.mode = "auto"
-    assert populated_entity.target_temperature_range == (
-        64,
-        80,
-    )
-    assert populated_entity.target_temperature_step == 1
-    assert populated_entity.target_temperature_max == 90
-    assert populated_entity.target_temperature_min == 39
-    assert populated_entity.temperature == 54
-    populated_entity.hvac_mode.mode = "cool"
-    assert populated_entity.target_temperature == 79
     # Test no target temperature
     populated_entity.hvac_mode.mode = "off"
     populated_entity.hvac_mode.previous_mode = "off"

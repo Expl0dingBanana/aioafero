@@ -2,7 +2,7 @@ import json
 import os
 from typing import Any
 
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice, AferoState, AferoCapability
 
 current_path: str = os.path.dirname(os.path.realpath(__file__))
 
@@ -42,6 +42,10 @@ def create_device_from_data(device: dict) -> AferoDevice:
     for state in device["states"]:
         processed_states.append(AferoState(**state))
     device["states"] = processed_states
+    processed_capabilities = []
+    for cap in device.get("capabilities", []):
+        processed_capabilities.append(AferoCapability(**cap))
+    device["capabilities"] = processed_capabilities
     if "children" not in device:
         device["children"] = []
     return AferoDevice(**device)

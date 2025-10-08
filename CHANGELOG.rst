@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 5.7.0
+=============
+
+ * Enable the bridge to request fahrenheit and celsius
+
 Version 5.6.1
 =============
 

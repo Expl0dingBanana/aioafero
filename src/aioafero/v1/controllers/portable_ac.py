@@ -86,7 +86,6 @@ class PortableACController(ClimateController[PortableAC]):
             selects=climate_data["selects"],
             binary_sensors={},
             sensors={},
-            display_celsius=climate_data["display_celsius"],
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
                 default_image=afero_device.default_image,

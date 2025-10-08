@@ -3,8 +3,8 @@
 from typing import TypeVar
 
 from aioafero import device
-from aioafero.device import AferoDevice, AferoResource, AferoState
-from aioafero.util import calculate_hubspace_celsius, process_function
+from aioafero.device import AferoCapability, AferoDevice, AferoResource, AferoState
+from aioafero.util import process_function
 from aioafero.v1.models import features
 
 from .base import BaseResourcesController
@@ -12,15 +12,38 @@ from .base import BaseResourcesController
 AferoResourceT = TypeVar("AferoResourceT", bound=AferoResource)
 
 
+TARGET_INSTANCE_MAPPING = {
+    "cooling-target": "target_temperature_cooling",
+    "heating-target": "target_temperature_heating",
+    "auto-cooling-target": "target_temperature_auto_cooling",
+    "auto-heating-target": "target_temperature_auto_heating",
+    "safety-mode-max-temp": "safety_max_temp",
+    "safety-mode-min-temp": "safety_min_temp",
+}
+
+
 def generate_target_temp(
     func_def: dict, state: AferoState
 ) -> features.TargetTemperatureFeature:
     """Determine the target temp based on the function definition."""
     return features.TargetTemperatureFeature(
-        value=round(state.value, 2),
+        value=round(state.value, 1),
         step=func_def["range"]["step"],
         min=func_def["range"]["min"],
         max=func_def["range"]["max"],
+        instance=state.functionInstance,
+    )
+
+
+def generate_target_temp_capability(
+    capability: AferoCapability, state: AferoState
+) -> features.TargetTemperatureFeature:
+    """Determine the target temp based on the function definition."""
+    return features.TargetTemperatureFeature(
+        value=round(state.value, 1),
+        step=capability.options["range"]["step"],
+        min=capability.options["range"]["min"],
+        max=capability.options["range"]["max"],
         instance=state.functionInstance,
     )
 
@@ -32,7 +55,6 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
         """Initialize the climate elements of a device."""
         climate_data = {
             "available": False,
-            "display_celsius": True,
             "current_temperature": None,
             "hvac_mode": None,
             "target_temperature_cooling": None,
@@ -46,11 +68,7 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
             "sensors": {},
             "binary_sensors": {},
         }
-
         for state in afero_device.states:
-            func_def = device.get_function_from_device(
-                afero_device.functions, state.functionClass, state.functionInstance
-            )
             if state.functionClass == "temperature":
                 if state.functionInstance == "current-temp":
                     climate_data["current_temperature"] = (
@@ -60,30 +78,31 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                             function_instance=state.functionInstance,
                         )
                     )
-                elif state.functionInstance == "cooling-target":
-                    climate_data["target_temperature_cooling"] = generate_target_temp(
-                        func_def["values"][0], state
+                else:
+                    capability_def = device.get_capability_from_device(
+                        afero_device.capabilities,
+                        state.functionClass,
+                        state.functionInstance,
                     )
-                elif state.functionInstance == "heating-target":
-                    climate_data["target_temperature_heating"] = generate_target_temp(
-                        func_def["values"][0], state
-                    )
-                elif state.functionInstance == "auto-cooling-target":
-                    climate_data["target_temperature_auto_cooling"] = (
-                        generate_target_temp(func_def["values"][0], state)
-                    )
-                elif state.functionInstance == "auto-heating-target":
-                    climate_data["target_temperature_auto_heating"] = (
-                        generate_target_temp(func_def["values"][0], state)
-                    )
-                elif state.functionInstance == "safety-mode-max-temp":
-                    climate_data["safety_max_temp"] = generate_target_temp(
-                        func_def["values"][0], state
-                    )
-                elif state.functionInstance == "safety-mode-min-temp":
-                    climate_data["safety_min_temp"] = generate_target_temp(
-                        func_def["values"][0], state
-                    )
+                    if capability_def:
+                        target_data = generate_target_temp_capability(
+                            capability_def, state
+                        )
+                    else:
+                        # @TODO - This exists as we do not have data dumps with capabilities
+                        # for all devices. We should remove this fallback once we do
+                        func_def = device.get_function_from_device(
+                            afero_device.functions,
+                            state.functionClass,
+                            state.functionInstance,
+                        )
+                        target_data = generate_target_temp(func_def["values"][0], state)
+                    if state.functionInstance in TARGET_INSTANCE_MAPPING:
+                        climate_data[
+                            TARGET_INSTANCE_MAPPING[state.functionInstance]
+                        ] = target_data
+                    else:
+                        self._logger.warning("Found unknown temp instance, %s", state)
             elif state.functionClass == "mode":
                 all_modes = set(process_function(afero_device.functions, "mode"))
                 climate_data["hvac_mode"] = features.HVACModeFeature(
@@ -96,8 +115,6 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                 climate_data["available"] = state.value
             elif select := await self.initialize_select(afero_device.functions, state):
                 climate_data["selects"][select[0]] = select[1]
-            elif state.functionClass == "temperature-units":
-                climate_data["display_celsius"] = state.value == "celsius"
 
         return climate_data
 
@@ -105,16 +122,6 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
         """Update the climate elements of a device."""
         updated_keys = set()
         cur_item = self.get_device(afero_device.id)
-
-        temperature_mapping = {
-            "auto-heating-target": "target_temperature_auto_heating",
-            "auto-cooling-target": "target_temperature_auto_cooling",
-            "cooling-target": "target_temperature_cooling",
-            "heating-target": "target_temperature_heating",
-            "safety-mode-max-temp": "safety_max_temp",
-            "safety-mode-min-temp": "safety_min_temp",
-        }
-
         for state in afero_device.states:
             if state.functionClass == "available":
                 if cur_item.available != state.value:
@@ -127,9 +134,11 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                     if temp_value != rounded_val:
                         cur_item.current_temperature.temperature = rounded_val
                         updated_keys.add(f"temperature-{state.functionInstance}")
-                elif state.functionInstance in temperature_mapping:
+                elif state.functionInstance in TARGET_INSTANCE_MAPPING:
                     temp_item = getattr(
-                        cur_item, temperature_mapping.get(state.functionInstance), None
+                        cur_item,
+                        TARGET_INSTANCE_MAPPING.get(state.functionInstance),
+                        None,
                     )
                     if temp_item and temp_item.value != state.value:
                         temp_item.value = state.value
@@ -145,18 +154,11 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                 update_key := await self.update_select(state, cur_item)
             ):
                 updated_keys.add(update_key)
-            elif state.functionClass == "temperature-units":
-                new_val: bool = state.value == "celsius"
-                if cur_item.display_celsius != new_val:
-                    cur_item.display_celsius = new_val
-                    updated_keys.add(state.functionClass)
         return updated_keys
 
     async def set_climate_state(self, device_id: str, update_obj, **kwargs) -> None:
         """Set climate state."""
         cur_item = self.get_device(device_id)
-
-        is_celsius = kwargs.get("is_celsius", False)
 
         temperature_kwargs = {
             "target_temperature_auto_heating": "target_temperature_auto_heating",
@@ -171,8 +173,6 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
             temp_val = kwargs.get(kwarg_name)
             if temp_val is not None:
                 cur_temp_feature = getattr(cur_item, attr_name, None)
-                if not cur_item.display_celsius and not is_celsius:
-                    temp_val = calculate_hubspace_celsius(temp_val)
 
                 setattr(
                     update_obj,
