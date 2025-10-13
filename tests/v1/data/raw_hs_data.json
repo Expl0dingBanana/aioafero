@@ -3253,5 +3253,17 @@
         }
       ]
     }
+  },
+  {
+    "createdTimestampMs": 1719762429186,
+    "updatedTimestampMs": 1719762429524,
+    "version": 1,
+    "typeId": "metadevice.room",
+    "friendlyName": "BadRoomWithNoID",
+    "friendlyDescription": "",
+    "locale": "en_US",
+    "image": "wallpaper11.jpg",
+    "tag": "",
+    "children": []
   }
 ]

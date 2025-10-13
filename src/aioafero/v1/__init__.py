@@ -38,7 +38,7 @@ from aioafero.errors import (
     ExceededMaximumRetries,
     InvalidAuth,
 )
-from aioafero.types import TemperatureUnit
+from aioafero.types import AferoRoom, TemperatureUnit
 
 from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
@@ -155,6 +155,8 @@ class AferoBridgeV1:
             self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
         self._known_afero_devices: dict[str, str] = {}
+        self._room_data: dict[str, AferoRoom] = {}
+        self._room_lookup: dict[str, str] = {}
         # Known running tasks
         self._scheduled_tasks: list[asyncio.Task] = []
         self._adhoc_tasks: list[asyncio.Task] = []
@@ -613,3 +615,34 @@ class AferoBridgeV1:
         if self.temperature_unit != temperature_unit:
             self.temperature_unit = temperature_unit
             self.add_job(asyncio.create_task(self.events.perform_poll()))
+
+    async def update_rooms(self, data: list[dict[str, Any]]) -> None:
+        """Update room information from the API data.
+
+        :param data: The list of device data dictionaries from the API.
+        """
+        for item in data:
+            if item.get("typeId") != "metadevice.room":
+                continue
+            if not (room_id := item.get("id")):
+                continue
+            if room_id not in self._room_data:
+                self._room_data[room_id] = AferoRoom(
+                    id=room_id,
+                    name=item.get("friendlyName", ""),
+                    children=item.get("children", []),
+                )
+            else:
+                self._room_data[room_id]["name"] = item.get("friendlyName", "")
+                self._room_data[room_id]["children"] = item.get("children", [])
+            for dev_id in item.get("children", []):
+                self._room_lookup[dev_id] = self._room_data[room_id]
+
+    async def get_room_for_device(self, device_id: str) -> AferoRoom | None:
+        """Get the room information for a given device ID.
+
+        :param device_id: The ID of the device to look up.
+
+        :return: The AferoRoom object if found, otherwise None.
+        """
+        return self._room_lookup.get(device_id, None)

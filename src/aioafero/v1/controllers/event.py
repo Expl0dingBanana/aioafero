@@ -354,6 +354,7 @@ class EventStream:
         processed_ids = []
         skipped_ids = []
         devices = await self.generate_devices_from_data(data)
+        await self._bridge.update_rooms(data)
         self._event_queue.put_nowait(
             AferoEvent(
                 type=EventType.POLLED_DATA,

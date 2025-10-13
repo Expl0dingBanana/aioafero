@@ -1,6 +1,7 @@
 """Types used by the bridge and supporting elements."""
 
 from enum import Enum
+from typing import TypedDict
 
 
 class EventType(Enum):
@@ -24,3 +25,11 @@ class TemperatureUnit(Enum):
 
     CELSIUS = "celsius"
     FAHRENHEIT = "fahrenheit"
+
+
+class AferoRoom(TypedDict):
+    """TypedDict for Afero Room."""
+
+    id: str
+    name: str
+    children: list[str]
