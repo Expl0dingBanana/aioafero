@@ -638,7 +638,7 @@ class AferoBridgeV1:
             for dev_id in item.get("children", []):
                 self._room_lookup[dev_id] = self._room_data[room_id]
 
-    async def get_room_for_device(self, device_id: str) -> AferoRoom | None:
+    def get_room_for_device(self, device_id: str) -> AferoRoom | None:
         """Get the room information for a given device ID.
 
         :param device_id: The ID of the device to look up.

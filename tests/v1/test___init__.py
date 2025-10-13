@@ -575,8 +575,8 @@ async def test_rooms(mocked_bridge):
     assert mocked_bridge._room_data == {
         "4cff16b3-7eb9-4923-8233-7ec244951f71": OFFICE_ROOM,
     }
-    assert await mocked_bridge.get_room_for_device("bc429efe-592a-4852-a18b-5b2a5e6ca5f1") == OFFICE_ROOM
-    assert await mocked_bridge.get_room_for_device("nope") is None
+    assert mocked_bridge.get_room_for_device("bc429efe-592a-4852-a18b-5b2a5e6ca5f1") == OFFICE_ROOM
+    assert mocked_bridge.get_room_for_device("nope") is None
     # Test an update
     updated_raw = raw_poll.copy()
     updated_raw[0]["children"] = [
