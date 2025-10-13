@@ -4,6 +4,7 @@ __all__ = [
     "AferoCapability",
     "AferoDevice",
     "AferoError",
+    "AferoRoom",
     "AferoState",
     "EventType",
     "InvalidAuth",
@@ -44,4 +45,4 @@ from .errors import (
     OTPRequired,
     SecuritySystemError,
 )
-from .types import EventType, TemperatureUnit
+from .types import AferoRoom, EventType, TemperatureUnit
