@@ -117,6 +117,7 @@ class LightController(BaseResourcesController[Light]):
         "dimming": "brightness",
         "effect": "color-sequence",
     }
+    ITEM_SELECTS = {("speed", "color-sequence"): "Speed"}
     # Split Lights from the primary payload
     DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
         ResourceTypes.LIGHT.value: light_callback
@@ -166,6 +167,7 @@ class LightController(BaseResourcesController[Light]):
         effect: features.EffectFeature | None = None
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
+        selects: dict[tuple[str, str], features.SelectFeature] = {}
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -209,6 +211,8 @@ class LightController(BaseResourcesController[Light]):
                 color_mode = features.ColorModeFeature(state.value)
             elif state.functionClass == "available":
                 available = state.value
+            elif select := await self.initialize_select(afero_device.functions, state):
+                selects[select[0]] = select[1]
 
         supported_color_modes: list[str] = []
         for function in afero_device.functions:
@@ -244,6 +248,7 @@ class LightController(BaseResourcesController[Light]):
             color=color,
             color_modes=supported_color_modes,
             effect=effect,
+            selects=selects,
         )
         return self._items[afero_device.id]
 
@@ -301,6 +306,8 @@ class LightController(BaseResourcesController[Light]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
+            elif update_key := await self.update_select(state, cur_item):
+                updated_keys.add(update_key)
 
         # Several states hold the effect, but its always derived from the preset functionInstance
         return updated_keys.union(
