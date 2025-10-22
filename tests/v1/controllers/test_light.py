@@ -15,6 +15,7 @@ from .. import utils
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 dimmer_light = utils.create_devices_from_data("dimmer-HPDA1110NWBP.json")[0]
+speed_light = utils.create_devices_from_data("light-with-speed.json")[2]
 flushmount_light = utils.create_devices_from_data("light-flushmount.json")[0]
 flushmount_light_color_id = f"{flushmount_light.id}-light-color"
 flushmount_light_white_id = f"{flushmount_light.id}-light-white"
@@ -496,6 +497,19 @@ async def test_initialize_dimmer(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_initialize_with_speed(mocked_controller):
+    await mocked_controller.initialize_elem(speed_light)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == "a2d36de5-8b91-411a-907a-ecb665422d00"
+    assert dev.selects == {
+        ("speed", "color-sequence"): features.SelectFeature(
+            selects={x for x in range(-10, 11, 1)}, selected=-10, name="Speed"
+        )
+    }
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "afero_dev",
     [
@@ -659,6 +673,22 @@ async def test_set_effect(effect, mocked_controller):
     assert dev.is_on
     assert dev.color_mode.mode == "sequence"
     assert dev.effect.effect == effect
+
+
+@pytest.mark.asyncio
+async def test_update_elem_speed(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(speed_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    dev.selects[("speed", "color-sequence")].selected = 0
+    updates = await mocked_controller.update_elem(speed_light)
+    dev = mocked_controller.items[0]
+    assert updates == {"select-('speed', 'color-sequence')"}
+    assert dev.selects[("speed", "color-sequence")].selected == -10
 
 
 @pytest.mark.asyncio
