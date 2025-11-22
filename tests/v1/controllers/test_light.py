@@ -995,3 +995,21 @@ async def test_set_state_white_light(mocked_controller):
     assert mocked_controller[speaker_power_light.id].on.on is True
     assert mocked_controller[speaker_power_light.id].color_mode.mode == "white"
     assert mocked_controller[speaker_power_light.id].dimming.brightness == 75
+
+
+@pytest.mark.asyncio
+async def test_set_state_speed(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(speed_light)]
+    )
+    await bridge.async_block_until_done()
+    await mocked_controller.set_state(
+        speed_light.id,
+        selects={
+            ("speed", "color-sequence"): 5,
+            ("doesnt-exist", "color-sequence"): 5
+        }
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert mocked_controller[speed_light.id].selects[("speed", "color-sequence")].selected == 5
