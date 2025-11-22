@@ -342,7 +342,7 @@ class LightController(BaseResourcesController[Light]):
         color: tuple[int, int, int] | None = None,
         effect: str | None = None,
         force_white_mode: int | None = None,
-        selects: dict[tuple[str, str | None], str] | None = None,
+        selects: dict[tuple[str, str | None], int | str] | None = None,
     ) -> None:
         """Set supported feature(s) to fan resource.
 
