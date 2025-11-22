@@ -344,7 +344,7 @@ class LightController(BaseResourcesController[Light]):
         force_white_mode: int | None = None,
         selects: dict[tuple[str, str | None], int | str] | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource.
+        """Set supported feature(s) to light resource.
 
         force_white_mode's value should be the brightness percentage after switching to white
         """
