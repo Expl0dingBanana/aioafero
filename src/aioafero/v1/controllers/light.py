@@ -342,6 +342,7 @@ class LightController(BaseResourcesController[Light]):
         color: tuple[int, int, int] | None = None,
         effect: str | None = None,
         force_white_mode: int | None = None,
+        selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
         """Set supported feature(s) to fan resource.
 
@@ -367,6 +368,15 @@ class LightController(BaseResourcesController[Light]):
                 brightness=force_white_mode, supported=cur_item.dimming.supported
             )
         else:
+            if selects:
+                for key, val in selects.items():
+                    if key not in cur_item.selects:
+                        continue
+                    update_obj.selects[key] = features.SelectFeature(
+                        selected=val,
+                        selects=cur_item.selects[key].selects,
+                        name=cur_item.selects[key].name,
+                    )
             if temperature is not None and cur_item.color_temperature is not None:
                 adjusted_temp = min(
                     cur_item.color_temperature.supported,

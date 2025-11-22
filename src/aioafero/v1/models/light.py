@@ -1,6 +1,6 @@
 """Representation of an Afero Light and its corresponding updates."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 
 from aioafero.v1.models import features
@@ -88,3 +88,6 @@ class LightPut[AferoResource]:
     color_temperature: features.ColorTemperatureFeature | None = None
     dimming: features.DimmingFeature | None = None
     effect: features.EffectFeature | None = None
+    selects: dict[tuple[str, str | None], features.SelectFeature] | None = field(
+        default_factory=dict, repr=False, init=False
+    )

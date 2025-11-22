@@ -905,7 +905,7 @@ async def test__process_state_update(ex1_rc):
     assert state_update.value == "off"
 
 
-@pytest.mark.anyio
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("temperature_unit"),
     [
