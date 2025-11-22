@@ -5,6 +5,11 @@ Changelog
 Version 6.1.0
 =============
 
+ * Fix issue where speed could not be adjusted for lights
+
+Version 6.1.0
+=============
+
  * Add speed control for lights
 
 Version 6.0.1
