@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from aioafero import EventType, InvalidAuth, AferoDevice, AferoState, TemperatureUnit
+from aioafero import EventType, InvalidAuth, AferoDevice, AferoState, TemperatureUnit, AferoRoom
 from aioafero.errors import DeviceNotFound, AferoError, ExceededMaximumRetries
 from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const, TemperatureUnit
 from aioafero.v1.controllers.device import DeviceController
@@ -27,6 +27,8 @@ async def build_url(base_url: str, qs: dict[str, str]) -> str:
 
 
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
+
+raw_poll = utils.get_raw_dump("raw_hs_data.json")
 
 
 @pytest.mark.skip(reason="Not yet implemented")
@@ -538,3 +540,50 @@ async def test_adjust_temperature_unit(start_unit, new_unit, called, mocked_brid
     await mocked_bridge.adjust_temperature_unit(new_unit)
     assert mocked_bridge.temperature_unit == new_unit
     assert mocked_bridge.add_job.called == called
+
+
+OFFICE_ROOM = AferoRoom(
+    id="4cff16b3-7eb9-4923-8233-7ec244951f71",
+    name="Office",
+    children=[
+        'bc429efe-592a-4852-a18b-5b2a5e6ca5f1',
+        '4a3eeb61-17e0-472b-bef5-576d78cb06df',
+        '84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6',
+        '99a03fb7-ebaa-4fc2-a7b5-df223003b127',
+        'b50d9823-7ba0-44d9-b9a9-ad64dbbb225f',
+    ]
+)
+
+OFFICE_ROOM_UPDATED = AferoRoom(
+    id="4cff16b3-7eb9-4923-8233-7ec244951f71",
+    name="Office",
+    children=[
+        'bc429efe-592a-4852-a18b-5b2a5e6ca5f1',
+        '4a3eeb61-17e0-472b-bef5-576d78cb06df',
+    ]
+)
+
+async def test_rooms(mocked_bridge):
+    await mocked_bridge.update_rooms(raw_poll)
+    assert mocked_bridge._room_lookup == {
+        "bc429efe-592a-4852-a18b-5b2a5e6ca5f1": OFFICE_ROOM,
+        "4a3eeb61-17e0-472b-bef5-576d78cb06df": OFFICE_ROOM,
+        "84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6": OFFICE_ROOM,
+        "99a03fb7-ebaa-4fc2-a7b5-df223003b127": OFFICE_ROOM,
+        "b50d9823-7ba0-44d9-b9a9-ad64dbbb225f": OFFICE_ROOM,
+    }
+    assert mocked_bridge._room_data == {
+        "4cff16b3-7eb9-4923-8233-7ec244951f71": OFFICE_ROOM,
+    }
+    assert mocked_bridge.get_room_for_device("bc429efe-592a-4852-a18b-5b2a5e6ca5f1") == OFFICE_ROOM
+    assert mocked_bridge.get_room_for_device("nope") is None
+    # Test an update
+    updated_raw = raw_poll.copy()
+    updated_raw[0]["children"] = [
+        "bc429efe-592a-4852-a18b-5b2a5e6ca5f1",
+        "4a3eeb61-17e0-472b-bef5-576d78cb06df",
+    ]
+    await mocked_bridge.update_rooms(updated_raw)
+    assert mocked_bridge._room_data == {
+        "4cff16b3-7eb9-4923-8233-7ec244951f71": OFFICE_ROOM_UPDATED,
+    }
