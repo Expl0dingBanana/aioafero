@@ -10,7 +10,7 @@ from aioafero.v1.models import features
 from aioafero.v1.models.light import Light, LightPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
-from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
 from .event import CallbackResponse
 
 SPLIT_IDENTIFIER: str = "light"
@@ -117,7 +117,9 @@ class LightController(BaseResourcesController[Light]):
         "dimming": "brightness",
         "effect": "color-sequence",
     }
-    ITEM_SELECTS = {("speed", "color-sequence"): "Speed"}
+    ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
+        ("speed", "color-sequence"): NumbersName(unit="speed"),
+    }
     # Split Lights from the primary payload
     DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
         ResourceTypes.LIGHT.value: light_callback
@@ -167,7 +169,7 @@ class LightController(BaseResourcesController[Light]):
         effect: features.EffectFeature | None = None
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
-        selects: dict[tuple[str, str], features.SelectFeature] = {}
+        numbers: dict[tuple[str, str], features.NumbersFeature] = {}
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -211,8 +213,8 @@ class LightController(BaseResourcesController[Light]):
                 color_mode = features.ColorModeFeature(state.value)
             elif state.functionClass == "available":
                 available = state.value
-            elif select := await self.initialize_select(afero_device.functions, state):
-                selects[select[0]] = select[1]
+            if number := await self.initialize_number(func_def, state):
+                numbers[number[0]] = number[1]
 
         supported_color_modes: list[str] = []
         for function in afero_device.functions:
@@ -248,7 +250,7 @@ class LightController(BaseResourcesController[Light]):
             color=color,
             color_modes=supported_color_modes,
             effect=effect,
-            selects=selects,
+            numbers=numbers,
         )
         return self._items[afero_device.id]
 
@@ -306,7 +308,9 @@ class LightController(BaseResourcesController[Light]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
-            elif update_key := await self.update_select(state, cur_item):
+            elif (update_key := await self.update_number(state, cur_item)) or (
+                update_key := await self.update_select(state, cur_item)
+            ):
                 updated_keys.add(update_key)
 
         # Several states hold the effect, but its always derived from the preset functionInstance
@@ -342,7 +346,7 @@ class LightController(BaseResourcesController[Light]):
         color: tuple[int, int, int] | None = None,
         effect: str | None = None,
         force_white_mode: int | None = None,
-        selects: dict[tuple[str, str | None], int | str] | None = None,
+        numbers: dict[tuple[str, str], float] | None = None,
     ) -> None:
         """Set supported feature(s) to light resource.
 
@@ -368,14 +372,17 @@ class LightController(BaseResourcesController[Light]):
                 brightness=force_white_mode, supported=cur_item.dimming.supported
             )
         else:
-            if selects:
-                for key, val in selects.items():
-                    if key not in cur_item.selects:
+            if numbers:
+                for key, val in numbers.items():
+                    if key not in cur_item.numbers:
                         continue
-                    update_obj.selects[key] = features.SelectFeature(
-                        selected=val,
-                        selects=cur_item.selects[key].selects,
-                        name=cur_item.selects[key].name,
+                    update_obj.numbers[key] = features.NumbersFeature(
+                        value=val,
+                        min=cur_item.numbers[key].min,
+                        max=cur_item.numbers[key].max,
+                        step=cur_item.numbers[key].step,
+                        name=cur_item.numbers[key].name,
+                        unit=cur_item.numbers[key].unit,
                     )
             if temperature is not None and cur_item.color_temperature is not None:
                 adjusted_temp = min(
