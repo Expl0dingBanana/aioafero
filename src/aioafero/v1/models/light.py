@@ -88,6 +88,6 @@ class LightPut[AferoResource]:
     color_temperature: features.ColorTemperatureFeature | None = None
     dimming: features.DimmingFeature | None = None
     effect: features.EffectFeature | None = None
-    selects: dict[tuple[str, str | None], features.SelectFeature] | None = field(
+    numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
         default_factory=dict, repr=False, init=False
     )

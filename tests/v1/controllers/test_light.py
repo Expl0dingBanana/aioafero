@@ -502,9 +502,9 @@ async def test_initialize_with_speed(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.id == "a2d36de5-8b91-411a-907a-ecb665422d00"
-    assert dev.selects == {
-        ("speed", "color-sequence"): features.SelectFeature(
-            selects={x for x in range(-10, 11, 1)}, selected=-10, name="Speed"
+    assert dev.numbers == {
+        ("speed", "color-sequence"): features.NumbersFeature(
+            value=-10, min=-10, max=10, step=1, unit="speed", name="speed"
         )
     }
 
@@ -684,11 +684,11 @@ async def test_update_elem_speed(mocked_controller):
     await bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
-    dev.selects[("speed", "color-sequence")].selected = 0
+    dev.numbers[("speed", "color-sequence")].value = 0
     updates = await mocked_controller.update_elem(speed_light)
     dev = mocked_controller.items[0]
-    assert updates == {"select-('speed', 'color-sequence')"}
-    assert dev.selects[("speed", "color-sequence")].selected == -10
+    assert updates == {"number-('speed', 'color-sequence')"}
+    assert dev.numbers[("speed", "color-sequence")].value == -10
 
 
 @pytest.mark.asyncio
@@ -1006,10 +1006,10 @@ async def test_set_state_speed(mocked_controller):
     await bridge.async_block_until_done()
     await mocked_controller.set_state(
         speed_light.id,
-        selects={
+        numbers={
             ("speed", "color-sequence"): 5,
             ("doesnt-exist", "color-sequence"): 5
         }
     )
     await mocked_controller._bridge.async_block_until_done()
-    assert mocked_controller[speed_light.id].selects[("speed", "color-sequence")].selected == 5
+    assert mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value == 5
