@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 6.1.2
+=============
+
+ * Switch light speed from select to number
+
 Version 6.1.1
 =============
 
