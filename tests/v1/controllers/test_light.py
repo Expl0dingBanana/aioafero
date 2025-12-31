@@ -21,7 +21,6 @@ flushmount_light_color_id = f"{flushmount_light.id}-light-color"
 flushmount_light_white_id = f"{flushmount_light.id}-light-white"
 
 speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
-speaker_power_light_id = f"{speaker_power_light.id}"
 speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
 
 trim_light = utils.create_devices_from_data("light-with-trim.json")[0]

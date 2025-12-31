@@ -39,12 +39,14 @@ def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes
     toggles = []
     for state in afero_dev.states:
         # We do not want to add something that controls everything, but individual only
-        if state.functionInstance in ["global", "primary"]:
+        # We should skip None as its typically a single instance
+        if state.functionInstance in ["global", "primary", None]:
             continue
         if state.functionClass == "brightness":
             lights.append(state.functionInstance)
         elif state.functionClass == "toggle":
             toggles.append(state.functionInstance)
+    # If there is only one instance, treat it as a light only with no splits
     if len(lights) > 1:
         for light_instance in lights:
             instances.add((light_instance, ResourceTypes.LIGHT))
@@ -52,7 +54,7 @@ def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes
         if toggle_instance in [x[0] for x in instances]:
             continue
         instances.add((toggle_instance, ResourceTypes.SWITCH))
-    return sorted(instances, key=lambda x: x[0] or "")
+    return sorted(instances)
 
 
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
