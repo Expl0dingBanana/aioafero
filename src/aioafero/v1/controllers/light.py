@@ -2,6 +2,7 @@
 
 from contextlib import suppress
 import copy
+import logging
 
 from aioafero import device, errors
 from aioafero.device import AferoDevice, AferoState
@@ -14,6 +15,8 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, Numbe
 from .event import CallbackResponse
 
 SPLIT_IDENTIFIER: str = "light"
+
+logger = logging.getLogger(__name__)
 
 
 def process_names(values: list[dict]) -> set[str]:
@@ -32,25 +35,35 @@ def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
 def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes]]:
     """Determine available instances from the states."""
     instances = set()
-    if afero_dev.model == "LCN3002LM-01 WH":
-        instances.add(("color", ResourceTypes.LIGHT))
-        instances.add(("white", ResourceTypes.LIGHT))
+    lights = []
+    toggles = []
     for state in afero_dev.states:
-        if state.functionClass == "toggle" and state.functionInstance not in [
-            x[0] for x in instances
-        ]:
-            instances.add((state.functionInstance, ResourceTypes.SWITCH))
+        # We do not want to add something that controls everything, but individual only
+        # We should skip None as its typically a single instance
+        if state.functionInstance in ["global", "primary", None]:
+            continue
+        if state.functionClass == "brightness":
+            lights.append(state.functionInstance)
+        elif state.functionClass == "toggle":
+            toggles.append(state.functionInstance)
+    # If there is only one instance, treat it as a light only with no splits
+    if len(lights) > 1:
+        for light_instance in lights:
+            instances.add((light_instance, ResourceTypes.LIGHT))
+    for toggle_instance in toggles:
+        if toggle_instance in [x[0] for x in instances]:
+            continue
+        instances.add((toggle_instance, ResourceTypes.SWITCH))
     return sorted(instances)
 
 
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
     """Find states associated with the specific instance."""
     valid_states: list = []
-    if not any(state.functionClass == "toggle" for state in afero_dev.states):
-        return valid_states
     for state in afero_dev.states:
         if state.functionClass == "available":
             valid_states.append(state)
+        # This light is unique where color uses instance "color" and None
         elif afero_dev.model == "LCN3002LM-01 WH":
             if state.functionInstance == "primary":
                 continue
@@ -58,7 +71,7 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
                 instance != "white" and state.functionInstance != "white"
             ):
                 valid_states.append(state)
-        elif state.functionClass == "toggle":
+        elif state.functionInstance == instance:
             valid_states.append(state)
     return valid_states
 
@@ -66,41 +79,48 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:
     """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
+    instances: list[tuple[str, ResourceTypes]] = []
+    remove_parent: bool = False
+    instances = get_split_instances(afero_device)
+    logger.debug("Light instances found: %s", instances)
+    light_instances = [x[0] for x in instances if x[1] == ResourceTypes.LIGHT]
     if afero_device.device_class == ResourceTypes.LIGHT.value:
         children = []
-        for instance, resource_type in get_split_instances(afero_device):
+        for instance, resource_type in instances:
+            instance_name = instance if instance else "primary"
             cloned = copy.deepcopy(afero_device)
             cloned.device_class = resource_type.value
             cloned.id = generate_split_name(afero_device, instance)
             cloned.split_identifier = SPLIT_IDENTIFIER
-            cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
+            cloned.friendly_name = f"{afero_device.friendly_name} - {instance_name}"
             cloned.states = get_valid_states(afero_device, instance)
             cloned.children = []
             multi_devs.append(cloned)
             children.append(cloned.id)
-        if afero_device.model == "LCN3002LM-01 WH":
-            cloned = copy.deepcopy(afero_device)
-            valid_states = [
-                state
-                for state in afero_device.states
-                if state.functionClass
-                in [
-                    "available",
-                    "wifi-ssid",
-                    "wifi-rssi",
-                    "wifi-steady-state",
-                    "wifi-setup-state",
-                    "wifi-mac-address",
-                    "ble-mac-address",
-                ]
+    if len(light_instances) > 1 and None not in light_instances:
+        remove_parent = True
+        cloned = copy.deepcopy(afero_device)
+        valid_states = [
+            state
+            for state in afero_device.states
+            if state.functionClass
+            in [
+                "available",
+                "wifi-ssid",
+                "wifi-rssi",
+                "wifi-steady-state",
+                "wifi-setup-state",
+                "wifi-mac-address",
+                "ble-mac-address",
             ]
-            cloned.states = valid_states
-            cloned.children = children
-            cloned.device_class = "parent-device"
-            multi_devs.append(cloned)
+        ]
+        cloned.states = valid_states
+        cloned.children = children
+        cloned.device_class = "parent-device"
+        multi_devs.append(cloned)
     return CallbackResponse(
         split_devices=multi_devs,
-        remove_original=(afero_device.model == "LCN3002LM-01 WH"),
+        remove_original=remove_parent,
     )
 
 

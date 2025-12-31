@@ -21,7 +21,11 @@ flushmount_light_color_id = f"{flushmount_light.id}-light-color"
 flushmount_light_white_id = f"{flushmount_light.id}-light-white"
 
 speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
-speaker_power_light_id = f"{speaker_power_light.id}-light-speaker-power"
+speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
+
+trim_light = utils.create_devices_from_data("light-with-trim.json")[0]
+trim_light_primary_id = f"{trim_light.id}-light-main"
+trim_light_trim_id = f"{trim_light.id}-light-trim"
 
 
 @pytest.fixture
@@ -47,10 +51,19 @@ def test_generate_split_name():
                 ("white", ResourceTypes.LIGHT),
             ],
         ),
+        # trim split
+        (
+            trim_light,
+            [
+                ("main", ResourceTypes.LIGHT),
+                ("trim", ResourceTypes.LIGHT),
+            ],
+        ),
         # No splits
         (a21_light, []),
         (zandra_light, []),
         (dimmer_light, []),
+
     ],
 )
 def test_get_split_instances(device, expected):
@@ -60,8 +73,6 @@ def test_get_split_instances(device, expected):
 @pytest.mark.parametrize(
     "device, instance, expected",
     [
-        # Has no split instances
-        (a21_light, "nada", []),
         # Flushmount white
         (
             flushmount_light,
@@ -245,6 +256,31 @@ def test_get_split_instances(device, expected):
 
             ]
         ),
+        # Trim Light - main
+        (
+            trim_light,
+            "main",
+            [
+                AferoState(functionClass='color-mode', value='white', lastUpdateTime=0, functionInstance='main'),
+                AferoState(functionClass='color-rgb', value={'color-rgb': {'r': 255, 'b': 0, 'g': 51}}, lastUpdateTime=0, functionInstance='main'), 
+                AferoState(functionClass='color-temperature', value=3000, lastUpdateTime=0, functionInstance='main'), 
+                AferoState(functionClass='brightness', value=100, lastUpdateTime=0, functionInstance='main'), 
+                AferoState(functionClass='power', value='on', lastUpdateTime=0, functionInstance='main'), 
+                AferoState(functionClass='available', value=False, lastUpdateTime=0, functionInstance=None)
+            ],
+        ),
+        # Trim Light - trim
+        (
+            trim_light,
+            "trim",
+            [
+                AferoState(functionClass='color-mode', value='white', lastUpdateTime=0, functionInstance='trim'),
+                AferoState(functionClass='color-rgb', value={'color-rgb': {'r': 255, 'b': 0, 'g': 255}}, lastUpdateTime=0, functionInstance='trim'),
+                AferoState(functionClass='brightness', value=100, lastUpdateTime=0, functionInstance='trim'),
+                AferoState(functionClass='power', value='off', lastUpdateTime=0, functionInstance='trim'),
+                AferoState(functionClass='available', value=False, lastUpdateTime=0, functionInstance=None)
+            ]
+        ),
     ],
 )
 def test_get_valid_states(device, instance, expected):
@@ -271,15 +307,32 @@ def test_light_speaker():
     multi_devs, remove_dev = light.light_callback(speaker_power_light)
     assert remove_dev is False
     assert len(multi_devs) == 1
-    assert len(multi_devs[0].states) == 2
-    assert multi_devs[0].id == speaker_power_light_id
+    assert multi_devs[0].id == speaker_power_light_speaker_id
     assert multi_devs[0].device_class == ResourceTypes.SWITCH.value
+    assert len(multi_devs[0].states) == 2
 
 
 def test_light_callback_none():
     multi_devs, remove_dev = light.light_callback(a21_light)
     assert remove_dev is False
     assert len(multi_devs) == 0
+
+
+def test_light_trim_callback():
+    multi_devs, remove_dev = light.light_callback(trim_light)
+    assert remove_dev is True
+    assert len(multi_devs) == 3
+    assert multi_devs[0].id == trim_light_primary_id
+    assert multi_devs[0].friendly_name == f"{trim_light.friendly_name} - main"
+    assert len(multi_devs[0].states) == 6
+    assert multi_devs[0].device_class == ResourceTypes.LIGHT.value
+    assert multi_devs[1].id == trim_light_trim_id
+    assert len(multi_devs[1].states) == 5
+    assert multi_devs[1].friendly_name == f"{trim_light.friendly_name} - trim"
+    assert multi_devs[1].device_class == ResourceTypes.LIGHT.value
+    assert multi_devs[2].id == trim_light.id
+    assert len(multi_devs[2].states) == 7
+    assert multi_devs[2].device_class == "parent-device"
 
 
 @pytest.mark.asyncio
@@ -592,7 +645,6 @@ async def test_set_brightness(mocked_controller):
 
 @pytest.mark.asyncio
 async def test_set_brightness_split(mocked_controller, mocker):
-    mocker.patch("time.time", return_value=12345)
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-flushmount.json")
     )
@@ -600,22 +652,20 @@ async def test_set_brightness_split(mocked_controller, mocker):
     assert len(mocked_controller._bridge.lights._items) == 2
     dev = mocked_controller[flushmount_light_white_id]
     assert dev.on.on is False
-    # Split devices need their IDs correctly set
+    # A split device update requires the full response (to mimic the behavior)
+    dev_update = utils.create_devices_from_data("light-flushmount.json")[0]
+    new_states = [
+        AferoState(
+            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="white"
+        ),
+        AferoState(
+            functionClass="brightness", value=20, lastUpdateTime=0, functionInstance="white"
+        ),
+    ]
+    for state in new_states:
+        utils.modify_state(dev_update, state)
     json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": [
-        {
-            "functionClass": "toggle",
-            "functionInstance": "white",
-            "value": "on",
-            "lastUpdateTime": 0,
-        },
-        {
-            "functionClass": "brightness",
-            "functionInstance": "white",
-            "value": 20,
-            "lastUpdateTime": 0,
-        }
-    ]}
+    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": utils.convert_states(dev_update.states)}
     resp = mocker.AsyncMock()
     resp.json = json_resp
     resp.status = 200

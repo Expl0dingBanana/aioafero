@@ -313,18 +313,18 @@ class EventStream:
         """Split Afero devices into multiple devices where required."""
         for name, multi_dev_callable in self._multiple_device_finder.items():
             for dev in devices[:]:
-                multi_devs, remove_root = multi_dev_callable(dev)
-                if remove_root:
+                split_devs: CallbackResponse = multi_dev_callable(dev)
+                if split_devs.remove_original:
                     with contextlib.suppress(KeyError):
                         devices.remove(dev)
-                if multi_devs:
+                if split_devs.split_devices:
                     self._logger.debug(
-                        "Found %s devices from %s", len(multi_devs), name
+                        "Found %s devices from %s", len(split_devs.split_devices), name
                     )
-                    for split_dev in multi_devs:
+                    for split_dev in split_devs.split_devices:
                         self._bridge.add_afero_dev(dev, split_dev.id)
                         dev.children.append(split_dev.id)
-                    devices.extend(multi_devs)
+                    devices.extend(split_devs.split_devices)
         self._logger.debug("Total number of devices (post split): %s", len(devices))
         return devices
 
