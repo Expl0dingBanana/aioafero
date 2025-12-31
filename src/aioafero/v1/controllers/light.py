@@ -60,10 +60,10 @@ def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
     """Find states associated with the specific instance."""
     valid_states: list = []
-    instance_checks = [instance]
     for state in afero_dev.states:
         if state.functionClass == "available":
             valid_states.append(state)
+        # This light is unique where color uses instance "color" and None
         elif afero_dev.model == "LCN3002LM-01 WH":
             if state.functionInstance == "primary":
                 continue
@@ -71,9 +71,7 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
                 instance != "white" and state.functionInstance != "white"
             ):
                 valid_states.append(state)
-        elif (
-            state.functionInstance in instance_checks or state.functionClass == "toggle"
-        ):
+        elif state.functionInstance == instance:
             valid_states.append(state)
     return valid_states
 
