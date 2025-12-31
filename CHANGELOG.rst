@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 6.2.0
+=============
+
+ * Lights now split on a more generic model vs one based on model
+
 Version 6.1.2
 =============
 
