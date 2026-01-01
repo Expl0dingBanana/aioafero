@@ -31,15 +31,15 @@ async def aio_sess() -> aiohttp.ClientSession:
 async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
     """Create a mocked afero bridge to be used in tests."""
     mocker.patch("time.time", return_value=12345)
-    mocker.patch("aioafero.v1.controllers.event.EventStream.gather_data")
+    mocker.patch("aioafero.v1.controllers.event.EventStream.gather_discovery_data")
 
     bridge: AferoBridgeV1 = AferoBridgeV1("username2", "password2")
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
-    mocker.patch.object(bridge, "fetch_data", return_value=[])
-    mocker.patch.object(bridge.events, "initialize_reader")
+    mocker.patch.object(bridge, "fetch_discovery_data", return_value=[])
+    mocker.patch.object(bridge.events, "initialize_discovery")
     mocker.patch.object(bridge, "request", side_effect=mocker.AsyncMock())
     mocker.patch.object(
-        bridge, "fetch_data", side_effect=mocker.AsyncMock(return_value=[])
+        bridge, "fetch_discovery_data", side_effect=mocker.AsyncMock(return_value=[])
     )
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
     mocker.patch.object(bridge, "_web_session", aio_sess)
@@ -59,7 +59,7 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
         await task
         raw_data = await bridge.events.generate_events_from_data(data)
         mocker.patch(
-            "aioafero.v1.controllers.event.EventStream.gather_data",
+            "aioafero.v1.controllers.event.EventStream.gather_discovery_data",
             return_value=raw_data,
         )
         await bridge.async_block_until_done()
@@ -68,7 +68,7 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
     async def generate_devices_from_data(devices: list[AferoDevice]):
         raw_data = [create_hs_raw_from_device(device) for device in devices]
         mocker.patch(
-            "aioafero.v1.controllers.event.EventStream.gather_data",
+            "aioafero.v1.controllers.event.EventStream.gather_discovery_data",
             return_value=raw_data,
         )
         await bridge.events.generate_events_from_data(raw_data)
@@ -111,7 +111,7 @@ def mocked_bridge_req(mocker, aio_sess):
     )
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
     mocker.patch.object(bridge, "initialize", side_effect=mocker.AsyncMock())
-    mocker.patch.object(bridge, "fetch_data", side_effect=bridge.fetch_data)
+    mocker.patch.object(bridge, "fetch_discovery_data", side_effect=bridge.fetch_discovery_data)
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     mocker.patch.object(bridge, "_web_session", aio_sess)
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
@@ -135,7 +135,7 @@ def mocked_bridge_req(mocker, aio_sess):
         await task
         raw_data = await bridge.events.generate_events_from_data(data)
         mocker.patch(
-            "aioafero.v1.controllers.event.EventStream.gather_data",
+            "aioafero.v1.controllers.event.EventStream.gather_discovery_data",
             return_value=raw_data,
         )
         await bridge.async_block_until_done()
@@ -144,7 +144,7 @@ def mocked_bridge_req(mocker, aio_sess):
     async def generate_devices_from_data(devices: list[AferoDevice]):
         raw_data = [create_hs_raw_from_device(device) for device in devices]
         mocker.patch(
-            "aioafero.v1.controllers.event.EventStream.gather_data",
+            "aioafero.v1.controllers.event.EventStream.gather_discovery_data",
             return_value=raw_data,
         )
         await bridge.events.generate_events_from_data(raw_data)
@@ -163,7 +163,7 @@ def mocked_bridge_req(mocker, aio_sess):
 async def bridge(mocker):
     bridge = AferoBridgeV1("user", "passwd")
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
-    mocker.patch.object(bridge, "fetch_data", return_value=[])
+    mocker.patch.object(bridge, "fetch_discovery_data", return_value=[])
     mocker.patch.object(bridge, "request", side_effect=mocker.AsyncMock())
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
     await bridge.initialize()

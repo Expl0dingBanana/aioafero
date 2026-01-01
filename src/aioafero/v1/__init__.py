@@ -102,7 +102,9 @@ class AferoBridgeV1:
     :param session: An optional `aiohttp.ClientSession` to use for requests.
         If not provided, a new session will be created.
     :param polling_interval: The interval in seconds between polling the Afero API
-        for device state updates. Defaults to 30.
+        for device state updates. Defaults to 30 seconds.
+    :param discovery_interval: The interval in seconds between polling the Afero API
+        for new devices. Defaults to 3600 seconds (1 hour).
     :param afero_client: The Afero client identifier (e.g., "hubspace", "myko").
         Defaults to "hubspace".
     :param hide_secrets: If True, sensitive information will be redacted from logs.
@@ -125,6 +127,7 @@ class AferoBridgeV1:
         refresh_token: str | None = None,
         session: aiohttp.ClientSession | None = None,
         polling_interval: int = 30,
+        discovery_interval: int = 3600,
         afero_client: str | None = "hubspace",
         hide_secrets: bool = True,
         poll_version: bool = True,
@@ -159,7 +162,9 @@ class AferoBridgeV1:
         self._scheduled_tasks: list[asyncio.Task] = []
         self._adhoc_tasks: list[asyncio.Task] = []
         # Data Updater
-        self._events: EventStream = EventStream(self, polling_interval, poll_version)
+        self._events: EventStream = EventStream(
+            self, polling_interval, poll_version, discovery_interval=discovery_interval
+        )
         # Data Controllers
         self._controllers: dict[str, BaseResourcesController] = {}
         self.add_controller("devices", DeviceController)
@@ -379,7 +384,7 @@ class AferoBridgeV1:
             self.add_job(asyncio.create_task(self.events.initialize()))
             self.add_job(asyncio.create_task(self.events.wait_for_first_poll()))
 
-    async def fetch_data(self, version_poll=False) -> list[dict[Any, str]]:
+    async def fetch_discovery_data(self, version_poll=False) -> list[dict[Any, str]]:
         """Query the API for all device data.
 
         :param version_poll: If True, also poll for device version information.
@@ -437,15 +442,46 @@ class AferoBridgeV1:
         task = asyncio.create_task(self._fetch_device_states(device_id))
         self.add_job(task)
         await task
+        return task.result()[1]
+
+    async def fetch_all_device_states(self) -> list[AferoDevice]:
+        """Query the API for all known device states.
+
+        :return: A list of `AferoDevice` objects with updated states.
+        """
+        task = asyncio.create_task(self._fetch_all_device_states())
+        self.add_job(task)
+        await task
         return task.result()
 
-    async def _fetch_device_states(self, device_id) -> list[dict[Any, str]]:
+    async def _fetch_all_device_states(self) -> list[AferoDevice]:
+        """Query the API for all known device states."""
+        # known_devs keeps track of all devices, while .devices is only "parent" items
+        device_ids = list(self._known_devs.keys())
+        tasks = [self._fetch_device_states(dev_id) for dev_id in device_ids]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        updated_devices: list[AferoDevice] = []
+        for result in results:
+            if isinstance(result, Exception):
+                self.logger.warning("Unable to fetch states: %s", result)
+                continue
+            device_id, states = result
+            try:
+                device = self.get_afero_device(device_id)
+            except DeviceNotFound:
+                self.logger.warning("Device %s not found in cache", device_id)
+                continue
+            device.states = states
+            updated_devices.append(device)
+        return updated_devices
+
+    async def _fetch_device_states(self, device_id) -> tuple[str, list[dict[Any, str]]]:
         """Query the API for new device states."""
         self.logger.debug("Querying the API for updated states for %s", device_id)
         headers = {
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }
-        params = {"expansions": "state,capabilities,semantics"}
         url = self.generate_api_url(
             v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
                 self.account_id, device_id
@@ -455,7 +491,6 @@ class AferoBridgeV1:
             "get",
             url,
             headers=headers,
-            params=params,
         )
         res.raise_for_status()
         data = await res.json()
@@ -465,7 +500,7 @@ class AferoBridgeV1:
                 states.append(AferoState(**state))
             except TypeError:
                 continue
-        return states
+        return data["metadeviceId"], states
 
     async def get_device_version(self, device_id: str) -> dict:
         """Query the API for device version information.
@@ -612,4 +647,4 @@ class AferoBridgeV1:
         """
         if self.temperature_unit != temperature_unit:
             self.temperature_unit = temperature_unit
-            self.add_job(asyncio.create_task(self.events.perform_poll()))
+            self.add_job(asyncio.create_task(self.events.perform_discovery_poll()))

@@ -27,7 +27,7 @@ switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 @pytest.mark.asyncio
 async def test_properties(bridge):
     stream = bridge.events
-    assert len(stream._scheduled_tasks) == 2
+    assert len(stream._scheduled_tasks) == 3
     stream._status = event.EventStreamStatus.CONNECTING
     assert stream.connected is False
     assert stream.status == event.EventStreamStatus.CONNECTING
@@ -57,9 +57,9 @@ async def test_properties(bridge):
 @pytest.mark.asyncio
 async def test_initialize(bridge):
     stream = bridge.events
-    assert len(stream._scheduled_tasks) == 2
+    assert len(stream._scheduled_tasks) == 3
     await stream.initialize()
-    assert len(stream._scheduled_tasks) == 2
+    assert len(stream._scheduled_tasks) == 3
 
 
 @pytest.mark.asyncio
@@ -103,15 +103,15 @@ async def test_subscribe(call, event_filter, resource_filter, expected, mocked_b
 
 
 @pytest.mark.asyncio
-async def test_event_reader_dev_add(bridge, mocker):
+async def test_event_discovery_dev_add(bridge, mocker):
     stream = bridge.events
     stream._subscribers = []
     await stream.stop()
 
     light_raw = utils.get_raw_dump("light-a21-raw.json")
 
-    mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=light_raw))
-    await stream.initialize_reader()
+    mocker.patch.object(bridge, "fetch_discovery_data", AsyncMock(return_value=light_raw))
+    await stream.initialize_discovery()
     max_retry = 10
     retry = 0
     while True:
@@ -240,7 +240,7 @@ def gather_data_invalid_auth():
         ),
     ],
 )
-async def test_gather_data(
+async def test_gather_discovery_data(
     status,
     response_gen,
     expected_messages,
@@ -259,21 +259,21 @@ async def test_gather_data(
     if response_gen:
         mocker.patch.object(
             bridge,
-            "fetch_data",
+            "fetch_discovery_data",
             side_effect=response_gen(),
         )
     else:
         mocker.patch.object(
             bridge,
-            "fetch_data",
+            "fetch_discovery_data",
             side_effect=expected_error,
         )
     emit_calls = mocker.patch.object(stream, "emit")
     if response_gen:
-        await stream.gather_data()
+        await stream.gather_discovery_data()
     else:
         with pytest.raises(expected_error.__class__):
-            await stream.gather_data()
+            await stream.gather_discovery_data()
     assert emit_calls.call_count == len(expected_emits)
     for index, emit in enumerate(expected_emits):
         assert emit_calls.call_args_list[index][0][0] == emit, f"Issue at index {index}"
@@ -460,7 +460,7 @@ async def test_generate_events_from_data_multi(bridge):
         (None, None, KeyError, [], []),
     ],
 )
-async def test_perform_poll(
+async def test_perform_discovery_poll(
     gather_data_return,
     gather_data_side_effect,
     generate_events_from_data_side_effect,
@@ -472,10 +472,10 @@ async def test_perform_poll(
     stream = bridge.events
     await stream.stop()
     if gather_data_side_effect:
-        mocker.patch.object(stream, "gather_data", side_effect=gather_data_side_effect)
+        mocker.patch.object(stream, "gather_discovery_data", side_effect=gather_data_side_effect)
     else:
         mocker.patch.object(
-            stream, "gather_data", AsyncMock(return_value=gather_data_return)
+            stream, "gather_discovery_data", AsyncMock(return_value=gather_data_return)
         )
     if generate_events_from_data_side_effect:
         mocker.patch.object(
@@ -489,7 +489,7 @@ async def test_perform_poll(
         "doesnt_exist_list": bridge.lights,
     }
     emit_calls = mocker.patch.object(stream, "emit")
-    await stream.perform_poll()
+    await stream.perform_discovery_poll()
     await stream._bridge.async_block_until_done()
     assert emit_calls.call_count == len(expected_emits)
     for index, emit in enumerate(expected_emits):
@@ -506,7 +506,7 @@ async def test_perform_poll(
 
 
 @pytest.mark.asyncio
-async def test_event_reader_dev_update(bridge, mocker):
+async def test_event_discovery_dev_update(bridge, mocker):
     stream = bridge.events
     bridge.lights.initialize()
     await bridge.lights.initialize_elem(a21_light)
@@ -515,10 +515,10 @@ async def test_event_reader_dev_update(bridge, mocker):
 
     mocker.patch.object(
         stream,
-        "gather_data",
+        "gather_discovery_data",
         AsyncMock(return_value=utils.create_hs_raw_from_dump("light-a21.json")),
     )
-    await stream.initialize_reader()
+    await stream.initialize_discovery()
     max_retry = 10
     retry = 0
     while True:
@@ -546,7 +546,7 @@ async def test_event_reader_dev_update(bridge, mocker):
 
 
 @pytest.mark.asyncio
-async def test_event_reader_dev_delete(bridge, mocker):
+async def test_event_discovery_dev_delete(bridge, mocker):
     stream = bridge.events
     bridge.lights.initialize()
     bridge.lights.initialize_elem(a21_light)
@@ -556,9 +556,9 @@ async def test_event_reader_dev_delete(bridge, mocker):
     def afero_dev(dev):
         return dev
 
-    mocker.patch.object(bridge, "fetch_data", AsyncMock(return_value=[]))
+    mocker.patch.object(bridge, "fetch_discovery_data", AsyncMock(return_value=[]))
     mocker.patch.object(event, "get_afero_device", side_effect=afero_dev)
-    await stream.initialize_reader()
+    await stream.initialize_discovery()
     max_retry = 10
     retry = 0
     while True:
@@ -747,3 +747,101 @@ async def test_wait_for_first_poll(bridge):
     stream._first_poll_completed = True
     await asyncio.sleep(0.1)
     assert task.done() is True
+
+
+@pytest.mark.asyncio
+async def test_device_polling(bridge, mocker):
+    stream = bridge.events
+    await stream.stop()
+    stream._first_poll_completed = True
+    stream._polling_interval = 0.01
+
+    dev = mocker.Mock(spec=event.AferoDevice)
+    dev.id = "dev1"
+    mocker.patch.object(
+        bridge, "fetch_all_device_states", AsyncMock(return_value=[dev])
+    )
+    mocker.patch.object(stream, "split_devices", AsyncMock(return_value=[dev]))
+
+    task = asyncio.create_task(stream._EventStream__device_polling())
+    event_obj = await stream._event_queue.get()
+    assert event_obj["type"] == event.EventType.RESOURCE_UPDATE_RESPONSE
+    assert event_obj["device_id"] == "dev1"
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass  # Expected cancellation, ignore
+
+
+@pytest.mark.asyncio
+async def test_device_polling_exception(bridge, mocker, caplog):
+    stream = bridge.events
+    await stream.stop()
+    stream._first_poll_completed = True
+    stream._polling_interval = 0.01
+
+    mocker.patch.object(
+        bridge, "fetch_all_device_states", side_effect=Exception("Polling failed")
+    )
+
+    task = asyncio.create_task(stream._EventStream__device_polling())
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass  # Expected cancellation, ignore
+    assert "Unable to poll device states" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_emit_resource_filter_edge_cases(bridge, mocker):
+    stream = bridge.events
+    await stream.stop()
+    callback = mocker.Mock()
+    stream.subscribe(callback, resource_filter=(ResourceTypes.LIGHT.value,))
+
+    # Case 1: data is None
+    stream.emit(event.EventType.RESOURCE_UPDATED, None)
+    callback.assert_called_once()
+    callback.reset_mock()
+
+    # Case 2: data has no 'device' key
+    stream.emit(event.EventType.RESOURCE_UPDATED, {"type": event.EventType.RESOURCE_UPDATED})
+    callback.assert_called_once()
+    callback.reset_mock()
+
+    # Case 3: device has no device_class attribute
+    class Dummy:
+        pass
+
+    event_to_emit = event.AferoEvent(
+        type=event.EventType.RESOURCE_UPDATED,
+        device_id="cool_id",
+        device=Dummy(),
+    )
+    stream.emit(event.EventType.RESOURCE_UPDATED, event_to_emit)
+    callback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_device_polling_not_ready(bridge, mocker):
+    """Test that device polling is skipped if the first poll is not complete."""
+    stream = bridge.events
+    await stream.stop()
+    stream._first_poll_completed = False
+    stream._polling_interval = 0.01
+
+    mock_fetch = mocker.patch.object(
+        bridge, "fetch_all_device_states", new_callable=AsyncMock
+    )
+
+    task = asyncio.create_task(stream._EventStream__device_polling())
+    await asyncio.sleep(0.05)  # Let it run for a few cycles to ensure it continues
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    mock_fetch.assert_not_called()

@@ -2,6 +2,13 @@
 Changelog
 =========
 
+Version 7.0.0
+=============
+
+ * Break: `AferoBridgeV1.fetch_data` has been replaced with `AferoBridgeV1.fetch_discovery_data`
+ * Implement `AferoBridgeV1.fetch_all_device_states` that queries all known device states
+ * Reduce the total bandwidth during polling by querying only device state
+
 Version 6.2.0
 =============
 
