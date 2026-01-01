@@ -163,7 +163,7 @@ class AferoBridgeV1:
         self._adhoc_tasks: list[asyncio.Task] = []
         # Data Updater
         self._events: EventStream = EventStream(
-            self, polling_interval, poll_version, discovery_internval=discovery_interval
+            self, polling_interval, poll_version, discovery_interval=discovery_interval
         )
         # Data Controllers
         self._controllers: dict[str, BaseResourcesController] = {}
