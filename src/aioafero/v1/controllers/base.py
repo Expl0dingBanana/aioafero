@@ -529,7 +529,9 @@ class BaseResourcesController(Generic[AferoResource]):
             return res
         return None
 
-    def generate_update_dev(self, device_id: str, states: list[AferoState]) -> dict:
+    def generate_update_dev(
+        self, device_id: str, states: list[AferoState]
+    ) -> AferoDevice:
         """Generate update data for the event controller."""
         afero_dev = self._bridge.get_afero_device(device_id)
         afero_dev.states = states

@@ -203,9 +203,9 @@ async def test_update_security_sensor_no_updates(mocked_controller):
                     "functionClass": "sensor-config",
                     "value": {
                         "security-sensor-config-v2": {
-                            "chirpMode": 1,
-                            "triggerType": 3,
-                            "bypassType": 4,
+                            "chirpMode": 1,  # On
+                            "triggerType": 2,  # Away
+                            "bypassType": 4,  # On
                         }
                     },
                     "functionInstance": "sensor-2",
@@ -237,7 +237,7 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
     await bridge.async_block_until_done()
     dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
     assert dev.selects[("chirpMode", None)].selected == 'On'
-    assert dev.selects[("triggerType", None)].selected == 'Home/Away'
+    assert dev.selects[("triggerType", None)].selected == 'Away'
     assert dev.selects[("bypassType", None)].selected == 'On'
 
 

@@ -226,7 +226,7 @@ class EventStream:
                     and data is not None
                     and (
                         "device" in data
-                        and data["device"]
+                        and hasattr(data["device"], "device_class")
                         and not any(
                             data["device"].device_class == res_filter
                             for res_filter in resource_filter
