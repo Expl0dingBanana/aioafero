@@ -76,7 +76,7 @@ class EventStream:
         bridge: "AferoBridgeV1",
         polling_interval: int,
         poll_version: bool,
-        discovery_internval: int = 3600,
+        discovery_interval: int = 3600,
     ) -> None:
         """Initialize instance."""
         self._bridge = bridge
@@ -87,7 +87,7 @@ class EventStream:
         self._subscribers: list[EventSubscriptionType] = []
         self._logger = bridge.logger.getChild("events")
         self._polling_interval: int = polling_interval
-        self._discovery_interval: int = discovery_internval
+        self._discovery_interval: int = discovery_interval
         self._multiple_device_finder: dict[str, callable] = {}
         self._version_poll_time: datetime.datetime | None = None
         self._version_poll_enabled: bool = poll_version

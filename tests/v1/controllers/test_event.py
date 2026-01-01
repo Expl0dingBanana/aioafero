@@ -771,7 +771,7 @@ async def test_device_polling(bridge, mocker):
     try:
         await task
     except asyncio.CancelledError:
-        pass
+        pass  # Expected cancellation, ignore
 
 
 @pytest.mark.asyncio
@@ -791,7 +791,7 @@ async def test_device_polling_exception(bridge, mocker, caplog):
     try:
         await task
     except asyncio.CancelledError:
-        pass
+        pass  # Expected cancellation, ignore
     assert "Unable to poll device states" in caplog.text
 
 
