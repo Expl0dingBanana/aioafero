@@ -76,7 +76,7 @@ class EventStream:
         bridge: "AferoBridgeV1",
         polling_interval: int,
         poll_version: bool,
-        discovery_internval: int = 60 * 60 * 1,
+        discovery_internval: int = 3600,
     ) -> None:
         """Initialize instance."""
         self._bridge = bridge
@@ -143,11 +143,16 @@ class EventStream:
         """Start the polling processes."""
         if len(self._scheduled_tasks) == 0:
             await self.initialize_discovery()
+            await self.initialize_device_polling()
             await self.initialize_processor()
 
     async def initialize_discovery(self) -> None:
         """Initialize gathering data from Afero API."""
         self._scheduled_tasks.append(asyncio.create_task(self.__event_discovery()))
+
+    async def initialize_device_polling(self) -> None:
+        """Initialize gathering device state data from Afero API."""
+        self._scheduled_tasks.append(asyncio.create_task(self.__device_polling()))
 
     async def initialize_processor(self) -> None:
         """Initialize the processor."""
@@ -416,6 +421,27 @@ class EventStream:
         while True:
             await self.perform_discovery_poll()
             await asyncio.sleep(self._discovery_interval)
+
+    async def __device_polling(self) -> None:
+        """Poll the current device states."""
+        while True:
+            await asyncio.sleep(self._polling_interval)
+            if not self._first_poll_completed:
+                continue
+            try:
+                devices = await self._bridge.fetch_all_device_states()
+            except Exception:
+                self._logger.exception("Unable to poll device states")
+                continue
+            for device in await self.split_devices(devices):
+                self._event_queue.put_nowait(
+                    AferoEvent(
+                        type=EventType.RESOURCE_UPDATE_RESPONSE,
+                        device_id=device.id,
+                        device=device,
+                        force_forward=False,
+                    )
+                )
 
     async def process_event(self):
         """Process a single event in the queue."""

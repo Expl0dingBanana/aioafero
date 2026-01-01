@@ -538,3 +538,40 @@ async def test_adjust_temperature_unit(start_unit, new_unit, called, mocked_brid
     await mocked_bridge.adjust_temperature_unit(new_unit)
     assert mocked_bridge.temperature_unit == new_unit
     assert mocked_bridge.add_job.called == called
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
+    dev1 = mocker.Mock(spec=AferoDevice)
+    dev1.id = "dev1"
+    dev2 = mocker.Mock(spec=AferoDevice)
+    dev2.id = "dev2"
+    mocked_bridge._known_devs = {
+        "dev1": mocker.Mock(),
+        "dev2": mocker.Mock(),
+        "dev3": mocker.Mock(),
+        "dev4": mocker.Mock(),
+    }
+    mocked_bridge._known_afero_devices = {"dev1": dev1, "dev2": dev2}
+
+    states1 = [AferoState(functionClass="power", value="on")]
+    states2 = [AferoState(functionClass="brightness", value=50)]
+    states4 = [AferoState(functionClass="color", value="blue")]
+
+    async def side_effect(device_id):
+        if device_id == "dev1":
+            return "dev1", states1
+        if device_id == "dev2":
+            return "dev2", states2
+        if device_id == "dev3":
+            raise Exception("Boom")
+        if device_id == "dev4":
+            return "dev4", states4
+
+    mocker.patch.object(mocked_bridge, "_fetch_device_states", side_effect=side_effect)
+    updated_devices = await mocked_bridge.fetch_all_device_states()
+    assert len(updated_devices) == 2
+    assert dev1.states == states1
+    assert dev2.states == states2
+    assert "Unable to fetch states: Boom" in caplog.text
+    assert "Device dev4 not found in cache" in caplog.text

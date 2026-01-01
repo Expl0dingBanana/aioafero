@@ -27,7 +27,7 @@ switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 @pytest.mark.asyncio
 async def test_properties(bridge):
     stream = bridge.events
-    assert len(stream._scheduled_tasks) == 2
+    assert len(stream._scheduled_tasks) == 3
     stream._status = event.EventStreamStatus.CONNECTING
     assert stream.connected is False
     assert stream.status == event.EventStreamStatus.CONNECTING
@@ -57,9 +57,9 @@ async def test_properties(bridge):
 @pytest.mark.asyncio
 async def test_initialize(bridge):
     stream = bridge.events
-    assert len(stream._scheduled_tasks) == 2
+    assert len(stream._scheduled_tasks) == 3
     await stream.initialize()
-    assert len(stream._scheduled_tasks) == 2
+    assert len(stream._scheduled_tasks) == 3
 
 
 @pytest.mark.asyncio
@@ -747,3 +747,101 @@ async def test_wait_for_first_poll(bridge):
     stream._first_poll_completed = True
     await asyncio.sleep(0.1)
     assert task.done() is True
+
+
+@pytest.mark.asyncio
+async def test_device_polling(bridge, mocker):
+    stream = bridge.events
+    await stream.stop()
+    stream._first_poll_completed = True
+    stream._polling_interval = 0.01
+
+    dev = mocker.Mock(spec=event.AferoDevice)
+    dev.id = "dev1"
+    mocker.patch.object(
+        bridge, "fetch_all_device_states", AsyncMock(return_value=[dev])
+    )
+    mocker.patch.object(stream, "split_devices", AsyncMock(return_value=[dev]))
+
+    task = asyncio.create_task(stream._EventStream__device_polling())
+    event_obj = await stream._event_queue.get()
+    assert event_obj["type"] == event.EventType.RESOURCE_UPDATE_RESPONSE
+    assert event_obj["device_id"] == "dev1"
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+@pytest.mark.asyncio
+async def test_device_polling_exception(bridge, mocker, caplog):
+    stream = bridge.events
+    await stream.stop()
+    stream._first_poll_completed = True
+    stream._polling_interval = 0.01
+
+    mocker.patch.object(
+        bridge, "fetch_all_device_states", side_effect=Exception("Polling failed")
+    )
+
+    task = asyncio.create_task(stream._EventStream__device_polling())
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    assert "Unable to poll device states" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_emit_resource_filter_edge_cases(bridge, mocker):
+    stream = bridge.events
+    await stream.stop()
+    callback = mocker.Mock()
+    stream.subscribe(callback, resource_filter=(ResourceTypes.LIGHT.value,))
+
+    # Case 1: data is None
+    stream.emit(event.EventType.RESOURCE_UPDATED, None)
+    callback.assert_called_once()
+    callback.reset_mock()
+
+    # Case 2: data has no 'device' key
+    stream.emit(event.EventType.RESOURCE_UPDATED, {"type": event.EventType.RESOURCE_UPDATED})
+    callback.assert_called_once()
+    callback.reset_mock()
+
+    # Case 3: device has no device_class attribute
+    class Dummy:
+        pass
+
+    event_to_emit = event.AferoEvent(
+        type=event.EventType.RESOURCE_UPDATED,
+        device_id="cool_id",
+        device=Dummy(),
+    )
+    stream.emit(event.EventType.RESOURCE_UPDATED, event_to_emit)
+    callback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_device_polling_not_ready(bridge, mocker):
+    """Test that device polling is skipped if the first poll is not complete."""
+    stream = bridge.events
+    await stream.stop()
+    stream._first_poll_completed = False
+    stream._polling_interval = 0.01
+
+    mock_fetch = mocker.patch.object(
+        bridge, "fetch_all_device_states", new_callable=AsyncMock
+    )
+
+    task = asyncio.create_task(stream._EventStream__device_polling())
+    await asyncio.sleep(0.05)  # Let it run for a few cycles to ensure it continues
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    mock_fetch.assert_not_called()
