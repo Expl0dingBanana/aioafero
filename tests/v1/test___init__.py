@@ -133,7 +133,7 @@ async def test_initialize(bridge_with_acct, mocker):
         ("i dont know", True, TemperatureUnit.CELSIUS),
     ],
 )
-async def test_fetch_data(expected_val, error, temperature_unit, mocked_bridge_req, mocker):
+async def test_fetch_discovery_data(expected_val, error, temperature_unit, mocked_bridge_req, mocker):
     expected = mocker.Mock()
     mocked_bridge_req.temperature_unit = temperature_unit
     mocker.patch.object(
@@ -141,7 +141,7 @@ async def test_fetch_data(expected_val, error, temperature_unit, mocked_bridge_r
     )
     mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
     if not error:
-        assert await mocked_bridge_req.fetch_data() == expected_val
+        assert await mocked_bridge_req.fetch_discovery_data() == expected_val
         call = mocked_bridge_req.request.call_args
         params = call[1]["params"]
         if temperature_unit == TemperatureUnit.FAHRENHEIT:
@@ -151,7 +151,7 @@ async def test_fetch_data(expected_val, error, temperature_unit, mocked_bridge_r
             assert "units" not in params
     else:
         with pytest.raises(TypeError):
-            await mocked_bridge_req.fetch_data()
+            await mocked_bridge_req.fetch_discovery_data()
 
 
 def fake_version_data(*args, **kwargs):
@@ -160,7 +160,7 @@ def fake_version_data(*args, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_fetch_data_with_version(mocked_bridge_req, mocker):
+async def test_fetch_discovery_data_with_version(mocked_bridge_req, mocker):
     get_device_versions = mocker.patch.object(mocked_bridge_req, "get_device_version", side_effect=fake_version_data())
     mocked_response = [
         {
@@ -184,7 +184,7 @@ async def test_fetch_data_with_version(mocked_bridge_req, mocker):
         expected, "json", side_effect=mocker.AsyncMock(return_value=mocked_response)
     )
     mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
-    resp = await mocked_bridge_req.fetch_data(version_poll=True)
+    resp = await mocked_bridge_req.fetch_discovery_data(version_poll=True)
     assert get_device_versions.call_count == 2
     assert get_device_versions.call_args_list[0][0][0] == "test_device_id"
     assert get_device_versions.call_args_list[1][0][0] == "test_device_id2"

@@ -72,7 +72,11 @@ class EventStream:
     """
 
     def __init__(
-        self, bridge: "AferoBridgeV1", polling_interval: int, poll_version: bool
+        self,
+        bridge: "AferoBridgeV1",
+        polling_interval: int,
+        poll_version: bool,
+        discovery_internval: int = 60 * 60 * 1,
     ) -> None:
         """Initialize instance."""
         self._bridge = bridge
@@ -83,6 +87,7 @@ class EventStream:
         self._subscribers: list[EventSubscriptionType] = []
         self._logger = bridge.logger.getChild("events")
         self._polling_interval: int = polling_interval
+        self._discovery_interval: int = discovery_internval
         self._multiple_device_finder: dict[str, callable] = {}
         self._version_poll_time: datetime.datetime | None = None
         self._version_poll_enabled: bool = poll_version
@@ -137,12 +142,12 @@ class EventStream:
     async def initialize(self) -> None:
         """Start the polling processes."""
         if len(self._scheduled_tasks) == 0:
-            await self.initialize_reader()
+            await self.initialize_discovery()
             await self.initialize_processor()
 
-    async def initialize_reader(self) -> None:
+    async def initialize_discovery(self) -> None:
         """Initialize gathering data from Afero API."""
-        self._scheduled_tasks.append(asyncio.create_task(self.__event_reader()))
+        self._scheduled_tasks.append(asyncio.create_task(self.__event_discovery()))
 
     async def initialize_processor(self) -> None:
         """Initialize the processor."""
@@ -254,12 +259,14 @@ class EventStream:
             self.emit(EventType.DISCONNECTED)
         await asyncio.sleep(backoff_time)
 
-    async def gather_data(self) -> list[dict[Any, str]]:
+    async def gather_discovery_data(self) -> list[dict[Any, str]]:
         """Gather all data from the Afero IoT API."""
         consecutive_http_errors = 0
         while True:
             try:
-                data = await self._bridge.fetch_data(version_poll=self.poll_version)
+                data = await self._bridge.fetch_discovery_data(
+                    version_poll=self.poll_version
+                )
             except TimeoutError:
                 self._logger.warning("Timeout when contacting Afero IoT API.")
                 await self.process_backoff(consecutive_http_errors)
@@ -389,10 +396,10 @@ class EventStream:
                 )
                 self._bridge.remove_device(dev_id)
 
-    async def perform_poll(self) -> None:
+    async def perform_discovery_poll(self) -> None:
         """Poll Afero IoT and generate the required events."""
         try:
-            data = await self.gather_data()
+            data = await self.gather_discovery_data()
         except Exception:  # noqa: BLE001
             self._status = EventStreamStatus.DISCONNECTED
             self.emit(EventType.DISCONNECTED)
@@ -403,12 +410,12 @@ class EventStream:
                 self._logger.exception("Unable to process Afero IoT data. %s", data)
             self._first_poll_completed = True
 
-    async def __event_reader(self) -> None:
+    async def __event_discovery(self) -> None:
         """Poll the current states."""
         self._status = EventStreamStatus.CONNECTING
         while True:
-            await self.perform_poll()
-            await asyncio.sleep(self._polling_interval)
+            await self.perform_discovery_poll()
+            await asyncio.sleep(self._discovery_interval)
 
     async def process_event(self):
         """Process a single event in the queue."""

@@ -379,7 +379,7 @@ class AferoBridgeV1:
             self.add_job(asyncio.create_task(self.events.initialize()))
             self.add_job(asyncio.create_task(self.events.wait_for_first_poll()))
 
-    async def fetch_data(self, version_poll=False) -> list[dict[Any, str]]:
+    async def fetch_discovery_data(self, version_poll=False) -> list[dict[Any, str]]:
         """Query the API for all device data.
 
         :param version_poll: If True, also poll for device version information.
@@ -612,4 +612,4 @@ class AferoBridgeV1:
         """
         if self.temperature_unit != temperature_unit:
             self.temperature_unit = temperature_unit
-            self.add_job(asyncio.create_task(self.events.perform_poll()))
+            self.add_job(asyncio.create_task(self.events.perform_discovery_poll()))
