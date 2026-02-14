@@ -19,6 +19,7 @@ speed_light = utils.create_devices_from_data("light-with-speed.json")[2]
 flushmount_light = utils.create_devices_from_data("light-flushmount.json")[0]
 flushmount_light_color_id = f"{flushmount_light.id}-light-color"
 flushmount_light_white_id = f"{flushmount_light.id}-light-white"
+rgbic_light = utils.create_devices_from_data("light-rgbic.json")[0]
 
 speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
 speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
@@ -1063,3 +1064,68 @@ async def test_set_state_speed(mocked_controller):
     )
     await mocked_controller._bridge.async_block_until_done()
     assert mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value == 5
+
+
+@pytest.mark.asyncio
+async def test_initialize_rgbic(mocked_controller):
+    await mocked_controller.initialize_elem(rgbic_light)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == rgbic_light.id
+    assert dev.effect.effect == "rainbow"
+    assert dev.effect.effect_list == sorted([
+        # preset
+        "christmas",
+        "cinco-de-mayo",
+        "cross-faded",
+        "double-rainbow",
+        "easter-eggs-six",
+        "effervescent",
+        "fade-3",
+        "fade-7",
+        "halloween",
+        "hanukkah",
+        "july-4th",
+        "jump-3",
+        "jump-7",
+        "may-tricks",
+        "mistletoe",
+        "penguin-disco",
+        "prism",
+        "rainbow",
+        "rainbow-road",
+        "rainbow-roll",
+        "rainbow-rudolf",
+        "red-shift",
+        "snafu",
+        "snowfall",
+        "st-patricks-day",
+        "under-the-sea",
+        "valentines-day",
+        "vote-of-confidence-six",
+        "white-star",
+        # custom
+        "chill",
+        "cinco-de-mayo-fade",
+        "clarity",
+        "dinner-party",
+        "diwali-fade",
+        "easter-fade",
+        "focus",
+        "getting-ready",
+        "halloween-fade",
+        "hanukkah-fade",
+        "moonlight",
+        "nightlight",
+        "sleep",
+        "sound-to-sleep",
+        "st-patricks-day-fade",
+        "wake-up",
+        # modes
+        "circadian-rhythm",
+        "music-sync",
+        # user
+        "custom-1",
+        "custom-2",
+        "custom-3",
+    ])

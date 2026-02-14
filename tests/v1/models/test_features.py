@@ -94,7 +94,30 @@ def test_EffectFeature():
     assert feat.api_value == []
     feat = features.EffectFeature(effect="fade-3", effects={"custom": {"rainbow"}})
     assert not feat.is_preset("rainbow")
-    
+
+    # effect_list contains all effects, color modes, and custom segments
+    feat = features.EffectFeature(
+        effect="fade-3",
+        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+        color_modes={"circadian-rhythm", "music-sync"},
+        custom_segments={"custom-1", "custom-2", "custom-3"},
+    )
+    assert feat.effect_list == [
+        "circadian-rhythm", "custom-1", "custom-2", "custom-3",
+        "fade-3", "music-sync", "rainbow",
+    ]
+    # effect_list without optional args
+    feat = features.EffectFeature(
+        effect="fade-3",
+        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+    )
+    assert feat.effect_list == ["fade-3", "rainbow"]
+    # effect_list is sorted
+    feat = features.EffectFeature(
+        effect="fade-3",
+        effects={"preset": {"zebra", "alpha"}, "custom": {"middle"}},
+    )
+    assert feat.effect_list == ["alpha", "middle", "zebra"]
 
 
 def test_HVACModeFeature():
