@@ -129,10 +129,30 @@ class EffectFeature:
 
     effect: str
     effects: dict[str, set[str]]
+    color_modes: set[str] = field(default_factory=set)
+    custom_segments: set[str] = field(default_factory=set)
+
+    @property
+    def effect_list(self) -> list[str]:
+        """Return all selectable effects as a sorted list."""
+        all_effects: set[str] = set()
+        for effect_set in self.effects.values():
+            all_effects.update(effect_set)
+        all_effects.update(self.color_modes)
+        all_effects.update(self.custom_segments)
+        return sorted(all_effects)
 
     @property
     def api_value(self):
         """States to send to Afero API."""
+        if self.effect in self.custom_segments:
+            return [
+                {
+                    "functionClass": "color-individual",
+                    "functionInstance": "custom",
+                    "value": self.effect,
+                }
+            ]
         states = []
         seq_key = None
         for effect_group, effects in self.effects.items():

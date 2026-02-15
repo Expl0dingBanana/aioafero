@@ -119,6 +119,27 @@ def test_EffectFeature():
     )
     assert feat.effect_list == ["alpha", "middle", "zebra"]
 
+    # api_value for custom segment
+    feat = features.EffectFeature(
+        effect="custom-1",
+        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+        custom_segments={"custom-1", "custom-2", "custom-3"},
+    )
+    assert feat.api_value == [
+        {
+            "functionClass": "color-individual",
+            "functionInstance": "custom",
+            "value": "custom-1",
+        }
+    ]
+    # empty api_value for color mode effect 
+    feat = features.EffectFeature(
+        effect="circadian-rhythm",
+        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+        color_modes={"circadian-rhythm", "music-sync"},
+    )
+    assert feat.api_value == []
+
 
 def test_HVACModeFeature():
     feat = features.HVACModeFeature(

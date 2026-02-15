@@ -171,7 +171,23 @@ class LightController(BaseResourcesController[Light]):
 
     async def set_effect(self, device_id: str, effect: str) -> None:
         """Set effect of the light. Turn on light if it's currently off."""
-        await self.set_state(device_id, on=True, effect=effect, color_mode="sequence")
+        try:
+            cur_item = self.get_device(device_id)
+        except errors.DeviceNotFound:
+            self._logger.info("Unable to find device %s", device_id)
+            return
+        if cur_item.effect is None:
+            return
+        if effect in cur_item.effect.color_modes:
+            await self.set_state(device_id, on=True, color_mode=effect)
+        elif effect in cur_item.effect.custom_segments:
+            await self.set_state(
+                device_id, on=True, effect=effect, color_mode="individual"
+            )
+        else:
+            await self.set_state(
+                device_id, on=True, effect=effect, color_mode="sequence"
+            )
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Light:
         """Initialize the element.
@@ -222,7 +238,12 @@ class LightController(BaseResourcesController[Light]):
             elif state.functionClass == "color-sequence":
                 current_effect = state.value
                 effects = process_effects(afero_device.functions)
-                effect = features.EffectFeature(effect=current_effect, effects=effects)
+                effect = features.EffectFeature(
+                    effect=current_effect,
+                    effects=effects,
+                    color_modes=process_effect_color_modes(afero_device.functions),
+                    custom_segments=process_custom_segments(afero_device.functions),
+                )
             elif state.functionClass == "color-rgb":
                 color = features.ColorFeature(
                     red=state.value["color-rgb"].get("r", 0),
@@ -324,6 +345,23 @@ class LightController(BaseResourcesController[Light]):
                 if cur_item.color_mode.mode != state.value:
                     cur_item.color_mode.mode = state.value
                     updated_keys.add("color_mode")
+                if (
+                    cur_item.effect is not None
+                    and state.value in cur_item.effect.color_modes
+                    and cur_item.effect.effect != state.value
+                ):
+                    cur_item.effect.effect = state.value
+                    updated_keys.add("effect")
+            elif state.functionClass == "color-individual":
+                if (
+                    cur_item.effect is not None
+                    and cur_item.color_mode is not None
+                    and cur_item.color_mode.mode == "individual"
+                    and state.value in cur_item.effect.custom_segments
+                    and cur_item.effect.effect != state.value
+                ):
+                    cur_item.effect.effect = state.value
+                    updated_keys.add("effect")
             elif state.functionClass == "available":
                 if cur_item.available != state.value:
                     cur_item.available = state.value
@@ -341,7 +379,22 @@ class LightController(BaseResourcesController[Light]):
     async def update_elem_color(self, cur_item: Light, color_seq_states: dict) -> set:
         """Perform the update for effects."""
         updated_keys = set()
-        if color_seq_states and "preset" in color_seq_states:
+        is_non_sequence_effect = (
+            cur_item.effect is not None
+            and cur_item.color_mode is not None
+            and (
+                cur_item.color_mode.mode in cur_item.effect.color_modes
+                or (
+                    cur_item.color_mode.mode == "individual"
+                    and cur_item.effect.custom_segments
+                )
+            )
+        )
+        if (
+            color_seq_states
+            and "preset" in color_seq_states
+            and not is_non_sequence_effect
+        ):
             preset_val = color_seq_states["preset"].value
             if cur_item.effect.is_preset(preset_val):
                 if cur_item.effect.effect != preset_val:
@@ -426,7 +479,10 @@ class LightController(BaseResourcesController[Light]):
                 update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
             if effect is not None and cur_item.effect is not None:
                 update_obj.effect = features.EffectFeature(
-                    effect=effect, effects=cur_item.effect.effects
+                    effect=effect,
+                    effects=cur_item.effect.effects,
+                    color_modes=cur_item.effect.color_modes,
+                    custom_segments=cur_item.effect.custom_segments,
                 )
         await self.update(
             device_id, obj_in=update_obj, send_duplicate_states=send_duplicate_states
@@ -459,3 +515,24 @@ def process_effects(functions: list[dict]) -> dict[str, set]:
     with suppress(KeyError):
         supported_effects["preset"].remove("custom")
     return supported_effects
+
+
+def process_effect_color_modes(functions: list[dict]) -> set[str]:
+    """Determine the color modes that act as effects."""
+    base_modes = {"color", "white", "sequence", "individual"}
+    for function in functions:
+        if function["functionClass"] == "color-mode":
+            return {
+                val["name"]
+                for val in function["values"]
+                if val["name"] not in base_modes
+            }
+    return set()
+
+
+def process_custom_segments(functions: list[dict]) -> set[str]:
+    """Determine the custom segments available."""
+    for function in functions:
+        if function["functionClass"] == "color-individual":
+            return set(process_names(function["values"]))
+    return set()
