@@ -1232,3 +1232,37 @@ async def test_update_elem_rgbic_custom_segment(mocked_controller):
     dev = mocked_controller.items[0]
     assert "effect" in updates
     assert dev.effect.effect == "custom-2"
+
+
+@pytest.mark.asyncio
+async def test_set_effect_device_not_found(mocked_controller):
+    await mocked_controller.set_effect("non-existent-device-id", "rainbow")
+
+
+@pytest.mark.asyncio
+async def test_set_effect_no_effect_feature(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dimmer_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.effect is None
+    await mocked_controller.set_effect(dimmer_light.id, "rainbow")
+
+
+def test_process_effect_color_modes_no_color_mode_function():
+    functions = [
+        {"functionClass": "power", "values": [{"name": "on"}, {"name": "off"}]},
+        {"functionClass": "brightness", "values": []},
+    ]
+    assert light.process_effect_color_modes(functions) == set()
+
+
+def test_process_custom_segments_no_color_individual_function():
+    functions = [
+        {"functionClass": "power", "values": [{"name": "on"}, {"name": "off"}]},
+        {"functionClass": "brightness", "values": []},
+    ]
+    assert light.process_custom_segments(functions) == set()
