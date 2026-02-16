@@ -19,6 +19,7 @@ speed_light = utils.create_devices_from_data("light-with-speed.json")[2]
 flushmount_light = utils.create_devices_from_data("light-flushmount.json")[0]
 flushmount_light_color_id = f"{flushmount_light.id}-light-color"
 flushmount_light_white_id = f"{flushmount_light.id}-light-white"
+rgbic_light = utils.create_devices_from_data("light-rgbic.json")[0]
 
 speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
 speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
@@ -1063,3 +1064,222 @@ async def test_set_state_speed(mocked_controller):
     )
     await mocked_controller._bridge.async_block_until_done()
     assert mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value == 5
+
+
+@pytest.mark.asyncio
+async def test_initialize_rgbic(mocked_controller):
+    await mocked_controller.initialize_elem(rgbic_light)
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.id == rgbic_light.id
+    assert dev.effect.effect == "rainbow"
+    assert dev.effect.effect_list == sorted([
+        # preset
+        "christmas",
+        "cinco-de-mayo",
+        "cross-faded",
+        "double-rainbow",
+        "easter-eggs-six",
+        "effervescent",
+        "fade-3",
+        "fade-7",
+        "halloween",
+        "hanukkah",
+        "july-4th",
+        "jump-3",
+        "jump-7",
+        "may-tricks",
+        "mistletoe",
+        "penguin-disco",
+        "prism",
+        "rainbow",
+        "rainbow-road",
+        "rainbow-roll",
+        "rainbow-rudolf",
+        "red-shift",
+        "snafu",
+        "snowfall",
+        "st-patricks-day",
+        "under-the-sea",
+        "valentines-day",
+        "vote-of-confidence-six",
+        "white-star",
+        # custom
+        "chill",
+        "cinco-de-mayo-fade",
+        "clarity",
+        "dinner-party",
+        "diwali-fade",
+        "easter-fade",
+        "focus",
+        "getting-ready",
+        "halloween-fade",
+        "hanukkah-fade",
+        "moonlight",
+        "nightlight",
+        "sleep",
+        "sound-to-sleep",
+        "st-patricks-day-fade",
+        "wake-up",
+        # modes
+        "circadian-rhythm",
+        "music-sync",
+        # user
+        "custom-1",
+        "custom-2",
+        "custom-3",
+    ])
+
+
+@pytest.mark.asyncio
+async def test_set_effect_rgbic_preset(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    dev.on.on = False
+    dev.effect.effect = None
+    await mocked_controller.set_effect(rgbic_light.id, "fade-3")
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.color_mode.mode == "sequence"
+    assert dev.effect.effect == "fade-3"
+
+
+@pytest.mark.asyncio
+async def test_set_effect_rgbic_color_mode(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    dev.on.on = False
+    dev.effect.effect = None
+    await mocked_controller.set_effect(rgbic_light.id, "circadian-rhythm")
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.color_mode.mode == "circadian-rhythm"
+    assert dev.effect.effect == "circadian-rhythm"
+
+
+@pytest.mark.asyncio
+async def test_set_effect_rgbic_custom_segment(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    dev.on.on = False
+    dev.effect.effect = None
+    await mocked_controller.set_effect(rgbic_light.id, "custom-1")
+    await mocked_controller._bridge.async_block_until_done()
+    assert dev.is_on
+    assert dev.color_mode.mode == "individual"
+    assert dev.effect.effect == "custom-1"
+
+
+@pytest.mark.asyncio
+async def test_update_elem_rgbic_color_mode(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev_update = utils.create_devices_from_data("light-rgbic.json")[0]
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="color-mode",
+            value="circadian-rhythm",
+            lastUpdateTime=0,
+            functionInstance=None,
+        ),
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller.items[0]
+    assert "effect" in updates
+    assert dev.effect.effect == "circadian-rhythm"
+    assert dev.color_mode.mode == "circadian-rhythm"
+
+
+@pytest.mark.asyncio
+async def test_update_elem_rgbic_custom_segment(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev_update = utils.create_devices_from_data("light-rgbic.json")[0]
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="color-individual",
+            value="custom-2",
+            lastUpdateTime=0,
+            functionInstance="custom",
+        ),
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller.items[0]
+    assert "effect" in updates
+    assert dev.effect.effect == "custom-2"
+
+
+@pytest.mark.asyncio
+async def test_set_effect_device_not_found(mocked_controller):
+    await mocked_controller.set_effect("non-existent-device-id", "rainbow")
+
+
+@pytest.mark.asyncio
+async def test_set_effect_no_effect_feature(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(dimmer_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    assert dev.effect is None
+    await mocked_controller.set_effect(dimmer_light.id, "rainbow")
+
+
+def test_process_effect_color_modes_no_color_mode_function():
+    functions = [
+        {"functionClass": "power", "values": [{"name": "on"}, {"name": "off"}]},
+        {"functionClass": "brightness", "values": []},
+    ]
+    assert light.process_effect_color_modes(functions) == set()
+
+
+def test_process_custom_segments_no_color_individual_function():
+    functions = [
+        {"functionClass": "power", "values": [{"name": "on"}, {"name": "off"}]},
+        {"functionClass": "brightness", "values": []},
+    ]
+    assert light.process_custom_segments(functions) == set()
+
+
+@pytest.mark.asyncio
+async def test_set_state_color_mode_effect(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    await mocked_controller.set_state(
+        rgbic_light.id, on=True, effect="circadian-rhythm", color_mode="sequence"
+    )
+    await bridge.async_block_until_done()
+    dev = mocked_controller.items[0]
+    assert dev.color_mode.mode == "circadian-rhythm"
