@@ -98,7 +98,12 @@ def test_EffectFeature():
     # effect_list contains all effects, color modes, and custom segments
     feat = features.EffectFeature(
         effect="fade-3",
-        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+        effects={
+            "preset": {"fade-3"},
+            "custom": {"rainbow"},
+            "color-mode": {"circadian-rhythm", "music-sync"},
+            "individual": {"custom-1", "custom-2", "custom-3"},
+        },
         color_modes={"circadian-rhythm", "music-sync"},
         custom_segments={"custom-1", "custom-2", "custom-3"},
     )
@@ -122,7 +127,11 @@ def test_EffectFeature():
     # api_value for custom segment
     feat = features.EffectFeature(
         effect="custom-1",
-        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+        effects={
+            "preset": {"fade-3"},
+            "custom": {"rainbow"},
+            "individual": {"custom-1", "custom-2", "custom-3"},
+        },
         custom_segments={"custom-1", "custom-2", "custom-3"},
     )
     assert feat.api_value == [
@@ -132,10 +141,14 @@ def test_EffectFeature():
             "value": "custom-1",
         }
     ]
-    # empty api_value for color mode effect 
+    # empty api_value for color mode effect
     feat = features.EffectFeature(
         effect="circadian-rhythm",
-        effects={"preset": {"fade-3"}, "custom": {"rainbow"}},
+        effects={
+            "preset": {"fade-3"},
+            "custom": {"rainbow"},
+            "color-mode": {"circadian-rhythm", "music-sync"},
+        },
         color_modes={"circadian-rhythm", "music-sync"},
     )
     assert feat.api_value == []

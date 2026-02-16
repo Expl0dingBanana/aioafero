@@ -138,13 +138,13 @@ class EffectFeature:
         all_effects: set[str] = set()
         for effect_set in self.effects.values():
             all_effects.update(effect_set)
-        all_effects.update(self.color_modes)
-        all_effects.update(self.custom_segments)
         return sorted(all_effects)
 
     @property
     def api_value(self):
         """States to send to Afero API."""
+        if self.effect in self.color_modes:
+            return []
         if self.effect in self.custom_segments:
             return [
                 {
@@ -156,6 +156,8 @@ class EffectFeature:
         states = []
         seq_key = None
         for effect_group, effects in self.effects.items():
+            if effect_group in ("color-mode", "individual"):
+                continue
             if self.effect not in effects:
                 continue
             seq_key = effect_group

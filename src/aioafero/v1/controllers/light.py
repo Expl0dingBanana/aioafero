@@ -238,11 +238,17 @@ class LightController(BaseResourcesController[Light]):
             elif state.functionClass == "color-sequence":
                 current_effect = state.value
                 effects = process_effects(afero_device.functions)
+                effect_color_modes = process_effect_color_modes(afero_device.functions)
+                custom_segments = process_custom_segments(afero_device.functions)
+                if effect_color_modes:
+                    effects["color-mode"] = effect_color_modes
+                if custom_segments:
+                    effects["individual"] = custom_segments
                 effect = features.EffectFeature(
                     effect=current_effect,
                     effects=effects,
-                    color_modes=process_effect_color_modes(afero_device.functions),
-                    custom_segments=process_custom_segments(afero_device.functions),
+                    color_modes=effect_color_modes,
+                    custom_segments=custom_segments,
                 )
             elif state.functionClass == "color-rgb":
                 color = features.ColorFeature(
