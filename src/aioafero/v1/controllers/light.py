@@ -481,15 +481,27 @@ class LightController(BaseResourcesController[Light]):
                 update_obj.color = features.ColorFeature(
                     red=color[0], green=color[1], blue=color[2]
                 )
+            if effect is not None and cur_item.effect is not None:
+                if effect in cur_item.effect.color_modes:
+                    color_mode = effect
+                elif effect in cur_item.effect.custom_segments:
+                    color_mode = "individual"
+                    update_obj.effect = features.EffectFeature(
+                        effect=effect,
+                        effects=cur_item.effect.effects,
+                        color_modes=cur_item.effect.color_modes,
+                        custom_segments=cur_item.effect.custom_segments,
+                    )
+                else:
+                    color_mode = color_mode or "sequence"
+                    update_obj.effect = features.EffectFeature(
+                        effect=effect,
+                        effects=cur_item.effect.effects,
+                        color_modes=cur_item.effect.color_modes,
+                        custom_segments=cur_item.effect.custom_segments,
+                    )
             if color_mode is not None and cur_item.color_mode is not None:
                 update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
-            if effect is not None and cur_item.effect is not None:
-                update_obj.effect = features.EffectFeature(
-                    effect=effect,
-                    effects=cur_item.effect.effects,
-                    color_modes=cur_item.effect.color_modes,
-                    custom_segments=cur_item.effect.custom_segments,
-                )
         await self.update(
             device_id, obj_in=update_obj, send_duplicate_states=send_duplicate_states
         )
