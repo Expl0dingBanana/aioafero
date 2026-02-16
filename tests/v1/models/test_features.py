@@ -89,6 +89,23 @@ def test_EffectFeature():
     ]
     assert feat.is_preset("fade-3")
     assert not feat.is_preset("rainbow")
+    # api_value skips color-mode and individual keys in the effects dict
+    feat = features.EffectFeature(
+        effect="fade-3",
+        effects={
+            "preset": {"fade-3"},
+            "custom": {"rainbow"},
+            "color-mode": {"circadian-rhythm"},
+            "individual": {"custom-1"},
+        },
+    )
+    assert feat.api_value == [
+        {
+            "functionClass": "color-sequence",
+            "functionInstance": "preset",
+            "value": "fade-3",
+        }
+    ]
     # effect does not exist
     feat.effect = "nope"
     assert feat.api_value == []

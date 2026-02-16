@@ -1266,3 +1266,20 @@ def test_process_custom_segments_no_color_individual_function():
         {"functionClass": "brightness", "values": []},
     ]
     assert light.process_custom_segments(functions) == set()
+
+
+@pytest.mark.asyncio
+async def test_set_state_color_mode_effect(mocked_controller):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(rgbic_light)]
+    )
+    await bridge.async_block_until_done()
+    assert len(mocked_controller.items) == 1
+    dev = mocked_controller.items[0]
+    await mocked_controller.set_state(
+        rgbic_light.id, on=True, effect="circadian-rhythm", color_mode="sequence"
+    )
+    await bridge.async_block_until_done()
+    dev = mocked_controller.items[0]
+    assert dev.color_mode.mode == "circadian-rhythm"
