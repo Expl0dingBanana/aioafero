@@ -24,7 +24,10 @@ def reset_logging_secrets():
 
 @pytest_asyncio.fixture(scope="function")
 async def aio_sess() -> aiohttp.ClientSession:
-    yield aiohttp.ClientSession()
+    session = aiohttp.ClientSession()
+    yield session
+    if not session.closed:
+        await session.close()
 
 
 @pytest_asyncio.fixture
@@ -43,6 +46,7 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
     )
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
     mocker.patch.object(bridge, "_web_session", aio_sess)
+    bridge._close_session = False
 
     bridge.set_token_data(
         TokenData(
@@ -114,6 +118,7 @@ def mocked_bridge_req(mocker, aio_sess):
     mocker.patch.object(bridge, "fetch_discovery_data", side_effect=bridge.fetch_discovery_data)
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     mocker.patch.object(bridge, "_web_session", aio_sess)
+    bridge._close_session = False
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
     bridge._auth._token_data = TokenData(
         "mock-token",
@@ -182,6 +187,7 @@ async def bridge_with_acct(mocker):
             expiration=datetime.datetime.now().timestamp() + 200,
         )
     yield bridge
+    await bridge.close()
 
 
 @pytest_asyncio.fixture
