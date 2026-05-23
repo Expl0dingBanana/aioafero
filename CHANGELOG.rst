@@ -2,6 +2,11 @@
 Changelog
 =========
 
+Version 7.0.1
+=============
+
+ * Fix an issue for split lights
+
 Version 7.0.0
 =============
 
