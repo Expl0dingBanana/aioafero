@@ -404,18 +404,21 @@ class AsyncContextManagerMock:
 async def test_request(max_retries, times_to_sleep, response_gen, exp_error, mocker):
     bridge = AferoBridgeV1("username", "password")
     mock_sleep = mocker.patch("asyncio.sleep", new=mocker.AsyncMock())
-    if response_gen:
-        async_mock_response = AsyncContextManagerMock()
-        mocker.patch.object(bridge, "create_request", return_value=async_mock_response)
-    if max_retries is not None:
-        mocker.patch.object(v1_const, "MAX_RETRIES", max_retries)
-    if exp_error:
-        with pytest.raises(exp_error):
+    try:
+        if response_gen:
+            async_mock_response = AsyncContextManagerMock()
+            mocker.patch.object(bridge, "create_request", return_value=async_mock_response)
+        if max_retries is not None:
+            mocker.patch.object(v1_const, "MAX_RETRIES", max_retries)
+        if exp_error:
+            with pytest.raises(exp_error):
+                await bridge.request("fff", "fff")
+        else:
             await bridge.request("fff", "fff")
-    else:
-        await bridge.request("fff", "fff")
-    if times_to_sleep:
-        assert mock_sleep.call_count == times_to_sleep
+        if times_to_sleep:
+            assert mock_sleep.call_count == times_to_sleep
+    finally:
+        await bridge.close()
 
 
 def test_get_afero_device(mocked_bridge):

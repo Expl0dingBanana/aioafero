@@ -622,6 +622,8 @@ def get_afero_instance_for_state(
     """Determine the function instance based on the field data or device."""
     if hasattr(feature, "func_instance") and getattr(feature, "func_instance", None):
         instance = getattr(feature, "func_instance", None)
+    elif getattr(elem, "split_identifier", None) and getattr(elem, "instance", None):
+        instance = elem.instance
     elif (
         mapped_afero_key
         and hasattr(elem, "get_instance")

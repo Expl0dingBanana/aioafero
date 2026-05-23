@@ -701,6 +701,68 @@ async def test_set_rgb(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_set_rgb_trim(mocked_controller, mocker):
+    """Trim split lights must target the trim functionInstance, not main."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.on.on = False
+    trim_dev.color_mode.mode = "white"
+    trim_dev.color.red = 100
+    trim_dev.color.green = 100
+    trim_dev.color.blue = 100
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_rgb(trim_light_trim_id, 10, 20, 30)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    assert update_afero_api.call_args[0][0] == trim_light.id
+    sent_states = update_afero_api.call_args[0][1]
+    instances = {
+        state["functionClass"]: state["functionInstance"] for state in sent_states
+    }
+    assert instances["power"] == "trim"
+    assert instances["color-rgb"] == "trim"
+    assert instances["color-mode"] == "trim"
+
+
+@pytest.mark.asyncio
+async def test_set_brightness_trim(mocked_controller, mocker):
+    """Trim split brightness updates must target the trim functionInstance."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.on.on = False
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_brightness(trim_light_trim_id, 42)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    sent_states = update_afero_api.call_args[0][1]
+    instances = {
+        state["functionClass"]: state["functionInstance"] for state in sent_states
+    }
+    assert instances["power"] == "trim"
+    assert instances["brightness"] == "trim"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "effect",
     [

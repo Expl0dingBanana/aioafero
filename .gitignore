@@ -55,3 +55,4 @@ MANIFEST
 
 
 .ruff_cache
+uv.lock

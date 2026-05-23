@@ -19,7 +19,8 @@ from aioafero.v1.controllers.base import (
     get_afero_states_from_list,
     get_afero_states_from_mapped,
 )
-from aioafero.v1.models.features import SelectFeature
+from aioafero.v1.models.features import ColorFeature, SelectFeature
+from aioafero.v1.models.light import Light
 from aioafero.v1.models.resource import DeviceInformation
 import pytest_asyncio
 
@@ -117,6 +118,18 @@ test_res_funcs = TestResourceWithFunctions(
         "bean2": TestFeatureInstance(on=False, func_instance="bean2"),
     },
     device_information=DeviceInformation(),
+)
+
+split_light = Light(
+    _id="parent-id-light-trim",
+    available=True,
+    split_identifier="light",
+    device_information=DeviceInformation(
+        functions=[
+            {"functionClass": "color-rgb", "functionInstance": "trim"},
+            {"functionClass": "color-rgb", "functionInstance": "main"},
+        ]
+    ),
 )
 
 
@@ -1510,6 +1523,13 @@ def test_get_afero_states_from_mapped(
         (test_res, TestFeatureInstance(on=True, func_instance="bean1"), None, "bean1"),
         # Utilize instances
         (test_res_funcs, TestFeatureBool(on=True), "on", "super-beans"),
+        # Split devices use instance from entity id, not get_instance()
+        (
+            split_light,
+            ColorFeature(red=1, green=2, blue=3),
+            "color-rgb",
+            "trim",
+        ),
         # None fallback
         (test_res_funcs, TestFeatureBool(on=True), None, None),
     ],
