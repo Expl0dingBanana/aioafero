@@ -25,6 +25,16 @@ def get_alarm_panel_with_siren() -> AferoDevice:
     return alarm_panel_with_siren
 
 
+def sync_panel_alarm_state(controller: SecuritySystemController, mode: str) -> None:
+    """Keep controller and bridge cache aligned (required after generate_update_dev merge)."""
+    controller[alarm_panel.id].alarm_state.mode = mode
+    cached = controller._bridge.get_afero_device(alarm_panel.id)
+    for state in cached.states:
+        if state.functionClass == "alarm-state":
+            state.value = mode
+            break
+
+
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
@@ -165,7 +175,7 @@ async def test_disarm(mocked_controller, mocker):
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
-    mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
+    sync_panel_alarm_state(mocked_controller, "arm-away")
     # Setup the response after disarm
     panel = utils.create_devices_from_data("security-system.json")[1]
     new_states = [
@@ -192,7 +202,7 @@ async def test_disarm_invalid_pin(mocked_controller, mocker):
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
-    mocked_controller[alarm_panel.id].alarm_state.mode = "arm-away"
+    sync_panel_alarm_state(mocked_controller, "arm-away")
     # Setup the response after disarm
     panel = utils.create_devices_from_data("security-system.json")[1]
     new_states = [

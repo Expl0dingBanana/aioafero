@@ -212,6 +212,44 @@ async def test_turn_on_split_device(mocked_bridge, mocker):
 
 
 @pytest.mark.asyncio
+async def test_turn_on_split_device_response_metadevice_id(mocked_bridge, mocker):
+    """PUT responses must merge parent cache even if metadeviceId echoes a split id."""
+    await mocked_bridge.generate_devices_from_data(
+        utils.create_devices_from_data("light-with-speaker.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    speaker_id = "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f-light-speaker-power"
+    parent_id = "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f"
+    mocked_controller = mocked_bridge.switches
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {
+        "metadeviceId": speaker_id,
+        "values": [
+            {
+                "functionClass": "toggle",
+                "functionInstance": "speaker-power",
+                "value": "on",
+                "lastUpdateTime": 0,
+            },
+        ],
+    }
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    await mocked_controller.turn_on(speaker_id, instance="speaker-power")
+    await mocked_bridge.async_block_until_done()
+    parent = mocked_bridge.get_afero_device(parent_id)
+    assert any(
+        s.functionClass == "toggle"
+        and s.functionInstance == "speaker-power"
+        and s.value == "on"
+        for s in parent.states
+    )
+    assert mocked_controller[speaker_id].on["speaker-power"].on is True
+
+
+@pytest.mark.asyncio
 async def test_update_elem(mocked_controller):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(transformer)]
