@@ -52,6 +52,7 @@ from .controllers.lock import LockController
 from .controllers.portable_ac import PortableACController
 from .controllers.security_system import SecuritySystemController
 from .controllers.security_system_keypad import SecuritySystemKeypadController
+from .controllers.schedules import SchedulesController
 from .controllers.security_system_sensor import SecuritySystemSensorController
 from .controllers.switch import SwitchController
 from .controllers.thermostat import ThermostatController
@@ -179,6 +180,8 @@ class AferoBridgeV1:
         self.add_controller("switches", SwitchController)
         self.add_controller("thermostats", ThermostatController)
         self.add_controller("valves", ValveController)
+        # Per-device schedule client (not a polled device controller).
+        self.schedules = SchedulesController(self)
 
     @property
     def refresh_token(self) -> str | None:

@@ -45,3 +45,19 @@ def test_init_empty(empty_entity):
 
 def test_get_instance(populated_entity):
     assert populated_entity.get_instance("preset") == "preset-1"
+
+
+def test_rain_delay_defaults_none(empty_entity):
+    assert empty_entity.rain_delay is None
+
+
+def test_rain_delay_feature_api_value():
+    feat = features.RainDelayFeature(active=True, pauses=[{"a": 1}])
+    # api_value only toggles `active`; the pause array is app-managed.
+    assert feat.api_value == {
+        "functionClass": "schedule-pause",
+        "functionInstance": "active",
+        "value": "on",
+    }
+    feat.active = False
+    assert feat.api_value["value"] == "off"

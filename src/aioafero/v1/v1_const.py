@@ -32,6 +32,10 @@ AFERO_GENERICS: Final[dict[str, str]] = {
     "API_DEVICE_ENDPOINT": "/v1/accounts/{}/metadevices",
     "API_DEVICE_STATE_ENDPOINT": "/v1/accounts/{}/metadevices/{}/state",
     "API_DEVICE_VERSIONS_ENDPOINT": "/v1/accounts/{}/devices/{}/versions",
+    # Per-device schedules (recurring on-device events, e.g. watering timers).
+    # Served by the API_DATA_HOST backend (set the Host header accordingly).
+    "API_DEVICE_SCHEDULES_ENDPOINT": "/v1/accounts/{}/metadevices/{}/schedules",
+    "API_DEVICE_SCHEDULE_ENDPOINT": "/v1/accounts/{}/metadevices/{}/schedules/{}",
     # Auth endpoints
     "AUTH_OPENID_ENDPOINT": "/protocol/openid-connect/auth",
     "AUTH_CODE_ENDPOINT": "/login-actions/authenticate",
