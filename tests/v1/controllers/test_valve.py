@@ -174,3 +174,143 @@ async def test_set_state_invalid_instance(mocked_controller, caplog):
     )
     mocked_controller._bridge.request.assert_not_called()
     assert "No states to send. Skipping" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_initialize_battery_sensor(mocked_controller):
+    await mocked_controller.initialize_elem(valve)
+    dev = mocked_controller[valve.id]
+    assert "battery-level" in dev.sensors
+    assert dev.sensors["battery-level"].value == 100
+    assert dev.sensors["battery-level"].unit == "%"
+
+
+@pytest.mark.asyncio
+async def test_initialize_numbers(mocked_controller):
+    await mocked_controller.initialize_elem(valve)
+    dev = mocked_controller[valve.id]
+    # timer + max-on-time, one of each per spigot
+    assert set(dev.numbers) == {
+        ("timer", "spigot-1"),
+        ("timer", "spigot-2"),
+        ("max-on-time", "spigot-1"),
+        ("max-on-time", "spigot-2"),
+    }
+    max_on_1 = dev.numbers[("max-on-time", "spigot-1")]
+    assert max_on_1.value == 15
+    assert max_on_1.min == 1
+    assert max_on_1.max == 360
+    assert max_on_1.step == 1
+    assert max_on_1.unit == "minutes"
+    # timer range starts at 0 (idle) per the fixture
+    assert dev.numbers[("timer", "spigot-1")].value == 0
+    assert dev.numbers[("timer", "spigot-1")].min == 0
+
+
+@pytest.mark.asyncio
+async def test_initialize_rain_delay(mocked_controller):
+    await mocked_controller.initialize_elem(valve)
+    dev = mocked_controller[valve.id]
+    assert dev.rain_delay is not None
+    # Fixture: schedule-pause/active == "off", rain-delay array empty
+    assert dev.rain_delay.active is False
+    assert dev.rain_delay.pauses == []
+
+
+@pytest.mark.asyncio
+async def test_update_number(mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev_update = utils.create_devices_from_data("water-timer.json")[0]
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="max-on-time",
+            functionInstance="spigot-1",
+            value=30,
+            lastUpdateTime=0,
+        ),
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller[valve.id]
+    assert dev.numbers[("max-on-time", "spigot-1")].value == 30
+    assert "number-('max-on-time', 'spigot-1')" in updates
+
+
+@pytest.mark.asyncio
+async def test_update_rain_delay_active(mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev_update = utils.create_devices_from_data("water-timer.json")[0]
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="schedule-pause",
+            functionInstance="active",
+            value="on",
+            lastUpdateTime=0,
+        ),
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller[valve.id]
+    assert dev.rain_delay.active is True
+    assert updates == {"rain-delay"}
+
+
+@pytest.mark.asyncio
+async def test_update_rain_delay_pauses(mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev_update = utils.create_devices_from_data("water-timer.json")[0]
+    pause = {"startTime": 1700000000, "duration": 86400}
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass="schedule-pause",
+            functionInstance="rain-delay",
+            value={
+                "schedule-pause-time-array": {"schedulePauseTimeArray": [pause]}
+            },
+            lastUpdateTime=0,
+        ),
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller[valve.id]
+    assert dev.rain_delay.pauses == [pause]
+    assert updates == {"rain-delay"}
+
+
+@pytest.mark.asyncio
+async def test_set_state_number(mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.set_state(
+        valve.id,
+        numbers={
+            ("max-on-time", "spigot-1"): 30,
+            ("invalid", "state"): None,
+        },
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[valve.id]
+    assert dev.numbers[("max-on-time", "spigot-1")].value == 30
+
+
+@pytest.mark.asyncio
+async def test_set_state_rain_delay(mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    await mocked_controller.set_state(valve.id, rain_delay=True)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[valve.id]
+    assert dev.rain_delay.active is True

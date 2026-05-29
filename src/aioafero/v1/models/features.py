@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 from aioafero.util import percentage_to_ordered_list_item
 
@@ -254,6 +255,33 @@ class OpenFeature:
 
 
 @dataclass
+class RainDelayFeature:
+    """Represent the rain-delay / schedule-pause state of a water timer.
+
+    Two wire states feed this single feature:
+      * `schedule-pause` @ `active` (category `on`/`off`) -- whether a pause is
+        currently in effect.
+      * `schedule-pause` @ `rain-delay` (object) -- the configured pause windows,
+        wrapped as ``{"schedule-pause-time-array": {"schedulePauseTimeArray": [...]}}``.
+
+    ``api_value`` only emits the `active` toggle; the pause-window array is created
+    and managed in the Hubspace app and is surfaced here read-only.
+    """
+
+    active: bool
+    pauses: list[Any] = field(default_factory=list)
+
+    @property
+    def api_value(self):
+        """Value to send to Afero API to toggle the rain delay on/off."""
+        return {
+            "functionClass": "schedule-pause",
+            "functionInstance": "active",
+            "value": "on" if self.active else "off",
+        }
+
+
+@dataclass
 class PresetFeature:
     """Represent the current preset."""
 
@@ -402,6 +430,7 @@ AferoFeatures: list = [
     NumbersFeature,
     OnFeature,
     OpenFeature,
+    RainDelayFeature,
     PresetFeature,
     SelectFeature,
     SpeedFeature,
