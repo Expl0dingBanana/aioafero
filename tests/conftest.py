@@ -1,5 +1,7 @@
 import datetime
 import asyncio
+import inspect
+from unittest.mock import Mock
 
 from aioresponses import aioresponses
 import pytest
@@ -13,6 +15,31 @@ from aioafero.v1.controllers.event import EventType
 from tests.v1.utils import create_hs_raw_from_device
 from aioafero.v1.controllers.base import BaseResourcesController, dataclass_to_afero
 import securelogging
+
+
+def _patch_aioresponses_for_aiohttp_314() -> None:
+    """Default stream_writer for mocked ClientResponse on aiohttp 3.14+.
+
+    aioresponses 0.7.8 constructs ClientResponse without the stream_writer
+    argument that aiohttp 3.14 made required. Remove once aioresponses ships
+    the fix (see pnuckowski/aioresponses#288).
+    """
+    if "stream_writer" not in inspect.signature(aiohttp.ClientResponse.__init__).parameters:
+        return
+    if getattr(aiohttp.ClientResponse.__init__, "_aioafero_aiohttp314_patch", False):
+        return
+    original_init = aiohttp.ClientResponse.__init__
+
+    def client_response_init(self, method, url, **kwargs):
+        if "stream_writer" not in kwargs:
+            kwargs["stream_writer"] = Mock(output_size=0)
+        return original_init(self, method, url, **kwargs)
+
+    client_response_init._aioafero_aiohttp314_patch = True  # type: ignore[attr-defined]
+    aiohttp.ClientResponse.__init__ = client_response_init  # type: ignore[method-assign]
+
+
+_patch_aioresponses_for_aiohttp_314()
 
 
 @pytest.fixture(autouse=True)
