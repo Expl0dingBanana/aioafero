@@ -57,16 +57,29 @@ def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes
     return sorted(instances)
 
 
+def state_belongs_to_light_instance(
+    afero_dev: AferoDevice, state: AferoState, instance: str
+) -> bool:
+    """Return whether a state belongs to a light zone instance."""
+    if state.functionClass == "available":
+        return True
+    if afero_dev.model == "LCN3002LM-01 WH":
+        if state.functionInstance == "primary":
+            return False
+        return (instance == "white" and state.functionInstance == instance) or (
+            instance != "white" and state.functionInstance != "white"
+        )
+    if state.functionInstance in (None, "global", "primary"):
+        return False
+    return state.functionInstance == instance
+
+
 def state_matches_instance(afero_device: AferoDevice, state: AferoState) -> bool:
     """Return whether a state belongs to a split light instance."""
     if not afero_device.split_identifier:
         return True
-    if state.functionClass == "available":
-        return True
-    if state.functionInstance in (None, "global", "primary"):
-        return False
     instance = afero_device.id.rsplit(f"-{afero_device.split_identifier}-", 1)[1]
-    return state.functionInstance == instance
+    return state_belongs_to_light_instance(afero_device, state, instance)
 
 
 def resolve_function_instance(afero_device: AferoDevice) -> str | None:
@@ -95,21 +108,11 @@ def get_color_modes_for_device(afero_device: AferoDevice) -> list[str]:
 
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
     """Find states associated with the specific instance."""
-    valid_states: list = []
-    for state in afero_dev.states:
-        if state.functionClass == "available":
-            valid_states.append(state)
-        # This light is unique where color uses instance "color" and None
-        elif afero_dev.model == "LCN3002LM-01 WH":
-            if state.functionInstance == "primary":
-                continue
-            if (instance == "white" and state.functionInstance == instance) or (
-                instance != "white" and state.functionInstance != "white"
-            ):
-                valid_states.append(state)
-        elif state.functionInstance == instance:
-            valid_states.append(state)
-    return valid_states
+    return [
+        state
+        for state in afero_dev.states
+        if state_belongs_to_light_instance(afero_dev, state, instance)
+    ]
 
 
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:

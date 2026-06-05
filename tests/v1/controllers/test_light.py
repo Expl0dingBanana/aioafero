@@ -464,6 +464,142 @@ def test_state_matches_instance_trim_zone(state, expected):
     assert state_matches_instance(trim_device, state) is expected
 
 
+@pytest.mark.parametrize(
+    "state, expected",
+    [
+        (
+            AferoState(
+                functionClass="color-rgb",
+                value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="color-mode",
+                value="color",
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="toggle",
+                value="on",
+                lastUpdateTime=0,
+                functionInstance="color",
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="toggle",
+                value="off",
+                lastUpdateTime=0,
+                functionInstance="white",
+            ),
+            False,
+        ),
+        (
+            AferoState(
+                functionClass="brightness",
+                value=50,
+                lastUpdateTime=0,
+                functionInstance="primary",
+            ),
+            False,
+        ),
+    ],
+)
+def test_state_matches_instance_flushmount_color_zone(state, expected):
+    """LCN3002LM color zone uses null-instance color states."""
+    color_device = AferoDevice(
+        id=flushmount_light_color_id,
+        device_id=flushmount_light.device_id,
+        model=flushmount_light.model,
+        device_class="light",
+        default_name=flushmount_light.default_name,
+        default_image=flushmount_light.default_image,
+        friendly_name="color",
+        split_identifier="light",
+    )
+    assert state_matches_instance(color_device, state) is expected
+
+
+@pytest.mark.parametrize(
+    "state, expected",
+    [
+        (
+            AferoState(
+                functionClass="color-rgb",
+                value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            False,
+        ),
+        (
+            AferoState(
+                functionClass="toggle",
+                value="on",
+                lastUpdateTime=0,
+                functionInstance="white",
+            ),
+            True,
+        ),
+    ],
+)
+def test_state_matches_instance_flushmount_white_zone(state, expected):
+    """LCN3002LM white zone must not inherit null-instance color states."""
+    white_device = AferoDevice(
+        id=flushmount_light_white_id,
+        device_id=flushmount_light.device_id,
+        model=flushmount_light.model,
+        device_class="light",
+        default_name=flushmount_light.default_name,
+        default_image=flushmount_light.default_image,
+        friendly_name="white",
+        split_identifier="light",
+    )
+    assert state_matches_instance(white_device, state) is expected
+
+
+@pytest.mark.asyncio
+async def test_update_elem_flushmount_color_applies_null_instance_rgb(mocked_controller):
+    """Inbound null-instance color-rgb must update the flushmount color split."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    color_dev = mocked_controller[flushmount_light_color_id]
+    color_update = AferoDevice(
+        id=flushmount_light_color_id,
+        device_id=flushmount_light.device_id,
+        model=flushmount_light.model,
+        device_class="light",
+        default_name=flushmount_light.default_name,
+        default_image=flushmount_light.default_image,
+        friendly_name=color_dev.device_information.name,
+        split_identifier="light",
+        states=[
+            AferoState(
+                functionClass="color-rgb",
+                value={"color-rgb": {"r": 10, "g": 20, "b": 30}},
+                lastUpdateTime=0,
+                functionInstance=None,
+            )
+        ],
+    )
+    updates = await mocked_controller.update_elem(color_update)
+    assert color_dev.color.red == 10
+    assert color_dev.color.green == 20
+    assert color_dev.color.blue == 30
+    assert "color" in updates
+
+
 @pytest.mark.asyncio
 async def test_parent_cache_keeps_full_states_after_trim_split(mocked_bridge):
     """Parent metadevice cache must stay the full device, not the parent-device shell."""
