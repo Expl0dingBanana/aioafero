@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -578,3 +579,88 @@ async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
     assert dev2.states == states2
     assert "Unable to fetch states: Boom" in caplog.text
     assert "Device dev4 not found in cache" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_dedupes_split_ids(mocked_bridge, mocker):
+    parent_id = "parent-light-id"
+    parent_dev = mocker.Mock(spec=AferoDevice)
+    parent_dev.id = parent_id
+    parent_dev.split_identifier = None
+    trim_dev = mocker.Mock(spec=AferoDevice)
+    trim_dev.id = f"{parent_id}-light-trim"
+    trim_dev.split_identifier = "light"
+    main_dev = mocker.Mock(spec=AferoDevice)
+    main_dev.id = f"{parent_id}-light-main"
+    main_dev.split_identifier = "light"
+    mocked_bridge._known_devs = {
+        f"{parent_id}-light-main": mocker.Mock(),
+        f"{parent_id}-light-trim": mocker.Mock(),
+    }
+    mocked_bridge._known_afero_devices = {
+        parent_id: parent_dev,
+        f"{parent_id}-light-main": main_dev,
+        f"{parent_id}-light-trim": trim_dev,
+    }
+    states = [AferoState(functionClass="power", value="on", functionInstance="trim")]
+    fetch = mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(return_value=(parent_id, states)),
+    )
+    updated_devices = await mocked_bridge.fetch_all_device_states()
+    fetch.assert_called_once_with(parent_id)
+    assert len(updated_devices) == 1
+    assert parent_dev.states == states
+
+
+def test_add_afero_dev_explicit_cache_key(mocked_bridge):
+    """add_afero_dev may store under an id other than device.id."""
+    device = AferoDevice(
+        id="canonical-id",
+        device_id="physical",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+    )
+    mocked_bridge.add_afero_dev(device, "alias-cache-key")
+    assert mocked_bridge.get_afero_device("alias-cache-key") is device
+    with pytest.raises(DeviceNotFound):
+        mocked_bridge.get_afero_device("canonical-id")
+
+
+@pytest.mark.parametrize(
+    "device_id, expected",
+    [
+        ("plain-id", "plain-id"),
+        ("parent-light-id-light-main", "parent-light-id"),
+    ],
+)
+def test_resolve_metadevice_id(mocked_bridge, device_id, expected):
+    parent_dev = AferoDevice(
+        id="parent-light-id",
+        device_id="device",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+    )
+    split_dev = AferoDevice(
+        id="parent-light-id-light-main",
+        device_id="device",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        split_identifier="light",
+    )
+    mocked_bridge._known_afero_devices = {
+        "plain-id": parent_dev,
+        "parent-light-id": parent_dev,
+        "parent-light-id-light-main": split_dev,
+    }
+    assert mocked_bridge.resolve_metadevice_id(device_id) == expected

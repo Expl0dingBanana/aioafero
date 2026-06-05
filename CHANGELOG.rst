@@ -2,6 +2,17 @@
 Changelog
 =========
 
+Version 7.0.2
+=============
+
+ * Fix split-light polling to query parent metadevice ids once instead of synthetic split ids
+ * Cache split light clones separately so parent state is not overwritten
+ * Ignore other instances' power states when applying inbound updates to split lights
+ * Merge partial API state responses into cached device state instead of replacing it
+ * Use instance-scoped `color_modes` on split lights so capability flags match each zone
+ * Route white-only control on white-only zones through `color-mode: white`
+ * Ignore inbound `color-temperature` updates for lights that have no CCT function
+
 Version 7.0.1
 =============
 

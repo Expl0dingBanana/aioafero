@@ -151,6 +151,16 @@ def convert_state(state: dict[str, Any]) -> AferoState:
     )
 
 
+def merge_afero_states(
+    existing: list[AferoState], incoming: list[AferoState]
+) -> list[AferoState]:
+    """Merge incoming states into existing by functionClass and functionInstance."""
+    merged = {(s.functionClass, s.functionInstance): s for s in existing}
+    for state in incoming:
+        merged[(state.functionClass, state.functionInstance)] = state
+    return list(merged.values())
+
+
 def get_afero_device(afero_device: dict[str, Any]) -> AferoDevice:
     """Convert the Afero device definition into a AferoDevice."""
     description = afero_device.get("description", {})

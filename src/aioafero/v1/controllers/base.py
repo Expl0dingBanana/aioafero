@@ -18,6 +18,7 @@ from aioafero.device import (
     AferoState,
     convert_state,
     get_afero_device,
+    merge_afero_states,
 )
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.types import TemperatureUnit
@@ -523,7 +524,10 @@ class BaseResourcesController(Generic[AferoResource]):
         if res := await self.update_afero_api(update_id, device_states):
             resp_json = await res.json()
             states = [convert_state(val) for val in resp_json.get("values", [])]
-            update_dev = self.generate_update_dev(resp_json["metadeviceId"], states)
+            # Always merge into the parent metadevice cache (update_id). Split clones
+            # are cached separately; response metadeviceId may match update_id on API
+            # responses but tests may echo the resource id instead.
+            update_dev = self.generate_update_dev(update_id, states)
             update_dev.id = update_id
             await self._bridge.events.generate_events_from_update(update_dev)
             return res
@@ -534,7 +538,7 @@ class BaseResourcesController(Generic[AferoResource]):
     ) -> AferoDevice:
         """Generate update data for the event controller."""
         afero_dev = self._bridge.get_afero_device(device_id)
-        afero_dev.states = states
+        afero_dev.states = merge_afero_states(afero_dev.states, states)
         return afero_dev
 
     def get_device(self, device_id) -> AferoResource:

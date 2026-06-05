@@ -57,23 +57,62 @@ def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes
     return sorted(instances)
 
 
+def state_belongs_to_light_instance(
+    afero_dev: AferoDevice, state: AferoState, instance: str
+) -> bool:
+    """Return whether a state belongs to a light zone instance."""
+    if state.functionClass == "available":
+        return True
+    if afero_dev.model == "LCN3002LM-01 WH":
+        if state.functionInstance == "primary":
+            return False
+        return (instance == "white" and state.functionInstance == instance) or (
+            instance != "white" and state.functionInstance != "white"
+        )
+    if state.functionInstance in (None, "global", "primary"):
+        return False
+    return state.functionInstance == instance
+
+
+def state_matches_instance(afero_device: AferoDevice, state: AferoState) -> bool:
+    """Return whether a state belongs to a split light instance."""
+    if not afero_device.split_identifier:
+        return True
+    instance = afero_device.id.rsplit(f"-{afero_device.split_identifier}-", 1)[1]
+    return state_belongs_to_light_instance(afero_device, state, instance)
+
+
+def resolve_function_instance(afero_device: AferoDevice) -> str | None:
+    """Return the functionInstance key for this light resource (split zone or single)."""
+    if afero_device.split_identifier:
+        return afero_device.id.rsplit(f"-{afero_device.split_identifier}-", 1)[1]
+    for state in afero_device.states:
+        if state.functionClass == "color-mode":
+            return state.functionInstance
+    return None
+
+
+def get_color_modes_for_device(afero_device: AferoDevice) -> list[str]:
+    """Return supported color-mode names for this zone's color-mode function."""
+    instance = resolve_function_instance(afero_device)
+    for function in afero_device.functions:
+        if function.get("functionClass") != "color-mode":
+            continue
+        if function.get("functionInstance") == instance:
+            return [value["name"] for value in function.get("values", [])]
+    for function in afero_device.functions:
+        if function.get("functionClass") == "color-mode":
+            return [value["name"] for value in function.get("values", [])]
+    return []
+
+
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
     """Find states associated with the specific instance."""
-    valid_states: list = []
-    for state in afero_dev.states:
-        if state.functionClass == "available":
-            valid_states.append(state)
-        # This light is unique where color uses instance "color" and None
-        elif afero_dev.model == "LCN3002LM-01 WH":
-            if state.functionInstance == "primary":
-                continue
-            if (instance == "white" and state.functionInstance == instance) or (
-                instance != "white" and state.functionInstance != "white"
-            ):
-                valid_states.append(state)
-        elif state.functionInstance == instance:
-            valid_states.append(state)
-    return valid_states
+    return [
+        state
+        for state in afero_dev.states
+        if state_belongs_to_light_instance(afero_dev, state, instance)
+    ]
 
 
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:
@@ -84,8 +123,8 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
     instances = get_split_instances(afero_device)
     logger.debug("Light instances found: %s", instances)
     light_instances = [x[0] for x in instances if x[1] == ResourceTypes.LIGHT]
+    children: list[str] = []
     if afero_device.device_class == ResourceTypes.LIGHT.value:
-        children = []
         for instance, resource_type in instances:
             instance_name = instance if instance else "primary"
             cloned = copy.deepcopy(afero_device)
@@ -154,9 +193,38 @@ class LightController(BaseResourcesController[Light]):
         await self.set_state(device_id, on=False)
 
     async def set_color_temperature(self, device_id: str, temperature: int) -> None:
-        """Set Color Temperature to light. Turn on light if it's currently off."""
+        """Set color temperature, or white mode when the zone has no CCT function."""
+        try:
+            cur_item = self.get_device(device_id)
+        except errors.DeviceNotFound:
+            self._logger.info("Unable to find device %s", device_id)
+            return
+        if cur_item.color_temperature is not None:
+            await self.set_state(
+                device_id, on=True, temperature=temperature, color_mode="white"
+            )
+        elif cur_item.supports_color_white:
+            self._logger.info(
+                "Device %s has no color-temperature function; ignoring %d K",
+                device_id,
+                temperature,
+            )
+            await self.set_white(device_id, on=True)
+        else:
+            self._logger.info(
+                "Device %s does not support color temperature or white mode", device_id
+            )
+
+    async def set_white(
+        self,
+        device_id: str,
+        *,
+        on: bool | None = True,
+        brightness: int | None = None,
+    ) -> None:
+        """Set API white mode (color-mode white) without a color-temperature function."""
         await self.set_state(
-            device_id, on=True, temperature=temperature, color_mode="white"
+            device_id, on=on, color_mode="white", brightness=brightness
         )
 
     async def set_brightness(self, device_id: str, brightness: int) -> None:
@@ -236,15 +304,7 @@ class LightController(BaseResourcesController[Light]):
             if number := await self.initialize_number(func_def, state):
                 numbers[number[0]] = number[1]
 
-        supported_color_modes: list[str] = []
-        for function in afero_device.functions:
-            if function["functionClass"] != "color-mode":
-                continue
-            supported_color_modes = [
-                supported_color_mode["name"]
-                for supported_color_mode in function["values"]
-            ]
-            break
+        supported_color_modes = get_color_modes_for_device(afero_device)
 
         self._items[afero_device.id] = Light(
             _id=afero_device.id,
@@ -285,6 +345,9 @@ class LightController(BaseResourcesController[Light]):
         updated_keys = set()
         color_seq_states: dict[str, AferoState] = {}
         for state in afero_device.states:
+            # Split clones are pre-filtered in light_callback; this guards other paths.
+            if not state_matches_instance(afero_device, state):
+                continue
             if state.functionClass == "power" or (
                 afero_device.split_identifier and state.functionClass == "toggle"
             ):
@@ -293,6 +356,8 @@ class LightController(BaseResourcesController[Light]):
                     cur_item.on.on = new_val
                     updated_keys.add("on")
             elif state.functionClass == "color-temperature":
+                if cur_item.color_temperature is None:
+                    continue
                 current_temp = state.value
                 if isinstance(current_temp, str) and current_temp.endswith("K"):
                     current_temp = current_temp[:-1]
@@ -414,6 +479,11 @@ class LightController(BaseResourcesController[Light]):
                     supported=cur_item.color_temperature.supported,
                     prefix=cur_item.color_temperature.prefix,
                 )
+                if color_mode is None:
+                    color_mode = "white"
+            elif temperature is not None and cur_item.supports_color_white:
+                if color_mode is None:
+                    color_mode = "white"
             if brightness is not None and cur_item.dimming is not None:
                 update_obj.dimming = features.DimmingFeature(
                     brightness=brightness, supported=cur_item.dimming.supported
@@ -424,6 +494,13 @@ class LightController(BaseResourcesController[Light]):
                 )
             if color_mode is not None and cur_item.color_mode is not None:
                 update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
+                if (
+                    color_mode == "white"
+                    and cur_item.color_temperature is None
+                    and cur_item.supports_color_white
+                    and cur_item.color_mode.mode != "white"
+                ):
+                    send_duplicate_states = True
             if effect is not None and cur_item.effect is not None:
                 update_obj.effect = features.EffectFeature(
                     effect=effect, effects=cur_item.effect.effects

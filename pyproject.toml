@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "7.0.1"
+version = "7.0.2"
 dependencies = [
   "aiohttp",
   "beautifulsoup4",
@@ -30,11 +30,17 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# Test-only deps; not installed by Home Assistant integrations.
 test = [
   "pytest",
   "pytest-mock",
   "pytest-cov",
   "pytest-asyncio",
+  # aioresponses 0.7.8 is incompatible with aiohttp 3.14+ (ClientResponse requires
+  # stream_writer). Runtime aiohttp stays unpinned so HA can use its bundled version;
+  # tests/conftest.py patches mocked responses until aioresponses ships the fix
+  # (https://github.com/pnuckowski/aioresponses/pull/288). Bump aioresponses and
+  # remove that shim once a release includes 3.14 support.
   "aioresponses",
   "pytest-aioresponses",
   "anyio[trio]",

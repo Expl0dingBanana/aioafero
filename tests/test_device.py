@@ -4,6 +4,7 @@ import os
 import pytest
 
 from aioafero import device
+from aioafero.device import AferoState, merge_afero_states
 from pathlib import Path
 
 current_path = os.path.dirname(os.path.realpath(__file__))
@@ -485,3 +486,16 @@ def test_capability_raw_dump():
             "step": 1
         }
     }
+
+
+def test_merge_afero_states():
+    existing = [
+        AferoState(functionClass="power", value="on", functionInstance="main"),
+        AferoState(functionClass="power", value="off", functionInstance="trim"),
+    ]
+    incoming = [
+        AferoState(functionClass="power", value="off", functionInstance="main"),
+    ]
+    merged = merge_afero_states(existing, incoming)
+    by_instance = {(s.functionInstance, s.value) for s in merged}
+    assert by_instance == {("main", "off"), ("trim", "off")}

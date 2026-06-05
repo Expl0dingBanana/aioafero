@@ -261,6 +261,16 @@ class AferoBridgeV1:
         except KeyError as err:
             raise DeviceNotFound(f"Unable to find device for {device_id}") from err
 
+    def resolve_metadevice_id(self, device_id: str) -> str:
+        """Return the Afero API metadevice ID used for state queries and updates."""
+        try:
+            device = self.get_afero_device(device_id)
+        except DeviceNotFound:
+            return device_id
+        if device.split_identifier:
+            return device.id.rsplit(f"-{device.split_identifier}-", 1)[0]
+        return device_id
+
     @property
     def account_id(self) -> str:
         """Get the account ID for the Afero IoT account."""
@@ -456,9 +466,13 @@ class AferoBridgeV1:
 
     async def _fetch_all_device_states(self) -> list[AferoDevice]:
         """Query the API for all known device states."""
-        # known_devs keeps track of all devices, while .devices is only "parent" items
-        device_ids = list(self._known_devs.keys())
-        tasks = [self._fetch_device_states(dev_id) for dev_id in device_ids]
+        # Split entities share a parent metadevice; poll each parent once.
+        metadevice_ids = {
+            self.resolve_metadevice_id(device_id) for device_id in self._known_devs
+        }
+        tasks = [
+            self._fetch_device_states(metadevice_id) for metadevice_id in metadevice_ids
+        ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         updated_devices: list[AferoDevice] = []

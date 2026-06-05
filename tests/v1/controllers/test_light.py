@@ -1,12 +1,16 @@
 """Test LightController"""
 
+from unittest.mock import AsyncMock
+
 import pytest
 from dataclasses import asdict
 
-from aioafero.device import AferoState
+from aioafero.device import AferoDevice, AferoState, merge_afero_states
 from aioafero.v1.controllers import event, light
+from aioafero.v1.controllers.base import get_afero_instance_for_state
 from aioafero.v1.controllers.light import LightController, features, process_color_temps
-from aioafero.v1.models.features import EffectFeature
+from aioafero.v1.controllers.light import state_matches_instance
+from aioafero.v1.models.features import ColorFeature, EffectFeature
 from aioafero.v1.models.light import Light
 from aioafero.v1.models.resource import ResourceTypes, DeviceInformation
 
@@ -26,6 +30,75 @@ speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
 trim_light = utils.create_devices_from_data("light-with-trim.json")[0]
 trim_light_primary_id = f"{trim_light.id}-light-main"
 trim_light_trim_id = f"{trim_light.id}-light-trim"
+
+
+def _trim_update_with_states(
+    trim_dev: Light,
+    *,
+    main_power: str | None = None,
+    main_brightness: int | None = None,
+    main_color_rgb: dict | None = None,
+    main_color_mode: str | None = None,
+    main_color_temperature: int | None = None,
+) -> AferoDevice:
+    """Build an inbound AferoDevice update containing only main-zone states."""
+    states: list[AferoState] = []
+    if main_power is not None:
+        states.append(
+            AferoState(
+                functionClass="power",
+                value=main_power,
+                lastUpdateTime=0,
+                functionInstance="main",
+            )
+        )
+    if main_brightness is not None:
+        states.append(
+            AferoState(
+                functionClass="brightness",
+                value=main_brightness,
+                lastUpdateTime=0,
+                functionInstance="main",
+            )
+        )
+    if main_color_rgb is not None:
+        states.append(
+            AferoState(
+                functionClass="color-rgb",
+                value=main_color_rgb,
+                lastUpdateTime=0,
+                functionInstance="main",
+            )
+        )
+    if main_color_mode is not None:
+        states.append(
+            AferoState(
+                functionClass="color-mode",
+                value=main_color_mode,
+                lastUpdateTime=0,
+                functionInstance="main",
+            )
+        )
+    if main_color_temperature is not None:
+        states.append(
+            AferoState(
+                functionClass="color-temperature",
+                value=main_color_temperature,
+                lastUpdateTime=0,
+                functionInstance="main",
+            )
+        )
+    return AferoDevice(
+        id=trim_dev.id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class=ResourceTypes.LIGHT.value,
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name=trim_dev.device_information.name,
+        split_identifier="light",
+        states=states,
+    )
 
 
 @pytest.fixture
@@ -335,6 +408,359 @@ def test_light_trim_callback():
     assert multi_devs[2].device_class == "parent-device"
 
 
+@pytest.mark.parametrize(
+    "state, expected",
+    [
+        (
+            AferoState(
+                functionClass="power",
+                value="on",
+                lastUpdateTime=0,
+                functionInstance="trim",
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="power",
+                value="off",
+                lastUpdateTime=0,
+                functionInstance="main",
+            ),
+            False,
+        ),
+        (
+            AferoState(
+                functionClass="power",
+                value="on",
+                lastUpdateTime=0,
+                functionInstance="global",
+            ),
+            False,
+        ),
+        (
+            AferoState(
+                functionClass="available",
+                value=True,
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            True,
+        ),
+    ],
+)
+def test_state_matches_instance_trim_zone(state, expected):
+    """Inbound split updates must ignore other zones and global controls."""
+    trim_device = AferoDevice(
+        id=trim_light_trim_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name="trim",
+        split_identifier="light",
+    )
+    assert state_matches_instance(trim_device, state) is expected
+
+
+@pytest.mark.parametrize(
+    "state, expected",
+    [
+        (
+            AferoState(
+                functionClass="color-rgb",
+                value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="color-mode",
+                value="color",
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="toggle",
+                value="on",
+                lastUpdateTime=0,
+                functionInstance="color",
+            ),
+            True,
+        ),
+        (
+            AferoState(
+                functionClass="toggle",
+                value="off",
+                lastUpdateTime=0,
+                functionInstance="white",
+            ),
+            False,
+        ),
+        (
+            AferoState(
+                functionClass="brightness",
+                value=50,
+                lastUpdateTime=0,
+                functionInstance="primary",
+            ),
+            False,
+        ),
+    ],
+)
+def test_state_matches_instance_flushmount_color_zone(state, expected):
+    """LCN3002LM color zone uses null-instance color states."""
+    color_device = AferoDevice(
+        id=flushmount_light_color_id,
+        device_id=flushmount_light.device_id,
+        model=flushmount_light.model,
+        device_class="light",
+        default_name=flushmount_light.default_name,
+        default_image=flushmount_light.default_image,
+        friendly_name="color",
+        split_identifier="light",
+    )
+    assert state_matches_instance(color_device, state) is expected
+
+
+@pytest.mark.parametrize(
+    "state, expected",
+    [
+        (
+            AferoState(
+                functionClass="color-rgb",
+                value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
+                lastUpdateTime=0,
+                functionInstance=None,
+            ),
+            False,
+        ),
+        (
+            AferoState(
+                functionClass="toggle",
+                value="on",
+                lastUpdateTime=0,
+                functionInstance="white",
+            ),
+            True,
+        ),
+    ],
+)
+def test_state_matches_instance_flushmount_white_zone(state, expected):
+    """LCN3002LM white zone must not inherit null-instance color states."""
+    white_device = AferoDevice(
+        id=flushmount_light_white_id,
+        device_id=flushmount_light.device_id,
+        model=flushmount_light.model,
+        device_class="light",
+        default_name=flushmount_light.default_name,
+        default_image=flushmount_light.default_image,
+        friendly_name="white",
+        split_identifier="light",
+    )
+    assert state_matches_instance(white_device, state) is expected
+
+
+@pytest.mark.asyncio
+async def test_update_elem_flushmount_color_applies_null_instance_rgb(mocked_controller):
+    """Inbound null-instance color-rgb must update the flushmount color split."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    color_dev = mocked_controller[flushmount_light_color_id]
+    color_update = AferoDevice(
+        id=flushmount_light_color_id,
+        device_id=flushmount_light.device_id,
+        model=flushmount_light.model,
+        device_class="light",
+        default_name=flushmount_light.default_name,
+        default_image=flushmount_light.default_image,
+        friendly_name=color_dev.device_information.name,
+        split_identifier="light",
+        states=[
+            AferoState(
+                functionClass="color-rgb",
+                value={"color-rgb": {"r": 10, "g": 20, "b": 30}},
+                lastUpdateTime=0,
+                functionInstance=None,
+            )
+        ],
+    )
+    updates = await mocked_controller.update_elem(color_update)
+    assert color_dev.color.red == 10
+    assert color_dev.color.green == 20
+    assert color_dev.color.blue == 30
+    assert "color" in updates
+
+
+@pytest.mark.asyncio
+async def test_parent_cache_keeps_full_states_after_trim_split(mocked_bridge):
+    """Parent metadevice cache must stay the full device, not the parent-device shell."""
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    parent = mocked_bridge.get_afero_device(trim_light.id)
+    assert parent.device_class == "light"
+    assert any(
+        s.functionClass == "power" and s.functionInstance == "main" for s in parent.states
+    )
+    assert any(
+        s.functionClass == "power" and s.functionInstance == "trim" for s in parent.states
+    )
+
+
+@pytest.mark.asyncio
+async def test_split_children_exclude_parent_id_and_dedupe(mocked_bridge):
+    """Parent children list must not include the parent id and must not grow on re-split."""
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    parent = mocked_bridge.get_afero_device(trim_light.id)
+    assert trim_light.id not in parent.children
+    assert trim_light_trim_id in parent.children
+    assert trim_light_primary_id in parent.children
+    children_after_first = list(parent.children)
+    await mocked_bridge.events.split_devices([parent])
+    assert parent.children == children_after_first
+
+
+@pytest.mark.asyncio
+async def test_split_devices_cache_split_clones(mocked_bridge):
+    """Split children must be cached as filtered clones, not the parent device."""
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    trim_cached = mocked_bridge.get_afero_device(trim_light_trim_id)
+    assert trim_cached.split_identifier == "light"
+    assert trim_cached.id == trim_light_trim_id
+    assert all(
+        s.functionInstance in (None, "trim") or s.functionClass == "available"
+        for s in trim_cached.states
+        if s.functionClass
+        in ("power", "brightness", "color-rgb", "color-mode", "color-temperature")
+    )
+
+
+@pytest.mark.asyncio
+async def test_trim_split_initializes_without_color_temperature(mocked_controller):
+    """Trim zone has white/RGB in API but no trim color-temperature (Hubspace Kelvin UI gap)."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    main_dev = mocked_controller[trim_light_primary_id]
+    assert trim_dev.color_temperature is None
+    assert main_dev.color_temperature is not None
+    assert trim_dev.color_mode is not None
+    assert "white" in (trim_dev.color_modes or [])
+
+
+def test_get_color_modes_for_device_trim_vs_main():
+    """Each split zone uses its own color-mode function definition."""
+    trim_light = utils.create_devices_from_data("light-with-trim.json")[0]
+    # Build split-shaped devices like light_callback does
+    trim_afero = AferoDevice(
+        id=trim_light_trim_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name="trim",
+        split_identifier="light",
+        states=light.get_valid_states(trim_light, "trim"),
+        functions=trim_light.functions,
+    )
+    main_afero = AferoDevice(
+        id=trim_light_primary_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name="main",
+        split_identifier="light",
+        states=light.get_valid_states(trim_light, "main"),
+        functions=trim_light.functions,
+    )
+    trim_modes = light.get_color_modes_for_device(trim_afero)
+    main_modes = light.get_color_modes_for_device(main_afero)
+    assert trim_modes == ["sequence", "white", "color"]
+    assert main_modes == ["circadian-rhythm", "sequence", "white", "color"]
+    assert "circadian-rhythm" not in trim_modes
+
+
+@pytest.mark.asyncio
+async def test_get_afero_instance_for_trim_split_uses_elem_instance(mocked_controller):
+    """Outbound must use elem.instance; get_instance() alone would pick main."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_resource = mocked_controller[trim_light_trim_id]
+    assert trim_resource.instance == "trim"
+    assert trim_resource.get_instance("color-rgb") == "main"
+    assert (
+        get_afero_instance_for_state(
+            trim_resource, ColorFeature(red=0, green=0, blue=0), "color-rgb"
+        )
+        == "trim"
+    )
+
+
+def test_merge_afero_states_preserves_other_instances():
+    """Partial API payloads must not drop other functionInstance rows."""
+    existing = [
+        AferoState(functionClass="power", value="on", functionInstance="main"),
+        AferoState(functionClass="power", value="off", functionInstance="trim"),
+    ]
+    incoming = [
+        AferoState(functionClass="power", value="off", functionInstance="main"),
+    ]
+    merged = merge_afero_states(existing, incoming)
+    by_key = {(s.functionClass, s.functionInstance): s.value for s in merged}
+    assert by_key[("power", "main")] == "off"
+    assert by_key[("power", "trim")] == "off"
+
+
+@pytest.mark.asyncio
+async def test_generate_update_dev_merges_partial_trim_states(mocked_controller):
+    """PUT response subsets must merge into the parent cache."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    parent = mocked_controller._bridge.get_afero_device(trim_light.id)
+    assert any(
+        s.functionClass == "power" and s.functionInstance == "trim" for s in parent.states
+    )
+    mocked_controller.generate_update_dev(
+        trim_light.id,
+        [
+            AferoState(
+                functionClass="power",
+                value="off",
+                lastUpdateTime=0,
+                functionInstance="main",
+            )
+        ],
+    )
+    assert any(
+        s.functionClass == "power" and s.functionInstance == "trim" for s in parent.states
+    )
+
+
 @pytest.mark.asyncio
 async def test_initialize_a21(mocked_controller):
     await mocked_controller.initialize_elem(a21_light)
@@ -627,6 +1053,33 @@ async def test_set_color_temperature(mocked_controller):
 
 
 @pytest.mark.asyncio
+async def test_set_state_temperature_defaults_color_mode_white(
+    mocked_controller, mocker
+):
+    """CCT updates without an explicit color_mode must still send color-mode white."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(a21_light)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[a21_light.id]
+    dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": a21_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(a21_light.id, on=True, temperature=3475)
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["value"] == "white"
+    assert "color-temperature" in by_class
+
+
+@pytest.mark.asyncio
 async def test_set_brightness(mocked_controller):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
@@ -760,6 +1213,370 @@ async def test_set_brightness_trim(mocked_controller, mocker):
     }
     assert instances["power"] == "trim"
     assert instances["brightness"] == "trim"
+
+
+@pytest.mark.asyncio
+async def test_update_elem_trim_ignores_main_power(mocked_controller):
+    """Inbound updates must not apply main-zone power to the trim entity."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.on.on = True
+    await mocked_controller.update_elem(_trim_update_with_states(trim_dev, main_power="off"))
+    assert trim_dev.on.on is True
+
+
+@pytest.mark.asyncio
+async def test_update_elem_trim_ignores_main_brightness(mocked_controller):
+    """Inbound main brightness must not change trim dimming."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_brightness = trim_dev.dimming.brightness
+    await mocked_controller.update_elem(
+        _trim_update_with_states(
+            trim_dev,
+            main_brightness=10,
+        )
+    )
+    assert trim_dev.dimming.brightness == trim_brightness
+
+
+@pytest.mark.asyncio
+async def test_update_elem_trim_ignores_main_color(mocked_controller):
+    """Inbound main RGB must not change trim color."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    await mocked_controller.update_elem(
+        _trim_update_with_states(
+            trim_dev,
+            main_color_rgb={"color-rgb": {"r": 1, "g": 2, "b": 3}},
+        )
+    )
+    assert trim_dev.color.red != 1
+    assert trim_dev.color.green != 2
+    assert trim_dev.color.blue != 3
+
+
+@pytest.mark.asyncio
+async def test_update_elem_ignores_color_temperature_without_feature(mocked_controller):
+    """Inbound main CCT rows must not crash trim resources with no CCT capability."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    updates = await mocked_controller.update_elem(
+        _trim_update_with_states(
+            trim_dev,
+            main_color_temperature=3000,
+        )
+    )
+    assert trim_dev.color_temperature is None
+    assert "color_temperature" not in updates
+
+
+@pytest.mark.asyncio
+async def test_set_white_trim_sends_color_mode_not_cct(mocked_controller, mocker):
+    """White-only zones use color-mode white, never main's color-temperature."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    assert trim_dev.supports_color_white
+    trim_dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_white(trim_light_trim_id, on=None, brightness=40)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    assert update_afero_api.call_args[0][0] == trim_light.id
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["functionInstance"] == "trim"
+    assert by_class["color-mode"]["value"] == "white"
+    assert by_class["brightness"]["functionInstance"] == "trim"
+    assert by_class["brightness"]["value"] == 40
+    assert "color-temperature" not in by_class
+
+
+@pytest.mark.asyncio
+async def test_set_color_temperature_trim_routes_to_white(mocked_controller, mocker):
+    """set_color_temperature on a white-only zone must not emit color-temperature."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    assert trim_dev.supports_color_white
+    assert trim_dev.color_temperature is None
+    trim_dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_color_temperature(trim_light_trim_id, 2700)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["functionInstance"] == "trim"
+    assert by_class["color-mode"]["value"] == "white"
+    assert "color-temperature" not in by_class
+
+
+@pytest.mark.asyncio
+async def test_set_color_temperature_missing_device(mocked_controller, mocker):
+    """Unknown device id must not call the API."""
+    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
+    await mocked_controller.set_color_temperature("missing-light-id", 3000)
+    update_afero_api.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_set_color_temperature_no_cct_no_white(mocked_controller, mocker):
+    """Lights without CCT or white mode must not send updates."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.color_modes = ["color", "sequence"]
+    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
+    await mocked_controller.set_color_temperature(trim_light_trim_id, 2700)
+    update_afero_api.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_set_color_temperature_trim_logs_ignored_kelvin(
+    mocked_controller, mocker, caplog
+):
+    """White-only zones log that the requested Kelvin value is ignored."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    caplog.set_level("INFO")
+    await mocked_controller.set_color_temperature(trim_light_trim_id, 2700)
+    assert "ignoring 2700 K" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_set_white_trim_already_white_omits_duplicate_color_mode(
+    mocked_controller, mocker
+):
+    """Brightness-only updates while already in API white need not re-send color-mode."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.color_mode.mode = "white"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_white(trim_light_trim_id, on=None, brightness=40)
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    assert "color-mode" not in {s["functionClass"] for s in sent_states}
+
+
+@pytest.mark.asyncio
+async def test_set_state_temperature_respects_explicit_color_mode(
+    mocked_controller, mocker
+):
+    """Explicit color_mode must not be overridden when routing temperature on white-only."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.color_mode.mode = "white"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        trim_light_trim_id, on=True, temperature=2700, color_mode="color"
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    by_class = {
+        state["functionClass"]: state
+        for state in update_afero_api.call_args[0][1]
+    }
+    assert by_class["color-mode"]["value"] == "color"
+    assert "color-temperature" not in by_class
+
+
+@pytest.mark.asyncio
+async def test_update_elem_ignores_trim_zone_color_temperature_without_feature(
+    mocked_controller,
+):
+    """Inbound trim CCT rows must be ignored when the zone has no CCT feature."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    assert trim_dev.color_temperature is None
+    dev_update = AferoDevice(
+        id=trim_light_trim_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name=trim_dev.device_information.name,
+        split_identifier="light",
+        states=[
+            AferoState(
+                functionClass="color-temperature",
+                value=3000,
+                lastUpdateTime=0,
+                functionInstance="trim",
+            )
+        ],
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    assert trim_dev.color_temperature is None
+    assert "color_temperature" not in updates
+
+
+@pytest.mark.asyncio
+async def test_set_state_temperature_routes_to_white_without_cct(
+    mocked_controller, mocker
+):
+    """set_state with temperature on white-only zones uses color-mode, not CCT."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        trim_light_trim_id, on=True, temperature=2700, color_mode=None
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["value"] == "white"
+    assert "color-temperature" not in by_class
+
+
+@pytest.mark.asyncio
+async def test_update_elem_trim_ignores_main_color_mode(mocked_controller):
+    """Inbound main color-mode must not change trim mode (e.g. main white vs trim RGB)."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    trim_dev = mocked_controller[trim_light_trim_id]
+    trim_mode = trim_dev.color_mode.mode
+    await mocked_controller.update_elem(
+        _trim_update_with_states(trim_dev, main_color_mode="white")
+    )
+    assert trim_dev.color_mode.mode == trim_mode
+
+
+@pytest.mark.asyncio
+async def test_update_elem_main_ignores_trim_power(mocked_controller):
+    """Inbound trim power must not change main on-state (symmetric with trim tests)."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    main_dev = mocked_controller[trim_light_primary_id]
+    main_dev.on.on = True
+    await mocked_controller.update_elem(
+        AferoDevice(
+            id=trim_light_primary_id,
+            device_id=trim_light.device_id,
+            model=trim_light.model,
+            device_class=ResourceTypes.LIGHT.value,
+            default_name=trim_light.default_name,
+            default_image=trim_light.default_image,
+            friendly_name=f"{trim_light.friendly_name} - main",
+            split_identifier="light",
+            states=[
+                AferoState(
+                    functionClass="power",
+                    value="off",
+                    lastUpdateTime=0,
+                    functionInstance="trim",
+                ),
+            ],
+        )
+    )
+    assert main_dev.on.on is True
+
+
+@pytest.mark.asyncio
+async def test_set_rgb_main_split(mocked_controller, mocker):
+    """Main split lights must target the main functionInstance, not trim."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-with-trim.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    main_dev = mocked_controller[trim_light_primary_id]
+    main_dev.on.on = False
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_rgb(trim_light_primary_id, 4, 5, 6)
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    instances = {
+        state["functionClass"]: state["functionInstance"] for state in sent_states
+    }
+    assert instances["color-rgb"] == "main"
+    assert instances["power"] == "main"
 
 
 @pytest.mark.asyncio

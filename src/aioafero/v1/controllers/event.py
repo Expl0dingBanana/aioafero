@@ -334,8 +334,11 @@ class EventStream:
                         "Found %s devices from %s", len(split_devs.split_devices), name
                     )
                     for split_dev in split_devs.split_devices:
-                        self._bridge.add_afero_dev(dev, split_dev.id)
-                        dev.children.append(split_dev.id)
+                        if split_dev.split_identifier:
+                            # Cache each split clone under its own id; parent stays at dev.id.
+                            self._bridge.add_afero_dev(split_dev)
+                        if split_dev.id != dev.id and split_dev.id not in dev.children:
+                            dev.children.append(split_dev.id)
                     devices.extend(split_devs.split_devices)
         self._logger.debug("Total number of devices (post split): %s", len(devices))
         return devices
