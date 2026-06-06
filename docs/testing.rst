@@ -17,13 +17,19 @@ Quick start (local)
 
       uv sync --extra test
 
-3. **Lint:**
+3. **Lint** (ruff, bandit, format, …):
 
    .. code-block:: bash
 
       uv run tox -e lint
 
-4. **One Python version:**
+4. **Dependency audit:**
+
+   .. code-block:: bash
+
+      uv run tox -e audit
+
+5. **One Python version:**
 
    .. code-block:: bash
 
@@ -52,12 +58,15 @@ Quick start (local)
 Documentation
 -------------
 
+Same gate as CI — run it whenever you change docs:
+
 .. code-block:: bash
 
-   uv sync --extra docs
    uv run tox -e docs
 
-Build fails on Sphinx warnings (``-W``).
+Requires ``uv sync --extra test`` so ``tox`` is on your PATH. Build fails on Sphinx
+warnings (``-W``). See :doc:`contributing` for doc layout, when to edit user-guide pages,
+and a direct ``sphinx-build`` workflow for local preview.
 
 Tox environments
 ----------------
@@ -68,7 +77,9 @@ Tox environments
    * - Env
      - Purpose
    * - ``lint``
-     - pre-commit on all files
+     - pre-commit on all files (includes **bandit** on ``src/``)
+   * - ``audit``
+     - **pip-audit** on installed runtime dependencies
    * - ``docs``
      - Sphinx HTML build (warnings as errors)
    * - ``default``
@@ -88,8 +99,8 @@ interpreter from the env name (no per-env ``basepython`` blocks).
 Coverage behavior
 -----------------
 
-* **Local pytest** — ``addopts = "--cov --cov-report=term-missing"`` in ``pyproject.toml``.
-* **Tox py envs** — replace addopts with ``--cov --cov-report=`` so each version
+* **Local pytest** — ``addopts = "--cov=aioafero --cov-report=term-missing"`` in ``pyproject.toml``; ``[tool.coverage.run]`` scopes measurement to the ``aioafero`` package (``source_pkgs``) and omits ``tests/*``.
+* **Tox py envs** — replace addopts with ``--cov=aioafero --cov-report=`` so each version
   collects silently; ``report`` prints the combined result once.
 * **Why replace, not append?** pytest-cov treats ``--cov-report`` as multi-allowed;
   appending ``--cov-report=`` does not cancel ``term-missing`` from config.
@@ -99,8 +110,9 @@ GitHub Actions
 
 Workflows:
 
-* ``.github/workflows/cicd.yaml`` — lint, docs, test matrix (3.12–3.14), combined
-  coverage, Codecov (on push/PR to ``main``).
+* ``.github/workflows/cicd.yaml`` — lint, audit, docs, test matrix (3.12–3.14), combined
+  coverage, Codecov (on push/PR/weekly schedule to ``main``).
+* ``.github/workflows/codeql-analysis.yml`` — CodeQL static analysis (push/PR/weekly).
 * ``.github/workflows/reusable-ci.yaml`` — shared jobs; inputs for Python versions and
   ``run-codecov``.
 * ``.github/workflows/release.yaml`` — runs CI then ``tox -e build`` and PyPI publish,
@@ -108,7 +120,7 @@ Workflows:
   ``READTHEDOCS_TOKEN``).
 
 CI test step mirrors tox py envs: ``COVERAGE_FILE=.coverage.py312``, pytest with
-``-o addopts="--cov --cov-report="``, JUnit XML per version. Coverage artifacts use
+``-o addopts="--cov=aioafero --cov-report="``, JUnit XML per version. Coverage artifacts use
 ``include-hidden-files: true`` because ``.coverage.*`` files are dotfiles excluded by
 ``upload-artifact@v4`` by default.
 
@@ -118,4 +130,18 @@ Maintenance
 * **Add a Python version** — extend ``[testenv:py3{12,13,14}]`` factor in ``tox.ini``,
   update ``python-versions`` default in ``reusable-ci.yaml``, install the interpreter
   locally, bump classifiers in ``pyproject.toml``.
-* **Dependabot** — ``.github/dependabot.yml`` (GitHub Actions, pip, pre-commit).
+* **Dependabot** — ``.github/dependabot.yml`` (GitHub Actions, pip, pre-commit); enable
+  **Dependabot alerts** and **security updates** in repo settings (see ``SECURITY.md``).
+
+Security scanning
+-----------------
+
+See ``SECURITY.md`` in the repository root.
+
+* **Bandit** — Python security lint via pre-commit (``tox -e lint``); config in
+  ``pyproject.toml`` ``[tool.bandit]``.
+* **pip-audit** — OSV/CVE scan of runtime deps (``tox -e audit``); runs in CI on every
+  push/PR and weekly.
+* **CodeQL** — GitHub code scanning workflow on push/PR/weekly.
+* **Dependabot** — weekly version update PRs plus grouped **security-updates** in
+  ``dependabot.yml``.

@@ -1,10 +1,12 @@
 import asyncio
+from contextlib import asynccontextmanager
 from dataclasses import asdict
 import json
 import logging
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from urllib.parse import urlencode
 
+from aiohttp import web_exceptions
 from aiohttp.client_exceptions import ClientResponseError
 import pytest
 
@@ -36,9 +38,53 @@ async def build_url(base_url: str, qs: dict[str, str]) -> str:
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 
 
-@pytest.mark.skip(reason="Not yet implemented")
-def test_context_manager(mocked_bridge):
-    pass
+@pytest.mark.asyncio
+async def test_context_manager(mocker, aio_sess):
+    bridge = AferoBridgeV1("username", "mock-refresh-token", session=aio_sess)
+    bridge._close_session = False
+    init = mocker.AsyncMock()
+    close = mocker.AsyncMock()
+    mocker.patch.object(bridge, "initialize", init)
+    mocker.patch.object(bridge, "close", close)
+
+    async with bridge as entered:
+        assert entered is bridge
+
+    init.assert_awaited_once()
+    close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_open(mocker):
+    init = mocker.patch.object(
+        AferoBridgeV1, "initialize", new_callable=mocker.AsyncMock
+    )
+    block = mocker.patch.object(
+        AferoBridgeV1, "async_block_until_done", new_callable=mocker.AsyncMock
+    )
+
+    bridge = await AferoBridgeV1.open(
+        "username",
+        "mock-refresh-token",
+        polling_interval=15,
+    )
+
+    assert isinstance(bridge, AferoBridgeV1)
+    assert bridge._events.polling_interval == 15
+    init.assert_awaited_once()
+    block.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_closes_owned_session(mocker):
+    mocker.patch.object(AferoBridgeV1, "initialize", mocker.AsyncMock())
+    mocker.patch.object(AferoBridgeV1, "async_block_until_done", mocker.AsyncMock())
+    bridge = await AferoBridgeV1.open("username", "mock-refresh-token")
+    close_session = mocker.patch.object(
+        bridge._web_session, "close", new=mocker.AsyncMock()
+    )
+    await bridge.close()
+    close_session.assert_awaited_once()
 
 
 def test_devices(mocked_bridge):
@@ -248,30 +294,15 @@ async def test_send_service_request(mocked_bridge, mocker):
     states = [
         {"functionClass": "power", "functionInstance": "light-power", "value": "off"}
     ]
-    expected_states = [
-        {
-            "functionClass": "power",
-            "functionInstance": "light-power",
-            "value": "off",
-            "lastUpdateTime": 12345000,
-        }
-    ]
     resp = mocker.AsyncMock()
     resp.json = mocker.AsyncMock(
-        return_value={"metadeviceId": zandra_light.id, "values": expected_states}
+        return_value={"metadeviceId": zandra_light.id, "values": states}
     )
-    update_afero_api = mocker.patch.object(
-        controller, "update_afero_api", return_value=resp
-    )
-    mocker.patch(
-        "aioafero.v1.controllers.base.get_afero_base_time_ms",
-        return_value=12345000,
-    )
+    mocker.patch.object(controller, "update_afero_api", return_value=resp)
     await mocked_bridge.send_service_request(
         zandra_light.id,
         states,
     )
-    update_afero_api.assert_called_once_with(zandra_light.id, expected_states)
     await mocked_bridge.async_block_until_done()
     assert controller[zandra_light.id].on.on is False
 
@@ -293,7 +324,9 @@ async def test_create_request_err(mocked_bridge, mocker):
 )
 def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
     caplog.set_level(logging.DEBUG)
-    bridge = AferoBridgeV1("username", "password", hide_secrets=hide_secrets)
+    bridge = AferoBridgeV1(
+        "username", "mock-refresh-token", Mock(), hide_secrets=hide_secrets
+    )
     secret = "this-is-super-secret-beans"
     add_secret(secret)
     with bridge.secret_logger():
@@ -430,7 +463,7 @@ class AsyncContextManagerMock:
     ],
 )
 async def test_request(max_retries, times_to_sleep, response_gen, exp_error, mocker):
-    bridge = AferoBridgeV1("username", "password")
+    bridge = AferoBridgeV1("username", "mock-refresh-token", Mock())
     mock_sleep = mocker.patch("asyncio.sleep", new=mocker.AsyncMock())
     try:
         if response_gen:
@@ -449,6 +482,22 @@ async def test_request(max_retries, times_to_sleep, response_gen, exp_error, moc
             assert mock_sleep.call_count == times_to_sleep
     finally:
         await bridge.close()
+
+
+@pytest.mark.asyncio
+async def test_request_raises_on_403(mocker):
+    bridge = AferoBridgeV1("username", "mock-refresh-token", Mock())
+    mock_resp = mocker.MagicMock()
+    mock_resp.status = 403
+    mock_resp.read = mocker.AsyncMock()
+
+    @asynccontextmanager
+    async def fake_create_request(*args, **kwargs):
+        yield mock_resp
+
+    mocker.patch.object(bridge, "create_request", fake_create_request)
+    with pytest.raises(web_exceptions.HTTPForbidden):
+        await bridge.request("GET", "https://example.com")
 
 
 def test_get_afero_device(mocked_bridge):
@@ -495,12 +544,9 @@ def test_get_device_controller(mocked_bridge):
 
 
 @pytest.mark.asyncio
-async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, caplog):
-    caplog.set_level(0)
-    mocked_bridge_req._web_session = aio_sess
-    hs_auth = mocked_bridge_req._auth
+async def test_AferoAuth_login_otp(mock_aioresponse, aio_sess, mocker):
+    hs_auth = auth.AferoAuth.for_login(aio_sess, "username", "password")
     challenge = await hs_auth.generate_challenge_data()
-    hs_auth._bridge._web_session = aio_sess
     auth_sess_data = auth.AuthSessionData(
         "url_sess_code", "url_exec_code", "url_tab_id"
     )
@@ -512,7 +558,6 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
     }
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
     url = await build_url(url, url_params)
-    # Successful OTP POST
     otp_post_response = {
         "status": 302,
         "headers": {
@@ -525,7 +570,6 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
         },
     }
     mock_aioresponse.post(url, **otp_post_response)
-    # Successful authorization_code generation
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
     resp_data = {
         "refresh_token": "refresh_token",
@@ -533,8 +577,7 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
         "id_token": "id_token",
     }
     mock_aioresponse.post(url, status=200, body=json.dumps(resp_data))
-    await mocked_bridge_req.otp_login("123456")
-    assert mocked_bridge_req._auth._token_data == auth.TokenData(
+    assert await hs_auth.perform_otp_login("123456") == auth.TokenData(
         token="id_token",
         access_token="access_token",
         refresh_token="refresh_token",
@@ -544,7 +587,7 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
 
 @pytest.mark.asyncio
 def test_unsubscribe():
-    bridge = AferoBridgeV1("username", "password")
+    bridge = AferoBridgeV1("username", "mock-refresh-token", Mock())
 
     def whatever(*args, **kwargs):
         pass

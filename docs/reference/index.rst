@@ -14,8 +14,7 @@ Core entry points
 
 These modules cover most integration work:
 
-* :mod:`aioafero.v1` — ``AferoBridgeV1`` and controller registration
-* :mod:`aioafero.v1.auth` — login, tokens, OTP
+* :mod:`aioafero.v1` — ``AferoBridgeV1``, ``AferoAuth``, controllers (:doc:`../user/auth`)
 * :mod:`aioafero.device` — raw ``AferoDevice`` parsing and device typing
 * :mod:`aioafero.errors` — exception hierarchy
 * :mod:`aioafero.types` — ``TemperatureUnit``, ``EventType``
@@ -29,7 +28,7 @@ Controllers and models
 Utilities
 ---------
 
-* :mod:`aioafero.anonomyize_data` — redact device payloads for bug reports
+* :mod:`aioafero.anonymize_data` — redact device payloads for bug reports
 * :mod:`aioafero.util` — shared helpers
 
 .. note::

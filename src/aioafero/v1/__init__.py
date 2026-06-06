@@ -1,6 +1,7 @@
 """Controls Hubspace devices on v1 API."""
 
 __all__ = [
+    "AferoAuth",
     "AferoBridgeV1",
     "AferoController",
     "AferoModelResource",
@@ -9,6 +10,7 @@ __all__ = [
     "FanController",
     "LightController",
     "LockController",
+    "OTPRequired",
     "PortableACController",
     "SecuritySystemController",
     "SecuritySystemKeypadController",
@@ -25,7 +27,7 @@ from collections.abc import Callable, Generator
 import contextlib
 from contextlib import asynccontextmanager
 import logging
-from typing import Any
+from typing import Any, Self
 
 import aiohttp
 from aiohttp import web_exceptions
@@ -37,6 +39,7 @@ from aioafero.errors import (
     DeviceNotFound,
     ExceededMaximumRetries,
     InvalidAuth,
+    OTPRequired,
 )
 from aioafero.types import TemperatureUnit
 
@@ -97,10 +100,11 @@ class AferoBridgeV1:
     It handles authentication, device discovery, state management, and event handling.
 
     :param username: The username for the Afero-backed account (e.g., Hubspace).
-    :param password: The password for the Afero-backed account.
-    :param refresh_token: An optional refresh token to bypass initial login.
-    :param session: An optional `aiohttp.ClientSession` to use for requests.
-        If not provided, a new session will be created.
+    :param refresh_token: The OAuth refresh token for the account.
+    :param token: An optional non-expired bearer token to skip the initial refresh.
+    :param token_expiration: Unix timestamp when ``token`` expires (omit to refresh
+        immediately on first API use).
+    :param session: ``aiohttp.ClientSession`` for API and auth traffic (required).
     :param polling_interval: The interval in seconds between polling the Afero API
         for device state updates. Defaults to 30 seconds.
     :param discovery_interval: The interval in seconds between polling the Afero API
@@ -118,14 +122,14 @@ class AferoBridgeV1:
 
     """
 
-    _web_session: aiohttp.ClientSession | None = None
-
     def __init__(
         self,
         username: str,
-        password: str,
-        refresh_token: str | None = None,
-        session: aiohttp.ClientSession | None = None,
+        refresh_token: str,
+        session: aiohttp.ClientSession,
+        *,
+        token: str | None = None,
+        token_expiration: float | None = None,
         polling_interval: int = 30,
         discovery_interval: int = 3600,
         afero_client: str | None = "hubspace",
@@ -134,28 +138,32 @@ class AferoBridgeV1:
         client_name: str | None = "aioafero",
         temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
     ):
-        """Initialize the AferoBridgeV1 instance."""
+        """Initialize the AferoBridgeV1 instance.
+
+        ``session`` is required. ``_close_session`` defaults to ``False``; only
+        :meth:`open` sets it to ``True`` when it creates the session internally.
+        """
         if hide_secrets:
             self.secret_logger = LogRedactorMessage
         else:
             self.secret_logger = passthrough
-        self._close_session: bool = session is None
-        self._web_session: aiohttp.ClientSession = session
+        self._close_session = False
+        self._web_session = session
         self._account_id: str | None = None
         self._afero_client: str = afero_client
+        self.client_name = client_name
         self._auth = AferoAuth(
-            self,
+            session,
             username,
-            password,
-            refresh_token=refresh_token,
+            refresh_token,
+            token=token,
+            token_expiration=token_expiration,
             afero_client=afero_client,
             hide_secrets=hide_secrets,
+            client_name=client_name,
         )
-        self.client_name = client_name
         self.temperature_unit = temperature_unit
         self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
-        if len(self.logger.handlers) == 0:
-            self.logger.addHandler(logging.StreamHandler())
         self._known_devs: dict[str, BaseResourcesController] = {}
         self._known_afero_devices: dict[str, str] = {}
         # Known running tasks
@@ -203,13 +211,6 @@ class AferoBridgeV1:
     def tracked_devices(self) -> set:
         """Get all tracked devices."""
         return set(self._known_devs.keys())
-
-    async def otp_login(self, otp_code: str) -> None:
-        """Perform OTP login with the provided code."""
-        task = asyncio.create_task(self._auth.perform_otp_login(otp_code))
-        self.add_job(task)
-        await task
-        return task.result()
 
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
@@ -328,6 +329,82 @@ class AferoBridgeV1:
             await self._web_session.close()
         self.logger.info("Connection to bridge closed.")
 
+    async def __aenter__(self) -> Self:
+        """Enter async context: ``await bridge.initialize()``."""
+        await self.initialize()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Exit async context: ``await bridge.close()``."""
+        await self.close()
+
+    @classmethod
+    async def open(
+        cls,
+        username: str,
+        refresh_token: str,
+        session: aiohttp.ClientSession | None = None,
+        *,
+        token: str | None = None,
+        token_expiration: float | None = None,
+        polling_interval: int = 30,
+        discovery_interval: int = 3600,
+        afero_client: str | None = "hubspace",
+        hide_secrets: bool = True,
+        poll_version: bool = True,
+        client_name: str | None = "aioafero",
+        temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
+    ) -> Self:
+        """Create a bridge, initialize it, and wait for the first poll to finish.
+
+        Caller is responsible for ``await bridge.close()`` when not using ``async with``.
+
+        If you use ``async with`` on a bridge returned from ``open``, ``__aenter__`` calls
+        ``initialize()`` again but that is a no-op when polling tasks already exist;
+        only ``__aexit__`` (``close()``) matters for cleanup.
+
+        Args:
+            username: Afero-backed account username.
+            refresh_token: OAuth refresh token from login or storage.
+            session: Optional shared ``aiohttp.ClientSession``.
+            token: Optional non-expired bearer token.
+            token_expiration: Unix timestamp when ``token`` expires.
+            polling_interval: Seconds between state polls.
+            discovery_interval: Seconds between discovery polls.
+            afero_client: Afero client identifier (default ``hubspace``).
+            hide_secrets: Redact sensitive values from logs.
+            poll_version: Periodically fetch firmware version metadata.
+            client_name: User-Agent token.
+            temperature_unit: Unit for temperature API responses.
+
+        Returns:
+            Initialized bridge with controllers populated from the first discovery poll.
+
+        """
+        close_session = session is None
+        if session is None:
+            session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(limit_per_host=3)
+            )
+        bridge = cls(
+            username,
+            refresh_token,
+            session,
+            token=token,
+            token_expiration=token_expiration,
+            polling_interval=polling_interval,
+            discovery_interval=discovery_interval,
+            afero_client=afero_client,
+            hide_secrets=hide_secrets,
+            poll_version=poll_version,
+            client_name=client_name,
+            temperature_unit=temperature_unit,
+        )
+        bridge._close_session = close_session
+        await bridge.initialize()
+        await bridge.async_block_until_done()
+        return bridge
+
     def subscribe(
         self,
         callback: EventCallBackType,
@@ -380,10 +457,11 @@ class AferoBridgeV1:
             json_data = await res.json()
             if len(json_data) == 0 or len(json_data.get("accountAccess", [])) == 0:
                 raise AferoError("No account ID found")
-            self._account_id = (
+            account_id = (
                 json_data.get("accountAccess")[0].get("account").get("accountId")
             )
-            add_secret(self._account_id)
+            add_secret(account_id)
+            self._account_id = account_id
         return self._account_id
 
     async def initialize(self) -> None:
@@ -544,20 +622,14 @@ class AferoBridgeV1:
     ) -> Generator[aiohttp.ClientResponse, None, None]:
         """Create and manage an `aiohttp` request.
 
-        This is an async context manager that handles session creation and
-        authentication headers.
+        This is an async context manager that attaches authentication headers when
+        requested and yields the response from the bridge's session.
 
         :param method: The HTTP method (e.g., "GET", "POST").
         :param url: The URL for the request.
         :param include_token: If True, an Authorization header with a bearer token
             will be included.
         """
-        if self._web_session is None:
-            connector = aiohttp.TCPConnector(
-                limit_per_host=3,
-            )
-            self._web_session = aiohttp.ClientSession(connector=connector)
-
         extras = {}
         if include_token:
             try:
@@ -585,8 +657,9 @@ class AferoBridgeV1:
         :raises ExceededMaximumRetries: If the request fails after all retries.
         """
         retries = 0
+        self.logger.info("Making request [%s] to %s", method, url)
         with self.secret_logger():
-            self.logger.info("Making request [%s] to %s with %s", method, url, kwargs)
+            self.logger.debug("Request kwargs: %s", kwargs)
         while retries < v1_const.MAX_RETRIES:
             retries += 1
             if retries > 1:

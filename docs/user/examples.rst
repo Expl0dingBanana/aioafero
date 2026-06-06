@@ -13,28 +13,32 @@ Examples assume an asyncio REPL:
 Basic session
 -------------
 
-This walks through a minimal session: connect to your Hubspace/Afero account, wait until
-devices are loaded, read state from a controller, send one command, and shut down
-cleanly.
+This walks through a minimal session: log in, connect to your Hubspace/Afero account,
+wait until devices are loaded, read state from a controller, send one command, and shut
+down cleanly.
 
 What happens during startup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. **Construction** — ``AferoBridgeV1(...)`` stores credentials and options only; no
-   network I/O runs yet.
-2. **Initialize** — ``await bridge.initialize()`` logs in (unless ``refresh_token`` is supplied),
+1. **Login** — ``v1.AferoAuth.for_login`` exchanges credentials for ``TokenData``
+   (refresh token and optional bearer token). No bridge exists yet.
+2. **Construction** — ``AferoBridgeV1(username, refresh_token, session)`` stores the token
+   and options only; no network I/O runs yet.
+3. **Initialize** — ``await bridge.initialize()`` refreshes the bearer token if needed,
    resolves the account ID, registers each controller with ``EventStream``, and starts
    background tasks: discovery polling, periodic state polling, and the event processor.
-3. **First discovery poll** — ``EventStream`` fetches the full device list from the REST
+4. **First discovery poll** — ``EventStream`` fetches the full device list from the REST
    API, parses ``AferoDevice`` payloads, runs any device-split callbacks, and queues
    ``RESOURCE_ADDED`` / ``RESOURCE_UPDATED`` events. Each controller builds its typed
    models (``Light``, ``Fan``, …) and caches them in memory.
-4. **Block until ready** — ``await bridge.async_block_until_done()`` waits for startup tasks and the first
-   poll to finish. After this returns, ``bridge.lights.get_device(...)`` and other
-   controller lookups reflect the API state loaded during discovery.
+5. **Block until ready** — ``await bridge.async_block_until_done()`` waits for startup
+   tasks and the first poll to finish. After this returns,
+   ``bridge.lights.get_device(...)`` and other controller lookups reflect the API state
+   loaded during discovery.
 
-If the account requires OTP, call ``await bridge.otp_login("<code>")`` when login fails
-(see :doc:`bridge`).
+If the account uses OTP, ``login()`` raises :class:`~aioafero.errors.OTPRequired` after
+the password is accepted; Hubspace emails a code and **you** must collect it from the
+user before calling ``submit_otp`` (aioafero does not read email). See :doc:`auth`.
 
 Reading state and sending commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,21 +58,31 @@ State continues to refresh in the background while the bridge is open (every
 
 .. code-block:: python
 
+   import aiohttp
    from aioafero import v1
    import logging
 
+   # Standalone scripts need a handler; integrations (e.g. Home Assistant) configure
+   # logging themselves.
+   logging.basicConfig(level=logging.INFO)
    logging.getLogger("aioafero").setLevel(logging.DEBUG)
+
+   session = aiohttp.ClientSession()
+   auth = v1.AferoAuth.for_login(session, "user@example.com", "password")
+   try:
+       token_data = await auth.login()
+   except v1.OTPRequired:
+       code = input("Enter the code from your email: ")
+       token_data = await auth.submit_otp(code.strip())
 
    bridge = v1.AferoBridgeV1(
        "user@example.com",
-       "password",
+       token_data.refresh_token,
+       session=session,
        polling_interval=30,
    )
    await bridge.initialize()
    await bridge.async_block_until_done()
-
-   # If OTP is enabled on the account:
-   # await bridge.otp_login("123456")
 
    # See what loaded (use your device IDs from here)
    for light in bridge.lights.items():
@@ -78,7 +92,8 @@ State continues to refresh in the background while the bridge is open (every
    print(light.on)  # cached snapshot from the last poll
 
    await bridge.lights.turn_on("84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6")
-   await bridge.close()  # stop polling and release the HTTP session
+   await bridge.close()
+   await session.close()
 
 .. _subscribe-to-updates:
 
@@ -107,10 +122,23 @@ finds a new device).
 
 .. code-block:: python
 
+   import aiohttp
    from aioafero import v1
    from aioafero.types import EventType
 
-   bridge = v1.AferoBridgeV1("user@example.com", "password")
+   session = aiohttp.ClientSession()
+   auth = v1.AferoAuth.for_login(session, "user@example.com", "password")
+   try:
+       token_data = await auth.login()
+   except v1.OTPRequired:
+       code = input("Enter the code from your email: ")
+       token_data = await auth.submit_otp(code.strip())
+
+   bridge = v1.AferoBridgeV1(
+       "user@example.com",
+       token_data.refresh_token,
+       session=session,
+   )
    await bridge.initialize()
    await bridge.async_block_until_done()
 
@@ -125,6 +153,7 @@ finds a new device).
    # ...
    unsub()  # stop receiving updates
    await bridge.close()
+   await session.close()
 
 Subscribe to one controller or device:
 
@@ -144,15 +173,26 @@ normally used inside the library, not by integrations.
 Reuse a refresh token
 ---------------------
 
+Skip password login when you have a saved refresh token (and optionally a still-valid
+bearer token):
+
 .. code-block:: python
 
+   import aiohttp
+   from aioafero import v1
+
+   session = aiohttp.ClientSession()
    bridge = v1.AferoBridgeV1(
        "user@example.com",
-       "password",
-       refresh_token=saved_token,
+       saved_refresh_token,
+       session=session,
+       token=saved_bearer_token,  # optional; skips refresh if not expired
    )
    await bridge.initialize()
    await bridge.async_block_until_done()
 
-   # After a successful session:
-   saved_token = bridge.refresh_token
+   # After a successful session (refresh token may rotate):
+   saved_refresh_token = bridge.refresh_token
+
+   await bridge.close()
+   await session.close()

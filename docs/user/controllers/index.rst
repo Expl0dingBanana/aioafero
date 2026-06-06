@@ -1,8 +1,15 @@
 Controllers
 ===========
 
-Each attribute on ``AferoBridgeV1`` is an instance of one of these controllers. Detail
-pages are generated from source with autodoc.
+A **controller** is the public surface for one device type — it parses Afero API
+payloads into typed models, caches them, and exposes async action methods (``turn_on``,
+``set_state``, …). Each attribute on ``AferoBridgeV1`` is an instance of one of the
+controllers listed below; detail pages are generated from source with autodoc.
+
+To find available actions for a device, open the page for that controller (or call
+``dir(bridge.<controller>)`` on a live bridge). All controllers also support
+``get_device(id)``, ``items()``, and ``subscribe(callback, id_filter=...)`` from
+:class:`~aioafero.v1.controllers.base.BaseResourcesController`.
 
 .. list-table::
    :header-rows: 1

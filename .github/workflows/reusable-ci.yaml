@@ -46,6 +46,19 @@ jobs:
           pip install tox
           tox -e docs
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python ${{ inputs.lint-python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.lint-python-version }}
+      - name: Dependency audit (tox -e audit)
+        run: |
+          pip install tox
+          tox -e audit
+
   run_tests:
     runs-on: ubuntu-latest
     strategy:
@@ -71,7 +84,7 @@ jobs:
         # Same as tox py envs: collect coverage silently; combined report in coverage job.
         run: |
           python -m pytest \
-            -o addopts="--cov --cov-report=" \
+            -o addopts="--cov=aioafero --cov-report=" \
             --junitxml=junit-py${{ matrix.python-version }}.xml \
             -o junit_family=legacy
       - name: Upload coverage data
