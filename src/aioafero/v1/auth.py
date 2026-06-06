@@ -430,49 +430,51 @@ class AferoAuth:
                 data,
                 self._token_headers,
             )
-        response = await self._auth_request(
-            "POST",
-            url,
-            headers=self._token_headers,
-            data=data,
-        )
-        self.logger.debug(STATUS_CODE, response.status)
         try:
-            resp_json = await response.json()
-        except (ValueError, ContentTypeError) as err:
-            raise InvalidResponse(
-                "Unexpected data returned during token refresh"
-            ) from err
-        if response.status != 200:
-            if resp_json and resp_json.get("error") == "invalid_grant":
-                raise InvalidAuth
+            response = await self._auth_request(
+                "POST",
+                url,
+                headers=self._token_headers,
+                data=data,
+            )
+            self.logger.debug(STATUS_CODE, response.status)
             try:
-                response.raise_for_status()
-            except ClientResponseError as err:
+                resp_json = await response.json()
+            except (ValueError, ContentTypeError) as err:
                 raise InvalidResponse(
                     "Unexpected data returned during token refresh"
                 ) from err
-        try:
-            refresh_token = resp_json["refresh_token"]
-            access_token = resp_json["access_token"]
-            id_token = resp_json["id_token"]
-        except KeyError as err:
-            raise InvalidResponse("Unable to extract refresh token") from err
-        add_secret(refresh_token)
-        add_secret(access_token)
-        add_secret(id_token)
-        with self.secret_logger():
-            self.logger.debug("JSON response: %s", resp_json)
-        if code:
-            remove_secret(code)
-        if challenge:
-            remove_secret(challenge.verifier)
-        return TokenData(
-            id_token,
-            access_token,
-            refresh_token,
-            _token_expiration(resp_json),
-        )
+            if response.status != 200:
+                if resp_json and resp_json.get("error") == "invalid_grant":
+                    raise InvalidAuth
+                try:
+                    response.raise_for_status()
+                except ClientResponseError as err:
+                    raise InvalidResponse(
+                        "Unexpected data returned during token refresh"
+                    ) from err
+            try:
+                refresh_token = resp_json["refresh_token"]
+                access_token = resp_json["access_token"]
+                id_token = resp_json["id_token"]
+            except KeyError as err:
+                raise InvalidResponse("Unable to extract refresh token") from err
+            add_secret(refresh_token)
+            add_secret(access_token)
+            add_secret(id_token)
+            with self.secret_logger():
+                self.logger.debug("JSON response: %s", resp_json)
+            return TokenData(
+                id_token,
+                access_token,
+                refresh_token,
+                _token_expiration(resp_json),
+            )
+        finally:
+            if code:
+                remove_secret(code)
+            if challenge:
+                remove_secret(challenge.verifier)
 
     async def perform_initial_login(self) -> TokenData:
         """Login to generate a refresh token.
@@ -557,9 +559,13 @@ class AferoAuth:
                 self.logger.debug("Token has not been generated or is expired")
                 try:
                     new_data = await self.generate_refresh_token()
-                    remove_secret(self._token_data.token)
-                    remove_secret(self._token_data.access_token)
-                    remove_secret(self._token_data.refresh_token)
+                    old_data = self._token_data
+                    if old_data.token:
+                        remove_secret(old_data.token)
+                    if old_data.access_token:
+                        remove_secret(old_data.access_token)
+                    if old_data.refresh_token:
+                        remove_secret(old_data.refresh_token)
                     self._token_data = new_data
                 except InvalidAuth:
                     self.logger.debug("Provided refresh token is no longer valid.")

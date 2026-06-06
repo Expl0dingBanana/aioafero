@@ -390,6 +390,22 @@ async def test_generate_refresh_token(
 
 
 @pytest.mark.asyncio
+async def test_generate_refresh_token_clears_login_secrets_on_failure(
+    hs_auth, aioresponses, mocker
+):
+    challenge = await hs_auth.generate_challenge_data()
+    code = "auth-code"
+    auth.add_secret(code)
+    remove_secret = mocker.patch("aioafero.v1.auth.remove_secret")
+    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
+    aioresponses.post(url, status=400)
+    with pytest.raises(auth.InvalidResponse):
+        await hs_auth.generate_refresh_token(code=code, challenge=challenge)
+    remove_secret.assert_any_call(code)
+    remove_secret.assert_any_call(challenge.verifier)
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("secure_mode", "refresh_token", "response", "expected", "expected_message", "err"),
     [
@@ -642,6 +658,25 @@ def bad_refresh_token_invalid(*args, **kwargs):
             auth.TokenData(
                 "token",
                 "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() - 120,
+            ),
+            auth.TokenData(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() + 120,
+            ),
+            "token",
+            [
+                "Token has not been generated or is expired",
+            ],
+        ),
+        # Refresh-only token data (no bearer yet)
+        (
+            auth.TokenData(
+                None,
+                None,
                 "refresh_token",
                 datetime.datetime.now().timestamp() - 120,
             ),
