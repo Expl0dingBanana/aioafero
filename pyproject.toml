@@ -52,7 +52,7 @@ cli = [
 
 [project.urls]
 Repository = "https://github.com/Expl0dingBanana/aioafero"
-Changelog = "https://github.com/Expl0dingBanana/aioafero/CHANGELOG.md"
+Changelog = "https://github.com/Expl0dingBanana/aioafero/blob/main/CHANGELOG.rst"
 
 # pyproject.toml
 [tool.pytest.ini_options]

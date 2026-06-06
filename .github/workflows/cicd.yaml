@@ -9,6 +9,19 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Run pre-commit (tox -e lint)
+        run: |
+          pip install tox
+          tox -e lint
+
   run_tests:
     runs-on: "ubuntu-latest"
     strategy:
@@ -27,11 +40,6 @@ jobs:
       - name: Execute Tests
         run: |
           python -m pytest --cov --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
-      - name: Execute linting
-        if: matrix.python-version == '3.12'
-        run: |
-          pip install pre-commit
-          pre-commit run --all-files
       - name: Upload coverage reports to Codecov
         if: matrix.python-version == '3.13'
         uses: codecov/codecov-action@v6

@@ -1073,7 +1073,7 @@ async def test_update_afero_api(
     else:
         assert await ex1_rc.update_afero_api(device_id, states) == expected
     if expected_call:
-        
+
         ex1_rc._bridge.request.assert_called_with("put", query_url, **expected_call)
     else:
         ex1_rc._bridge.request.assert_not_called()

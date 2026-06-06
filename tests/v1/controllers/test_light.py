@@ -335,10 +335,10 @@ def test_get_split_instances(device, expected):
             "main",
             [
                 AferoState(functionClass='color-mode', value='white', lastUpdateTime=0, functionInstance='main'),
-                AferoState(functionClass='color-rgb', value={'color-rgb': {'r': 255, 'b': 0, 'g': 51}}, lastUpdateTime=0, functionInstance='main'), 
-                AferoState(functionClass='color-temperature', value=3000, lastUpdateTime=0, functionInstance='main'), 
-                AferoState(functionClass='brightness', value=100, lastUpdateTime=0, functionInstance='main'), 
-                AferoState(functionClass='power', value='on', lastUpdateTime=0, functionInstance='main'), 
+                AferoState(functionClass='color-rgb', value={'color-rgb': {'r': 255, 'b': 0, 'g': 51}}, lastUpdateTime=0, functionInstance='main'),
+                AferoState(functionClass='color-temperature', value=3000, lastUpdateTime=0, functionInstance='main'),
+                AferoState(functionClass='brightness', value=100, lastUpdateTime=0, functionInstance='main'),
+                AferoState(functionClass='power', value='on', lastUpdateTime=0, functionInstance='main'),
                 AferoState(functionClass='available', value=False, lastUpdateTime=0, functionInstance=None)
             ],
         ),

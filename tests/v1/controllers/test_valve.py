@@ -40,7 +40,7 @@ async def test_turn_on_multi(mocked_controller):
         [utils.create_hs_raw_from_device(valve)]
     )
     await mocked_controller._bridge.async_block_until_done()
-    
+
     await mocked_controller.turn_on(valve.id, instance="spigot-1")
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[valve.id]
