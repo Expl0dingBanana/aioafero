@@ -33,7 +33,7 @@ finally:
 
 
 from . import v1
-from .anonomyize_data import anonymize_device, anonymize_devices
+from .anonymize_data import anonymize_device, anonymize_devices
 from .device import AferoCapability, AferoDevice, AferoState, get_afero_device
 from .errors import (
     AferoError,

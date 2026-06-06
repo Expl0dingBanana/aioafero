@@ -30,20 +30,33 @@ Examples assume an asyncio REPL (``python -m asyncio``).
 
 .. code-block:: python
 
+   import aiohttp
    from aioafero import v1
 
-   bridge = v1.AferoBridgeV1("user@example.com", "password")
+   session = aiohttp.ClientSession()
+   auth = v1.AferoAuth.for_login(session, "user@example.com", "password")
+   try:
+       token_data = await auth.login()
+   except v1.OTPRequired:
+       token_data = await auth.submit_otp(
+           input("Enter the code from your email: ").strip()
+       )
+
+   bridge = v1.AferoBridgeV1(
+       "user@example.com",
+       token_data.refresh_token,
+       session=session,
+   )
    await bridge.initialize()
    await bridge.async_block_until_done()
 
-   light = bridge.lights.get_device("<device_id>")
-   print(light.on)
-
-   await bridge.lights.turn_on("<device_id>")
+   await bridge.lights.turn_off("<device_id>")
    await bridge.close()
+   await session.close()
 
-See the `user guide <https://aioafero.readthedocs.io/en/latest/user/overview.html>`_ for
-architecture, configuration, controllers, subscribe callbacks, and troubleshooting.
+See the `user guide <https://aioafero.readthedocs.io/en/latest/user/overview.html>`_ —
+especially `authentication <https://aioafero.readthedocs.io/en/latest/user/auth.html>`_ —
+for bridge configuration, controllers, subscribe callbacks, and troubleshooting.
 
 Contributing
 ============

@@ -1,5 +1,7 @@
 """Handle authentication to Afero API."""
 
+from __future__ import annotations
+
 __all__ = ["AferoAuth", "TokenData", "passthrough"]
 
 import asyncio
@@ -14,7 +16,7 @@ from typing import Final, NamedTuple
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
-from aiohttp import ClientResponseError, ContentTypeError
+from aiohttp import ClientResponseError, ContentTypeError, web_exceptions
 from bs4 import BeautifulSoup
 from securelogging import LogRedactorMessage, add_secret, remove_secret
 
@@ -24,7 +26,8 @@ from . import v1_const
 
 logger = logging.getLogger(__name__)
 
-TOKEN_TIMEOUT: Final[int] = 118
+DEFAULT_TOKEN_TIMEOUT: Final[int] = 118
+TOKEN_EXPIRY_BUFFER: Final[int] = 2
 STATUS_CODE: Final[str] = "Status Code: %s"
 
 
@@ -58,6 +61,15 @@ def passthrough():
     yield
 
 
+def _token_expiration(resp_json: dict, *, now: float | None = None) -> float:
+    """Compute bearer token expiration from an OAuth token response."""
+    timestamp = now if now is not None else datetime.datetime.now().timestamp()
+    expires_in = resp_json.get("expires_in")
+    if expires_in is not None:
+        return timestamp + float(expires_in) - TOKEN_EXPIRY_BUFFER
+    return timestamp + DEFAULT_TOKEN_TIMEOUT
+
+
 class AferoAuth:
     """Authentication against the Afero IoT API.
 
@@ -67,12 +79,15 @@ class AferoAuth:
 
     def __init__(
         self,
-        bridge,
-        username,
-        password,
+        session: aiohttp.ClientSession | None,
+        username: str,
+        refresh_token: str,
+        *,
+        token: str | None = None,
+        password: str | None = None,
         hide_secrets: bool = True,
-        refresh_token: str | None = None,
         afero_client: str | None = "hubspace",
+        client_name: str | None = "aioafero",
     ):
         """Create a class to handle authentication with Afero IoT API."""
         self.logger = logging.getLogger(f"{__package__}[{username}]")
@@ -82,22 +97,55 @@ class AferoAuth:
             self.secret_logger = passthrough
         self._hide_secrets: bool = hide_secrets
         self._async_lock: asyncio.Lock = asyncio.Lock()
+        self._session: aiohttp.ClientSession = session
         self._username: str = username
-        self._password: str = password
-        self._token_data: TokenData | None = None
-        self._bridge = bridge
-        if refresh_token:
-            add_secret(refresh_token)
-            self._token_data = TokenData(
-                None, None, refresh_token, datetime.datetime.now().timestamp()
-            )
+        self._password: str | None = password
         self._afero_client: str = afero_client
+        self._client_name: str = client_name
+        self._token_data: TokenData | None = None
+        self._init_token_data(refresh_token, token)
         self._token_headers: dict[str, str] = {
             "Content-Type": "application/x-www-form-urlencoded",
             "accept-encoding": "gzip",
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["AUTH_OPENID_HOST"],
         }
         self._otp_data: dict = {}
+
+    def _init_token_data(self, refresh_token: str, token: str | None) -> None:
+        """Initialize token data from refresh token and optional bearer token."""
+        add_secret(refresh_token)
+        now = datetime.datetime.now().timestamp()
+        if token:
+            add_secret(token)
+            self._token_data = TokenData(
+                token, None, refresh_token, now + DEFAULT_TOKEN_TIMEOUT
+            )
+        else:
+            self._token_data = TokenData(None, None, refresh_token, now)
+
+    @classmethod
+    def for_login(
+        cls,
+        session: aiohttp.ClientSession,
+        username: str,
+        password: str,
+        *,
+        afero_client: str = "hubspace",
+        hide_secrets: bool = True,
+        client_name: str = "aioafero",
+    ) -> AferoAuth:
+        """Create an auth instance for credential-based login flows."""
+        auth = cls(
+            session,
+            username,
+            "",
+            password=password,
+            afero_client=afero_client,
+            hide_secrets=hide_secrets,
+            client_name=client_name,
+        )
+        auth._token_data = None
+        return auth
 
     @property
     async def is_expired(self) -> bool:
@@ -121,6 +169,31 @@ class AferoAuth:
     def set_token_data(self, data: TokenData) -> None:
         """Set the current taken data."""
         self._token_data = data
+
+    def set_session(self, session: aiohttp.ClientSession) -> None:
+        """Set the web session used for auth HTTP requests."""
+        self._session = session
+
+    async def _auth_request(
+        self, method: str, url: str, **kwargs
+    ) -> aiohttp.ClientResponse:
+        """Make an unauthenticated request to the OpenID/token endpoints."""
+        headers = {
+            "user-agent": v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
+                client_name=self._client_name
+            ),
+            "accept-encoding": "gzip",
+        }
+        headers.update(kwargs.pop("headers", {}))
+        kwargs["headers"] = headers
+        kwargs["ssl"] = True
+        if self._session is None:
+            raise RuntimeError("Auth session is not available")
+        response = await self._session.request(method, url, **kwargs)
+        await response.read()
+        if response.status == 403:
+            raise web_exceptions.HTTPForbidden
+        return response
 
     async def webapp_login(self, challenge: AuthChallenge) -> str:
         """Perform login to the webapp for a code.
@@ -150,10 +223,9 @@ class AferoAuth:
             code_params,
         )
         try:
-            response = await self._bridge.request(
+            response = await self._auth_request(
                 "GET",
                 url,
-                include_token=False,
                 params=code_params,
                 allow_redirects=False,
             )
@@ -186,7 +258,9 @@ class AferoAuth:
         code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
         code_challenge = code_challenge.replace("=", "")
         chal = AuthChallenge(code_challenge, code_verifier)
-        logger.debug("Challenge information: %s", chal)
+        add_secret(code_verifier)
+        with LogRedactorMessage():
+            logger.debug("Challenge information: %s", chal)
         return chal
 
     async def generate_code(
@@ -217,33 +291,35 @@ class AferoAuth:
             params,
             headers,
         )
-        response = await self._bridge.request(
-            "POST",
-            url,
-            include_token=False,
-            params=params,
-            data=auth_data,
-            headers=headers,
-            allow_redirects=False,
-        )
-        self.logger.debug(STATUS_CODE, response.status)
-        # If OTP is required, a 200 will be returned. If a 302 is returned, then there
-        # is no OTP required.
-        content = await response.text()
-        if await AferoAuth.requires_otp(content):
-            login_data = await extract_login_data(content, "kc-otp-login-form")
-            otp_params = extract_login_codes(login_data, self._afero_client)
-            self._otp_data = {
-                "params": otp_params,
-                "headers": headers,
-                "challenge": challenge,
-            }
-            raise OTPRequired
-        if response.status != 302:
-            raise InvalidAuth(
-                "Unable to authenticate with the supplied username / password"
+        try:
+            response = await self._auth_request(
+                "POST",
+                url,
+                params=params,
+                data=auth_data,
+                headers=headers,
+                allow_redirects=False,
             )
-        return await AferoAuth.parse_code(response)
+            self.logger.debug(STATUS_CODE, response.status)
+            # If OTP is required, a 200 will be returned. If a 302 is returned, then
+            # there is no OTP required.
+            content = await response.text()
+            if await AferoAuth.requires_otp(content):
+                login_data = await extract_login_data(content, "kc-otp-login-form")
+                otp_params = extract_login_codes(login_data, self._afero_client)
+                self._otp_data = {
+                    "params": otp_params,
+                    "headers": headers,
+                    "challenge": challenge,
+                }
+                raise OTPRequired
+            if response.status != 302:
+                raise InvalidAuth(
+                    "Unable to authenticate with the supplied username / password"
+                )
+            return await AferoAuth.parse_code(response)
+        finally:
+            self._password = None
 
     @staticmethod
     async def requires_otp(content: str) -> bool:
@@ -256,12 +332,17 @@ class AferoAuth:
         try:
             parsed_url = urlparse(response.headers["location"])
             code = parse_qs(parsed_url.query)["code"][0]
-            logger.debug("Location: %s", response.headers.get("location"))
-            logger.debug("Code: %s", code)
         except KeyError as err:
             raise InvalidResponse(
                 f"Unable to process the result from {response.url}: {response.status}"
             ) from err
+        add_secret(code)
+        location = response.headers.get("location")
+        if location:
+            add_secret(location)
+        with LogRedactorMessage():
+            logger.debug("Location: %s", location)
+            logger.debug("Code: %s", code)
         return code
 
     async def generate_refresh_token(
@@ -310,11 +391,10 @@ class AferoAuth:
                 data,
                 self._token_headers,
             )
-        response = await self._bridge.request(
+        response = await self._auth_request(
             "POST",
             url,
             headers=self._token_headers,
-            include_token=False,
             data=data,
         )
         self.logger.debug(STATUS_CODE, response.status)
@@ -344,11 +424,13 @@ class AferoAuth:
         add_secret(id_token)
         with self.secret_logger():
             self.logger.debug("JSON response: %s", resp_json)
+        if code:
+            remove_secret(code)
         return TokenData(
             id_token,
             access_token,
             refresh_token,
-            datetime.datetime.now().timestamp() + TOKEN_TIMEOUT,
+            _token_expiration(resp_json),
         )
 
     async def perform_initial_login(self) -> TokenData:
@@ -365,40 +447,47 @@ class AferoAuth:
         self.logger.debug("Successfully generated a refresh token")
         return refresh_token
 
+    async def login(self) -> TokenData:
+        """Perform credential-based login and return token data."""
+        return await self.perform_initial_login()
+
     async def perform_otp_login(self, otp_code: str) -> TokenData:
         """Perform otp login to generate a refresh token.
 
         :return: Refresh token for the auth
         """
-        if self._otp_data == {}:
-            raise OTPRequired("No OTP data available to perform login")
-        self.logger.debug("Performing otp login")
-        code: str = await self.submit_otp(otp_code)
-        refresh_token = await self.generate_refresh_token(
-            code=code, challenge=self._otp_data["challenge"]
-        )
-        self.logger.debug("Successfully generated a refresh token")
-        self._token_data = refresh_token
-        self._otp_data = {}
-        return refresh_token
+        return await self.submit_otp(otp_code)
 
-    async def submit_otp(self, otp_code: str) -> None:
-        """Submit OTP code to continue the login process.
+    async def submit_otp(self, otp_code: str) -> TokenData:
+        """Submit OTP code and complete login.
 
         :param otp_code: OTP code provided by the user
 
-        :return: Code used for generating a refresh token
+        :return: Token data for the authenticated session
         """
+        if self._otp_data == {}:
+            raise OTPRequired("No OTP data available to perform login")
+        self.logger.debug("Performing otp login")
+        code: str = await self._submit_otp_code(otp_code)
+        token_data = await self.generate_refresh_token(
+            code=code, challenge=self._otp_data["challenge"]
+        )
+        self.logger.debug("Successfully generated a refresh token")
+        self._token_data = token_data
+        self._otp_data = {}
+        return token_data
+
+    async def _submit_otp_code(self, otp_code: str) -> str:
+        """Submit OTP code to obtain an authorization code."""
         otp_data = {
             "action": "submit",
             "flowName": "doLogIn",
             "emailCode": otp_code,
         }
         url = self.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
-        response = await self._bridge.request(
+        response = await self._auth_request(
             "POST",
             url,
-            include_token=False,
             params=self._otp_data["params"],
             data=otp_data,
             headers=self._otp_data["headers"],
@@ -416,13 +505,10 @@ class AferoAuth:
 
     async def token(self, retry: bool = True) -> str:
         """Generate the token required to make Afero API calls."""
-        invalidate_refresh_token = False
+        retry_refresh = False
         async with self._async_lock:
             if not self._token_data:
-                self.logger.debug(
-                    "Refresh token not present. Generating a new refresh token"
-                )
-                self._token_data = await self.perform_initial_login()
+                raise InvalidAuth("No token data available")
             if await self.is_expired:
                 self.logger.debug("Token has not been generated or is expired")
                 try:
@@ -435,10 +521,10 @@ class AferoAuth:
                     self.logger.debug("Provided refresh token is no longer valid.")
                     if not retry:
                         raise
-                    invalidate_refresh_token = True
+                    retry_refresh = True
                 else:
                     self.logger.debug("Token has been successfully generated")
-        if invalidate_refresh_token:
+        if retry_refresh:
             return await self.token(retry=False)
         return self._token_data.token
 

@@ -27,7 +27,7 @@ AFERO_GENERICS: Final[dict[str, str]] = {
     # Auth endpoints
     "AUTH_OPENID_ENDPOINT": "/protocol/openid-connect/auth",
     "AUTH_CODE_ENDPOINT": "/login-actions/authenticate",
-    "AUTH_TOKEN_ENDPOINT": "/protocol/openid-connect/token",
+    "AUTH_TOKEN_ENDPOINT": "/protocol/openid-connect/token",  # nosec B105
     "ACCOUNT_ID_ENDPOINT": "/v1/users/me",
 }
 

@@ -14,8 +14,13 @@ current_path = pathlib.Path(__file__).parent.resolve()
 
 
 @pytest.fixture
-def hs_auth(mocked_bridge_req):
-    return auth.AferoAuth(mocked_bridge_req, "username", "password")
+def hs_auth(aio_sess):
+    return auth.AferoAuth(aio_sess, "username", "mock-refresh-token")
+
+
+@pytest.fixture
+def hs_auth_login(aio_sess):
+    return auth.AferoAuth.for_login(aio_sess, "username", "password")
 
 
 async def build_url(base_url: str, qs: dict[str, str]) -> str:
@@ -138,7 +143,6 @@ async def test_webapp_login(
     aio_sess,
     mocker,
 ):
-    hs_auth._bridge._web_session = aio_sess
     if page_filename:
         response["body"] = (current_path / "data" / page_filename).read_text()
     challenge = await hs_auth.generate_challenge_data()
@@ -170,8 +174,23 @@ async def test_webapp_login(
 
 
 @pytest.mark.asyncio
-async def test_generate_challenge_data():
-    pass
+async def test_generate_challenge_data(caplog):
+    caplog.set_level(logging.DEBUG)
+    challenge = await auth.AferoAuth.generate_challenge_data()
+    assert challenge.challenge
+    assert challenge.verifier
+    assert "Challenge information:" in caplog.text
+    assert challenge.verifier not in caplog.text
+
+
+def test_token_expiration_from_api():
+    now = 1_000_000.0
+    assert auth._token_expiration({"expires_in": 120}, now=now) == now + 118
+
+
+def test_token_expiration_fallback():
+    now = 1_000_000.0
+    assert auth._token_expiration({}, now=now) == now + auth.DEFAULT_TOKEN_TIMEOUT
 
 
 @pytest.mark.asyncio
@@ -217,10 +236,11 @@ async def test_generate_code(
     response,
     expected_err,
     expected,
-    hs_auth,
+    hs_auth_login,
     aioresponses,
     aio_sess,
 ):
+    hs_auth = hs_auth_login
     params = {
         "session_code": auth_data.session_code,
         "execution": auth_data.execution,
@@ -235,6 +255,7 @@ async def test_generate_code(
     else:
         with pytest.raises(expected_err):
             await hs_auth.generate_code(auth_data, None)
+    assert hs_auth._password is None
 
 
 @pytest.mark.asyncio
@@ -279,6 +300,7 @@ async def test_generate_code(
                         "id_token": "cool_beans",
                         "refresh_token": "refresh_beans",
                         "access_token": "access_token_beans",
+                        "expires_in": 120,
                     }
                 ),
             },
@@ -287,7 +309,7 @@ async def test_generate_code(
                 "data: {'grant_type': 'authorization_code', 'code': 'th***ns'",
                 (
                     "JSON response: {'id_token': 'co***ns', 'refresh_token': "
-                    "'re***ns', 'access_token': 'ac***ns'}"
+                    "'re***ns', 'access_token': 'ac***ns', 'expires_in': 120}"
                 ),
             ],
             None,
@@ -492,8 +514,9 @@ async def test_generate_refresh_token_from_refresh(
     ],
 )
 async def test_perform_initial_login(
-    webapp_login_return, generate_refresh_token_return, hs_auth, aio_sess, mocker
+    webapp_login_return, generate_refresh_token_return, hs_auth_login, aio_sess, mocker
 ):
+    hs_auth = hs_auth_login
     mocker.patch.object(hs_auth, "webapp_login", return_value=webapp_login_return)
     mocker.patch.object(
         hs_auth, "generate_refresh_token", return_value=generate_refresh_token_return
@@ -503,30 +526,38 @@ async def test_perform_initial_login(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("hide_secrets", "refresh_token"),
+    ("hide_secrets", "token"),
     [
         (True, None),
         (False, "yes"),
     ],
 )
-async def test_AferoAuth_init(hide_secrets, refresh_token, mocker, bridge):
+async def test_AferoAuth_init(hide_secrets, token, mocker, aio_sess):
     test_auth = auth.AferoAuth(
-        bridge,
+        aio_sess,
         "username",
-        "password",
+        "refresh_token",
+        token=token,
         hide_secrets=hide_secrets,
-        refresh_token=refresh_token,
     )
     if hide_secrets:
         assert test_auth.secret_logger == auth.LogRedactorMessage
     else:
         assert test_auth.secret_logger == auth.passthrough
-    if refresh_token:
-        assert test_auth._token_data == auth.TokenData(
-            None, None, refresh_token, mocker.ANY
-        )
+    if token:
+        assert test_auth._token_data.token == token
+        assert test_auth._token_data.refresh_token == "refresh_token"
     else:
-        assert test_auth._token_data is None
+        assert test_auth._token_data == auth.TokenData(
+            None, None, "refresh_token", mocker.ANY
+        )
+
+
+@pytest.mark.asyncio
+async def test_AferoAuth_for_login(aio_sess):
+    test_auth = auth.AferoAuth.for_login(aio_sess, "username", "password")
+    assert test_auth._password == "password"
+    assert test_auth._token_data is None
 
 
 def bad_refresh_token(*args, **kwargs):
@@ -546,30 +577,17 @@ def bad_refresh_token_invalid(*args, **kwargs):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    (
-        "token_data",
-        "results_perform_initial_login",
-        "results_generate_refresh_token",
-        "expected",
-        "messages",
-    ),
+    ("token_data", "results_generate_refresh_token", "expected", "messages"),
     [
-        # Perform full login
+        # No token data available
         (
             None,
-            auth.TokenData(
-                "token",
-                "access_token",
-                "refresh_token",
-                datetime.datetime.now().timestamp() + 120,
-            ),
             None,
-            "token",
-            ["Refresh token not present. Generating a new refresh token"],
+            None,
+            [],
         ),
         # Previously logged in but expired
         (
-            None,
             auth.TokenData(
                 "token",
                 "access_token",
@@ -587,9 +605,8 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 "Token has not been generated or is expired",
             ],
         ),
-        # Invalid refresh token
+        # Invalid refresh token retried once then succeeds
         (
-            None,
             auth.TokenData(
                 "token",
                 "access_token",
@@ -601,12 +618,10 @@ def bad_refresh_token_invalid(*args, **kwargs):
             [
                 "Token has not been generated or is expired",
                 "Provided refresh token is no longer valid.",
-                "Refresh token not present. Generating a new refresh token",
             ],
         ),
-        # Invalid refresh token and bad login
+        # Invalid refresh token on both attempts
         (
-            None,
             auth.TokenData(
                 "token",
                 "access_token",
@@ -618,30 +633,22 @@ def bad_refresh_token_invalid(*args, **kwargs):
             [
                 "Token has not been generated or is expired",
                 "Provided refresh token is no longer valid.",
-                "Refresh token not present. Generating a new refresh token",
             ],
         ),
     ],
 )
 async def test_token(
     token_data,
-    results_perform_initial_login,
     results_generate_refresh_token,
     expected,
     messages,
     caplog,
     mocker,
-    bridge,
+    aio_sess,
 ):
     caplog.set_level(logging.DEBUG)
-    test_auth = auth.AferoAuth(bridge, "username", "password")
+    test_auth = auth.AferoAuth(aio_sess, "username", "refresh_token")
     test_auth._token_data = token_data
-    sess = mocker.Mock()
-    mocker.patch.object(
-        test_auth,
-        "perform_initial_login",
-        mocker.AsyncMock(return_value=results_perform_initial_login),
-    )
     if isinstance(results_generate_refresh_token, auth.TokenData):
         mocker.patch.object(
             test_auth,
@@ -655,11 +662,11 @@ async def test_token(
             side_effect=results_generate_refresh_token(),
         )
     if isinstance(expected, str):
-        assert await test_auth.token(sess) == expected
+        assert await test_auth.token() == expected
         assert test_auth.refresh_token == "refresh_token"
     else:
         with pytest.raises(auth.InvalidAuth):
-            await test_auth.token(sess)
+            await test_auth.token()
     for message in messages:
         assert message in caplog.text
 
@@ -675,8 +682,8 @@ def test_set_token_data(hs_auth):
     assert hs_auth._token_data == data
 
 
-def test_property_refresh_token(bridge):
-    _auth = auth.AferoAuth(bridge, "username", "password")
+def test_property_refresh_token(aio_sess):
+    _auth = auth.AferoAuth.for_login(aio_sess, "username", "password")
     assert _auth.refresh_token is None
     _auth._token_data = auth.TokenData(
         "token",
@@ -706,7 +713,7 @@ def test_get_kc_error(page_filename, expected):
     (
         "page_filename",
         "response",
-        "expected_code",
+        "expected_token_data",
         "expected_error",
         "expected_error_match",
     ),
@@ -725,7 +732,12 @@ def test_get_kc_error(page_filename, expected):
                     )
                 },
             },
-            "code",
+            auth.TokenData(
+                token="id_token",
+                access_token="access_token",
+                refresh_token="refresh_token",
+                expiration=0,
+            ),
             None,
             None,
         ),
@@ -744,50 +756,68 @@ def test_get_kc_error(page_filename, expected):
 async def test_submit_otp(
     page_filename,
     response,
-    expected_code,
+    expected_token_data,
     expected_error,
     expected_error_match,
     mock_aioresponse,
     aio_sess,
-    hs_auth,
+    hs_auth_login,
+    mocker,
 ):
-    challenge = await hs_auth.generate_challenge_data()
-    hs_auth._bridge._web_session = aio_sess
+    challenge = await hs_auth_login.generate_challenge_data()
     auth_sess_data = auth.AuthSessionData(
         "url_sess_code", "url_exec_code", "url_tab_id"
     )
-    url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
-    hs_auth._otp_data = {
+    url_params = auth.extract_login_codes(auth_sess_data, hs_auth_login._afero_client)
+    hs_auth_login._otp_data = {
         "params": url_params,
         "headers": {},
         "challenge": challenge,
     }
     if page_filename:
         response["body"] = (current_path / "data" / page_filename).read_text()
-    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+    url = hs_auth_login.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
     url = await build_url(url, url_params)
     mock_aioresponse.post(url, **response)
-    if expected_code:
-        assert (await hs_auth.submit_otp("123456")) == expected_code
+    if expected_token_data:
+        token_url = hs_auth_login.generate_auth_url(
+            v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"]
+        )
+        mock_aioresponse.post(
+            token_url,
+            status=200,
+            body=json.dumps(
+                {
+                    "refresh_token": "refresh_token",
+                    "access_token": "access_token",
+                    "id_token": "id_token",
+                }
+            ),
+        )
+        assert await hs_auth_login.submit_otp("123456") == auth.TokenData(
+            token=expected_token_data.token,
+            access_token=expected_token_data.access_token,
+            refresh_token=expected_token_data.refresh_token,
+            expiration=mocker.ANY,
+        )
     else:
         with pytest.raises(expected_error, match=expected_error_match):
-            await hs_auth.submit_otp("123456")
+            await hs_auth_login.submit_otp("123456")
 
 
 @pytest.mark.asyncio
-async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth, mocker):
-    challenge = await hs_auth.generate_challenge_data()
-    hs_auth._bridge._web_session = aio_sess
+async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth_login, mocker):
+    challenge = await hs_auth_login.generate_challenge_data()
     auth_sess_data = auth.AuthSessionData(
         "url_sess_code", "url_exec_code", "url_tab_id"
     )
-    url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
-    hs_auth._otp_data = {
+    url_params = auth.extract_login_codes(auth_sess_data, hs_auth_login._afero_client)
+    hs_auth_login._otp_data = {
         "params": url_params,
         "headers": {},
         "challenge": challenge,
     }
-    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
+    url = hs_auth_login.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
     url = await build_url(url, url_params)
     # Successful OTP POST
     otp_post_response = {
@@ -803,14 +833,16 @@ async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth, mocker):
     }
     mock_aioresponse.post(url, **otp_post_response)
     # Successful authorization_code generation
-    url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
+    url = hs_auth_login.generate_auth_url(
+        v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"]
+    )
     resp_data = {
         "refresh_token": "refresh_token",
         "access_token": "access_token",
         "id_token": "id_token",
     }
     mock_aioresponse.post(url, status=200, body=json.dumps(resp_data))
-    assert await hs_auth.perform_otp_login("123456") == auth.TokenData(
+    assert await hs_auth_login.perform_otp_login("123456") == auth.TokenData(
         token="id_token",
         access_token="access_token",
         refresh_token="refresh_token",
@@ -819,7 +851,7 @@ async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth, mocker):
 
 
 @pytest.mark.asyncio
-async def test_perform_otp_login_not_ready(hs_auth):
-    hs_auth._otp_data = {}
+async def test_perform_otp_login_not_ready(hs_auth_login):
+    hs_auth_login._otp_data = {}
     with pytest.raises(auth.OTPRequired):
-        await hs_auth.perform_otp_login("123456")
+        await hs_auth_login.perform_otp_login("123456")

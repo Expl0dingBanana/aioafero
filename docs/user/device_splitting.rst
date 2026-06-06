@@ -9,9 +9,10 @@ How splitting works
 -------------------
 
 1. During discovery, a controller's ``DEVICE_SPLIT_CALLBACKS`` transforms one
-   ``AferoDevice`` into several clones with synthetic IDs.
+   :class:`~aioafero.AferoDevice` into several clones with synthetic IDs.
 2. Each clone gets a unique ``_id`` (for example ``{parent}-light-{instance}``).
-3. ``split_identifier`` on the model enables ``StandardMixin`` properties:
+3. ``split_identifier`` on the model enables
+   :class:`~aioafero.v1.models.standard_mixin.StandardMixin` properties:
 
    * ``id`` — the synthetic ID (entity identity)
    * ``update_id`` — parent metadevice ID used for API writes
@@ -23,7 +24,8 @@ Implementing a new split type
 On the **primary controller** (non-split class):
 
 * Register a callback in ``DEVICE_SPLIT_CALLBACKS`` that returns
-  ``CallbackResponse(split_devices=[...], remove_original=...)``.
+  :class:`~aioafero.v1.controllers.event.CallbackResponse` with
+  ``split_devices=[...]`` and ``remove_original=...``.
 
 On the **split model**:
 

@@ -3,19 +3,27 @@ Bridge configuration and lifecycle
 
 ``AferoBridgeV1`` is the main entry point (``from aioafero import v1``).
 
+Authentication
+--------------
+
+Login is handled by :class:`~aioafero.v1.AferoAuth` before the bridge is
+constructed. The bridge only needs a **refresh token** (and optionally a still-valid
+bearer ``token``) — not a password. See :doc:`auth` for login, OTP, token persistence,
+and refresh behavior.
+
 Construction
 ------------
 
 Required:
 
 * ``username`` — Afero-backed account username
-* ``password`` — account password
+* ``refresh_token`` — OAuth refresh token from login (or a saved token)
 
 Common optional arguments:
 
-* ``afero_client`` — ``"hubspace"`` (default; only supported client)
-* ``refresh_token`` — reuse a saved session and skip the initial login flow
+* ``token`` — non-expired bearer token; skips the initial refresh if still valid
 * ``session`` — existing ``aiohttp.ClientSession`` (bridge closes it only if it created it)
+* ``afero_client`` — ``"hubspace"`` (default; only supported client)
 * ``polling_interval`` — seconds between state polls (default ``30``)
 * ``discovery_interval`` — seconds between device discovery polls (default ``3600``)
 * ``temperature_unit`` — ``TemperatureUnit.CELSIUS`` (default) or ``FAHRENHEIT``
@@ -23,25 +31,59 @@ Common optional arguments:
 * ``poll_version`` — periodically fetch firmware version metadata (default ``True``)
 * ``client_name`` — User-Agent token (default ``"aioafero"``)
 
-After login, ``bridge.refresh_token`` holds the token for persistence. Restore a
-saved session with ``bridge.set_token_data(token_data)``.
+After a running session, ``bridge.refresh_token`` reflects the current refresh token
+(including any rotation). Restore tokens with ``bridge.set_token_data(token_data)``.
 
 Lifecycle
 ---------
 
 Typical async flow:
 
-1. ``bridge = v1.AferoBridgeV1(...)``
-2. ``await bridge.initialize()`` — starts controllers and background polling
-3. ``await bridge.async_block_until_done()`` — wait for the first poll / init tasks
-4. Use controllers to read state and send commands
-5. ``await bridge.close()`` — stop polling and release the HTTP session
+1. Log in with ``v1.AferoAuth`` and obtain ``token_data`` (:doc:`auth`)
+2. ``bridge = v1.AferoBridgeV1(username, token_data.refresh_token, session=session)``
+3. ``await bridge.initialize()`` — starts controllers and background polling
+4. ``await bridge.async_block_until_done()`` — wait for the first poll / init tasks
+5. Use controllers to read state and send commands
+6. ``await bridge.close()`` — stop polling; closes the HTTP session only if the bridge
+   created it (when you passed ``session=``, call ``await session.close()`` yourself —
+   see :doc:`auth` and :doc:`examples`)
 
-OTP
----
+Shorthand patterns
+~~~~~~~~~~~~~~~~~~
 
-If the account has OTP enabled, call ``await bridge.otp_login("<code>")`` when login
-requires it (after ``initialize()``).
+**Async context manager** — runs ``initialize`` on enter and ``close`` on exit. Call
+``async_block_until_done()`` inside the block when you need populated controllers:
+
+.. code-block:: python
+
+   async with v1.AferoBridgeV1(username, refresh_token, session=session) as bridge:
+       await bridge.async_block_until_done()
+       await bridge.lights.turn_on(device_id)
+
+   await session.close()  # when you passed session=
+
+**``AferoBridgeV1.open``** — one call to construct the bridge, ``initialize``, and
+``async_block_until_done``. Use ``async with`` on the returned instance for cleanup:
+
+.. code-block:: python
+
+   bridge = await v1.AferoBridgeV1.open(username, refresh_token, session=session)
+   async with bridge:
+       await bridge.lights.turn_on(device_id)
+
+   await session.close()  # when you passed session=
+
+``open`` has already started the bridge; ``async with`` here only ensures ``close`` runs
+on exit (``initialize`` is called again on enter but is a no-op when already started).
+
+Prefer explicit cleanup instead of ``async with``:
+
+.. code-block:: python
+
+   bridge = await v1.AferoBridgeV1.open(username, refresh_token, session=session)
+   await bridge.lights.turn_on(device_id)
+   await bridge.close()
+   await session.close()
 
 Events
 ------

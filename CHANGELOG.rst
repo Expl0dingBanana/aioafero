@@ -2,6 +2,38 @@
 Changelog
 =========
 
+Version 8.0.0
+=============
+
+Breaking changes:
+
+ * ``AferoBridgeV1`` no longer accepts a password; pass ``username`` and ``refresh_token``
+   (and optional bearer ``token``).
+ * Removed ``AferoBridgeV1.otp_login``; use ``v1.AferoAuth.for_login`` and
+   ``submit_otp`` instead.
+ * ``AferoAuth`` is decoupled from the bridge and uses ``aiohttp.ClientSession``
+   directly. Use ``AferoAuth.for_login(session, username, password)`` for credential
+   login; ``login()`` and ``submit_otp()`` return ``TokenData``.
+ * ``AferoAuth`` is exported on ``aioafero.v1`` only (not top-level ``aioafero``).
+ * Renamed module ``aioafero.anonomyize_data`` to ``aioafero.anonymize_data``.
+ * ``AferoBridgeV1`` supports ``async with`` (``initialize`` on enter, ``close`` on exit).
+ * Added ``await AferoBridgeV1.open(...)`` to construct a bridge and wait for the first
+   discovery poll.
+ * ``AferoAuth`` clears ``_password`` after the credential POST (including on OTP and
+   auth failure).
+ * Redact OpenID authorization codes in debug logs; register account IDs before
+   assignment.
+ * Bridge API request kwargs logged at DEBUG only (method and URL remain at INFO).
+ * Bearer token expiration uses API ``expires_in`` minus a 2-second buffer (fallback
+   when omitted).
+ * Redact PKCE ``code_verifier`` in challenge debug logs.
+ * Removed implicit ``StreamHandler`` from ``AferoBridgeV1``; configure logging in the host app.
+ * Dependency floors: ``aiohttp>=3.14.0``, ``beautifulsoup4>=4.12.0`` (``aiohttp`` 3.14+ addresses published CVEs).
+
+Other:
+
+ * CI security scanning: Bandit (pre-commit), pip-audit (``tox -e audit``), CodeQL, Dependabot alerts/updates.
+
 Version 7.0.3
 =============
  * Fix an issue where lastUpdateTime was not being set correctly
