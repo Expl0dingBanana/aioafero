@@ -1,6 +1,12 @@
 """Generic utils for interacting with Afero IoT API or the responses."""
 
+from datetime import UTC, datetime
 from typing import Any
+
+
+def get_afero_base_time_ms() -> int:
+    """Return the current time as epoch milliseconds for v1 API state timestamps."""
+    return int(datetime.now(UTC).timestamp() * 1000)
 
 
 def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int) -> _T:

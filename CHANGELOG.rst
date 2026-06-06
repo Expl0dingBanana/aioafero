@@ -2,6 +2,10 @@
 Changelog
 =========
 
+Version 7.0.3
+=============
+ * Fix an issue where lastUpdateTime was not being set correctly
+
 Version 7.0.2
 =============
 
