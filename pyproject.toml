@@ -78,6 +78,13 @@ asyncio_default_fixture_loop_scope = "function"
 source_pkgs = ["aioafero"]
 omit = ["tests/*"]
 
+[tool.coverage.paths]
+source = [
+    "src/aioafero",
+    "*/site-packages/aioafero",
+    "*/lib/python*/site-packages/aioafero",
+]
+
 [tool.bandit]
 exclude_dirs = ["tests"]
 

@@ -8,12 +8,12 @@ Please report security issues privately via [GitHub Security Advisories](https:/
 
 This repository runs:
 
-| Check                       | When                     | Tool                                             |
-| --------------------------- | ------------------------ | ------------------------------------------------ |
-| Lint + Python security lint | Every PR / push          | pre-commit (ruff, **bandit**, …)                 |
-| Dependency vulnerabilities  | Every PR / push + weekly | **pip-audit** (`tox -e audit`)                   |
-| Deep static analysis        | Every PR / push + weekly | **CodeQL**                                       |
-| Dependency update PRs       | Weekly                   | **Dependabot** (pip, GitHub Actions, pre-commit) |
+| Check                       | When                         | Tool                                             |
+| --------------------------- | ---------------------------- | ------------------------------------------------ |
+| Lint + Python security lint | Every PR / push              | pre-commit (ruff, **bandit**, …)                 |
+| Dependency vulnerabilities  | Push/PR to **main** + weekly | **pip-audit** (`tox -e audit`)                   |
+| Deep static analysis        | Every PR / push + weekly     | **CodeQL**                                       |
+| Dependency update PRs       | Weekly                       | **Dependabot** (pip, GitHub Actions, pre-commit) |
 
 Enable **Dependabot alerts** and **Dependabot security updates** under the repository **Settings → Code security and analysis** so GitHub opens PRs for known CVEs in dependencies.
 
