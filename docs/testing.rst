@@ -3,70 +3,55 @@
 Testing and CI
 ==============
 
-How to run tests locally and how GitHub Actions is wired.
-
 Quick start (local)
 -------------------
 
-1. **Clone** the repo and install **Python 3.12, 3.13, and 3.14** (see
-   ``requires-python`` and tox envs).
-
-2. **Install dev dependencies with uv:**
+1. Install **Python 3.12+** and sync dev dependencies:
 
    .. code-block:: bash
 
       uv sync --extra test
 
-3. **Lint** (ruff, bandit, format, …):
+2. **Lint** (ruff, bandit, format, …):
 
    .. code-block:: bash
 
       uv run tox -e lint
 
-4. **Dependency audit:**
+3. **Dependency audit:**
 
    .. code-block:: bash
 
       uv run tox -e audit
 
-5. **One Python version:**
+4. **One Python version:**
 
    .. code-block:: bash
 
-      uv run tox -e py314
+      uv run tox -e default
 
-   Bare ``uv run pytest`` uses ``pyproject.toml`` addopts and prints **term-missing**
-   coverage.
+   Uses your current Python (3.12+). Bare ``uv run pytest`` uses ``pyproject.toml``
+   addopts and prints coverage.
 
-5. **All supported versions + combined coverage (optional):**
-
-   .. code-block:: bash
-
-      uv run tox -e coverage
-
-6. **Parallel matrix (before commit):**
+5. **Full matrix** (before commit):
 
    .. code-block:: bash
 
       uv run tox run-parallel -p auto -o --skip-env lint
 
-   Runs ``py312``, ``py313``, and ``py314`` concurrently, then ``report`` (depends) to
-   combine coverage. Use ``-o`` for live output.
+   Runs ``py312``, ``py313``, and ``py314`` concurrently, then combines coverage.
 
-**Subset of tests:** ``uv run tox -e py314 -- tests/v1/test_auth.py -q``
+**Subset of tests:** ``uv run tox -e default -- tests/v1/test_auth.py -q``
 
 Documentation
 -------------
-
-Same gate as CI — run it whenever you change docs:
 
 .. code-block:: bash
 
    uv run tox -e docs
 
-Requires ``uv sync --extra test`` so ``tox`` is on your PATH. Build fails on Sphinx
-warnings (``-W``). See :doc:`contributing` for doc layout, when to edit user-guide pages,
-and a direct ``sphinx-build`` workflow for local preview.
+Run when you change ``docs/`` or public API docstrings. Layout, new pages, and a faster
+preview loop: :doc:`contributing`.
 
 Tox environments
 ----------------
@@ -85,30 +70,23 @@ Tox environments
    * - ``default``
      - pytest on current interpreter
    * - ``py312`` / ``py313`` / ``py314``
-     - pytest + coverage data in ``.coverage.{envname}``
-   * - ``report``
-     - ``coverage combine``, terminal report, ``coverage.xml``
-   * - ``coverage``
-     - Depends on ``report``; convenience meta-env
+     - pytest + per-env coverage data
+   * - ``report`` / ``coverage``
+     - combine coverage and print report
    * - ``build`` / ``clean`` / ``publish``
      - Packaging (release workflow)
 
 Python versions are defined once in ``[testenv:py3{12,13,14}]``; tox picks the
 interpreter from the env name (no per-env ``basepython`` blocks).
 
-Coverage behavior
------------------
+Coverage
+--------
 
-* **Local pytest** — ``addopts = "--cov=aioafero --cov-report=term-missing"`` in ``pyproject.toml``; ``[tool.coverage.run]`` scopes measurement to the ``aioafero`` package (``source_pkgs``) and omits ``tests/*``.
-* **Tox py envs** — replace addopts with ``--cov=aioafero --cov-report=`` so each version
-  collects silently; ``report`` prints the combined result once.
-* **Why replace, not append?** pytest-cov treats ``--cov-report`` as multi-allowed;
-  appending ``--cov-report=`` does not cancel ``term-missing`` from config.
+Bare ``pytest`` prints per-file coverage. Tox py envs collect silently and ``report``
+combines the matrix — see ``pyproject.toml`` and ``tox.ini``.
 
 GitHub Actions
 --------------
-
-Workflows:
 
 * ``.github/workflows/cicd.yaml`` — lint, audit, docs, test matrix (3.12–3.14), combined
   coverage, Codecov (on push/PR/weekly schedule to ``main``).
@@ -135,12 +113,5 @@ Maintenance
 Security scanning
 -----------------
 
-See ``SECURITY.md`` in the repository root.
-
-* **Bandit** — Python security lint via pre-commit (``tox -e lint``); config in
-  ``pyproject.toml`` ``[tool.bandit]``.
-* **pip-audit** — OSV/CVE scan of runtime deps (``tox -e audit``); runs in CI on every
-  push/PR and weekly.
-* **CodeQL** — GitHub code scanning workflow on push/PR/weekly.
-* **Dependabot** — weekly version update PRs plus grouped **security-updates** in
-  ``dependabot.yml``.
+Bandit (``tox -e lint``), pip-audit (``tox -e audit``), CodeQL, and Dependabot — see
+``SECURITY.md``.

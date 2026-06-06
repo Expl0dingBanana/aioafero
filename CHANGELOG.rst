@@ -35,6 +35,17 @@ Breaking changes:
  * Dependency floors: ``aiohttp>=3.14.0``, ``beautifulsoup4>=4.12.0`` (``aiohttp`` 3.14+ addresses published CVEs).
  * CI security scanning: Bandit (pre-commit), pip-audit (``tox -e audit``), CodeQL, Dependabot alerts/updates.
 
+Other changes:
+
+ * MITM capture test bed for Hubspace client traffic: ``docker/mitmweb/`` compose,
+   ``scripts/mitmweb.sh`` / ``inject-mitm-ca.sh``, and ``docs/mitm/`` (install + daily
+   workflow). WireGuard mode, WSL ``adb``, Windows emulator; based on
+   `Hubspace-Homeassistant #198 <https://github.com/jdeath/Hubspace-Homeassistant/issues/198>`_.
+ * Removed the Publish workflow's manual Read the Docs API trigger; hosted docs build
+   from the Read the Docs GitHub App webhook.
+ * User guide docs tightened (overview architecture diagram, auth/bridge cross-refs,
+   contributing/testing layout).
+
 Version 7.0.4
 =============
  * Re-send ``color-mode: white`` when setting white on no-CCT split-light zones, even if the cached mode is already white

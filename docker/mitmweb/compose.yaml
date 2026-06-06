@@ -1,0 +1,15 @@
+# mitmweb in WireGuard mode for the aioafero MITM test bed.
+# See docs/mitm/ (daily use + first-time install).
+name: aioafero-mitmweb
+
+services:
+  mitmweb:
+    image: mitmproxy/mitmproxy:latest
+    container_name: aioafero-mitmweb
+    command: mitmweb --web-host 0.0.0.0 --mode wireguard --set web_password=aioafero
+    ports:
+      - "51820:51820/udp"
+      - "127.0.0.1:8081:8081"
+    volumes:
+      - ${MITMPROXY_CONFIG_DIR:-${HOME}/.mitmproxy}:/home/mitmproxy/.mitmproxy
+    restart: unless-stopped
