@@ -57,7 +57,7 @@ Changelog = "https://github.com/Expl0dingBanana/aioafero/blob/main/CHANGELOG.rst
 # pyproject.toml
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--cov --cov-report term-missing"
+addopts = "--cov --cov-report=term-missing"
 testpaths = [
     "tests"
 ]
