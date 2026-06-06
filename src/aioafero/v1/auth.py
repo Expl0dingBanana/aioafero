@@ -173,6 +173,8 @@ class AferoAuth:
         :param username: Afero-backed account username.
         :param password: Account password (cleared after successful login).
         """
+        if session is None:
+            raise ValueError("session is required")
         auth = cls.__new__(cls)
         auth._init_state(  # noqa: SLF001
             session,
@@ -185,6 +187,13 @@ class AferoAuth:
         if hide_secrets and password:
             add_secret(password)
         return auth
+
+    def _clear_password(self) -> None:
+        """Drop the in-memory password and remove it from the log redactor."""
+        password = self._password
+        self._password = None
+        if password and self._hide_secrets:
+            remove_secret(password)
 
     @property
     async def is_expired(self) -> bool:
@@ -221,7 +230,7 @@ class AferoAuth:
         }
         headers.update(kwargs.pop("headers", {}))
         kwargs["headers"] = headers
-        kwargs["ssl"] = True
+        kwargs.setdefault("ssl", True)
         response = await self._session.request(method, url, **kwargs)
         await response.read()
         if response.status == 403:
@@ -352,7 +361,7 @@ class AferoAuth:
                 )
             return await AferoAuth.parse_code(response)
         finally:
-            self._password = None
+            self._clear_password()
 
     @staticmethod
     async def requires_otp(content: str) -> bool:
@@ -371,8 +380,6 @@ class AferoAuth:
             ) from err
         add_secret(code)
         location = response.headers.get("location")
-        if location:
-            add_secret(location)
         with LogRedactorMessage():
             logger.debug("Location: %s", location)
             logger.debug("Code: %s", code)
@@ -458,6 +465,8 @@ class AferoAuth:
             self.logger.debug("JSON response: %s", resp_json)
         if code:
             remove_secret(code)
+        if challenge:
+            remove_secret(challenge.verifier)
         return TokenData(
             id_token,
             access_token,
@@ -480,7 +489,7 @@ class AferoAuth:
             self.logger.debug("Successfully generated a refresh token")
             return refresh_token
         finally:
-            self._password = None
+            self._clear_password()
 
     async def login(self) -> TokenData:
         """Perform credential-based login and return token data."""

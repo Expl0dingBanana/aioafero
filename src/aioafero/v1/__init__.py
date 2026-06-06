@@ -143,6 +143,8 @@ class AferoBridgeV1:
         ``session`` is required. ``_close_session`` defaults to ``False``; only
         :meth:`open` sets it to ``True`` when it creates the session internally.
         """
+        if session is None:
+            raise ValueError("session is required")
         if hide_secrets:
             self.secret_logger = LogRedactorMessage
         else:
@@ -401,8 +403,12 @@ class AferoBridgeV1:
             temperature_unit=temperature_unit,
         )
         bridge._close_session = close_session
-        await bridge.initialize()
-        await bridge.async_block_until_done()
+        try:
+            await bridge.initialize()
+            await bridge.async_block_until_done()
+        except BaseException:
+            await bridge.close()
+            raise
         return bridge
 
     def subscribe(

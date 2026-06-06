@@ -564,6 +564,12 @@ async def test_AferoAuth_for_login(aio_sess):
 
 
 @pytest.mark.asyncio
+async def test_for_login_requires_session():
+    with pytest.raises(ValueError, match="session is required"):
+        auth.AferoAuth.for_login(None, "username", "password")
+
+
+@pytest.mark.asyncio
 async def test_refresh_token_requires_session():
     with pytest.raises(ValueError, match="session is required"):
         auth.AferoAuth(None, "username", "refresh_token")
@@ -586,6 +592,7 @@ async def test_token_expiration_honored(aio_sess):
 @pytest.mark.asyncio
 async def test_login_clears_password_on_failure(aio_sess, mocker):
     test_auth = auth.AferoAuth.for_login(aio_sess, "username", "password")
+    remove_secret = mocker.patch("aioafero.v1.auth.remove_secret")
     mocker.patch.object(
         test_auth,
         "webapp_login",
@@ -594,6 +601,7 @@ async def test_login_clears_password_on_failure(aio_sess, mocker):
     with pytest.raises(auth.InvalidResponse):
         await test_auth.login()
     assert test_auth._password is None
+    remove_secret.assert_called_once_with("password")
 
 
 @pytest.mark.asyncio

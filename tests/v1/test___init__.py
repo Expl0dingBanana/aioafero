@@ -87,6 +87,24 @@ async def test_close_closes_owned_session(mocker):
     close_session.assert_awaited_once()
 
 
+@pytest.mark.asyncio
+async def test_open_closes_session_on_initialize_failure(mocker):
+    mocker.patch.object(
+        AferoBridgeV1,
+        "initialize",
+        side_effect=RuntimeError("boom"),
+    )
+    close_bridge = mocker.patch.object(AferoBridgeV1, "close", new=mocker.AsyncMock())
+    with pytest.raises(RuntimeError, match="boom"):
+        await AferoBridgeV1.open("username", "mock-refresh-token")
+    close_bridge.assert_awaited_once()
+
+
+def test_bridge_requires_session():
+    with pytest.raises(ValueError, match="session is required"):
+        AferoBridgeV1("username", "mock-refresh-token", None)
+
+
 def test_devices(mocked_bridge):
     assert isinstance(mocked_bridge.devices, DeviceController)
 
@@ -585,7 +603,6 @@ async def test_AferoAuth_login_otp(mock_aioresponse, aio_sess, mocker):
     )
 
 
-@pytest.mark.asyncio
 def test_unsubscribe():
     bridge = AferoBridgeV1("username", "mock-refresh-token", Mock())
 
