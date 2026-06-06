@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator
 import contextlib
 from dataclasses import dataclass, fields
 import re
-from typing import TYPE_CHECKING, Any, Generic, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import aiohttp
 
@@ -49,7 +49,7 @@ class NumbersName(NamedTuple):
     display_name: str | None = None
 
 
-class BaseResourcesController(Generic[AferoResource]):
+class BaseResourcesController[AferoResource]:
     """Base Controller for Afero IoT Cloud devices."""
 
     ITEM_TYPE_ID: ResourceTypes | None = None

@@ -6,13 +6,8 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers.device import AferoBinarySensor
-from aioafero.v1.controllers.thermostat import (
-    ThermostatController,
-    features,
-    get_supported_modes,
-)
-
-from .. import utils
+from aioafero.v1.controllers.thermostat import features, get_supported_modes
+from tests.v1 import utils
 
 thermostat = utils.create_devices_from_data("thermostat.json")[0]
 thermostat_id = "cc770a99-25da-4888-8a09-2a569da5be08"
@@ -97,40 +92,73 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("thermostat.json")[0]
     new_states = [
         AferoState(
-            functionClass="current-fan-state", value="on", lastUpdateTime=0, functionInstance=None
+            functionClass="current-fan-state",
+            value="on",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="fan-mode", value="on", lastUpdateTime=0, functionInstance=None
+            functionClass="fan-mode",
+            value="on",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="temperature", value=22, lastUpdateTime=0, functionInstance="auto-heating-target"
+            functionClass="temperature",
+            value=22,
+            lastUpdateTime=0,
+            functionInstance="auto-heating-target",
         ),
         AferoState(
-            functionClass="temperature", value=22.5, lastUpdateTime=0, functionInstance="auto-cooling-target"
+            functionClass="temperature",
+            value=22.5,
+            lastUpdateTime=0,
+            functionInstance="auto-cooling-target",
         ),
         AferoState(
-            functionClass="temperature", value=17, lastUpdateTime=0, functionInstance="heating-target"
+            functionClass="temperature",
+            value=17,
+            lastUpdateTime=0,
+            functionInstance="heating-target",
         ),
         AferoState(
-            functionClass="temperature", value=18, lastUpdateTime=0, functionInstance="cooling-target"
+            functionClass="temperature",
+            value=18,
+            lastUpdateTime=0,
+            functionInstance="cooling-target",
         ),
         AferoState(
-            functionClass="temperature", value=19, lastUpdateTime=0, functionInstance="current-temp"
+            functionClass="temperature",
+            value=19,
+            lastUpdateTime=0,
+            functionInstance="current-temp",
         ),
         AferoState(
-            functionClass="temperature", value=35, lastUpdateTime=0, functionInstance="safety-mode-max-temp"
+            functionClass="temperature",
+            value=35,
+            lastUpdateTime=0,
+            functionInstance="safety-mode-max-temp",
         ),
         AferoState(
-            functionClass="temperature", value=32, lastUpdateTime=0, functionInstance="safety-mode-min-temp"
+            functionClass="temperature",
+            value=32,
+            lastUpdateTime=0,
+            functionInstance="safety-mode-min-temp",
         ),
         AferoState(
             functionClass="mode", value="cool", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            functionClass="current-system-state", value="cooling", lastUpdateTime=0, functionInstance=None
+            functionClass="current-system-state",
+            value="cooling",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:
@@ -181,7 +209,10 @@ async def test_update_elem_no_prev_mode_change(mocked_controller):
             functionClass="mode", value="cool", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            functionClass="temperature-units", value="fahrenheit", lastUpdateTime=0, functionInstance=None
+            functionClass="temperature-units",
+            value="fahrenheit",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:
@@ -204,40 +235,73 @@ async def test_update_elem_no_updates(mocked_controller):
     dev_update = utils.create_devices_from_data("thermostat.json")[0]
     new_states = [
         AferoState(
-            functionClass="current-fan-state", value="off", lastUpdateTime=0, functionInstance=None
+            functionClass="current-fan-state",
+            value="off",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="fan-mode", value="auto", lastUpdateTime=0, functionInstance=None
+            functionClass="fan-mode",
+            value="auto",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="temperature", value=18.5, lastUpdateTime=0, functionInstance="auto-heating-target"
+            functionClass="temperature",
+            value=18.5,
+            lastUpdateTime=0,
+            functionInstance="auto-heating-target",
         ),
         AferoState(
-            functionClass="temperature", value=26.5, lastUpdateTime=0, functionInstance="auto-cooling-target"
+            functionClass="temperature",
+            value=26.5,
+            lastUpdateTime=0,
+            functionInstance="auto-cooling-target",
         ),
         AferoState(
-            functionClass="temperature", value=18, lastUpdateTime=0, functionInstance="heating-target"
+            functionClass="temperature",
+            value=18,
+            lastUpdateTime=0,
+            functionInstance="heating-target",
         ),
         AferoState(
-            functionClass="temperature", value=26.5, lastUpdateTime=0, functionInstance="cooling-target"
+            functionClass="temperature",
+            value=26.5,
+            lastUpdateTime=0,
+            functionInstance="cooling-target",
         ),
         AferoState(
-            functionClass="temperature", value=18.3, lastUpdateTime=0, functionInstance="current-temp"
+            functionClass="temperature",
+            value=18.3,
+            lastUpdateTime=0,
+            functionInstance="current-temp",
         ),
         AferoState(
-            functionClass="temperature", value=36, lastUpdateTime=0, functionInstance="safety-mode-max-temp"
+            functionClass="temperature",
+            value=36,
+            lastUpdateTime=0,
+            functionInstance="safety-mode-max-temp",
         ),
         AferoState(
-            functionClass="temperature", value=4, lastUpdateTime=0, functionInstance="safety-mode-min-temp"
+            functionClass="temperature",
+            value=4,
+            lastUpdateTime=0,
+            functionInstance="safety-mode-min-temp",
         ),
         AferoState(
             functionClass="mode", value="heat", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            functionClass="current-system-state", value="off", lastUpdateTime=0, functionInstance=None
+            functionClass="current-system-state",
+            value="off",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="available", value=True, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=True,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:
@@ -313,7 +377,7 @@ async def test_set_state_in_f_force_c(mocked_controller):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "current_mode, prev_mode, params, expected_result, expected_messages",
+    ("current_mode", "prev_mode", "params", "expected_result", "expected_messages"),
     [
         # Testing target_temp / cooling
         (
@@ -399,7 +463,7 @@ async def test_set_state_hvac_generics(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "fan_mode, hvac_mode, params, expected_states, expected_messages",
+    ("fan_mode", "hvac_mode", "params", "expected_states", "expected_messages"),
     [
         (
             "off",
@@ -517,7 +581,7 @@ standard = {"heat", "cool", "off", "fan", "auto"}
 
 
 @pytest.mark.parametrize(
-    "system_type, modes, expected",
+    ("system_type", "modes", "expected"),
     [
         ("cool-beans", {"heat", "cool", "beans"}, {"beans"}),
         ("1-compressor-heat-pump-1-aux-on-cool-boiler-aux", standard, standard),

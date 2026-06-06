@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystemSensor, features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, SecuritySystemSensor, features
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 
 
@@ -37,14 +37,14 @@ def populated_entity():
         },
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 
@@ -59,14 +59,14 @@ def empty_entity():
         sensors={},
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 

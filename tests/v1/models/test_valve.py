@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.valve import Valve
 
 
@@ -12,13 +12,13 @@ def populated_entity():
         open={None: features.OpenFeature(open=True)},
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
         ),
     )
 

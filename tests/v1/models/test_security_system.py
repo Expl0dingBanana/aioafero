@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import SecuritySystem, features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, SecuritySystem, features
 
 
 @pytest.fixture
@@ -36,14 +36,14 @@ def populated_entity():
         },
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 

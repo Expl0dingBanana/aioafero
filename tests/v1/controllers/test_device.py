@@ -5,9 +5,9 @@ from aioafero.v1.controllers import event
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.models.resource import DeviceInformation
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
+from tests.v1 import utils
+from tests.v1.utils import modify_state
 
-from .. import utils
-from ..utils import modify_state
 from .test_event import security_system_callback
 
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
@@ -58,7 +58,7 @@ async def test_initialize_a21(mocked_controller):
         parent_id=a21_light.device_id,
         wifi_mac="b31d2f3f-86f6-4e7e-b91b-4fbc161d410d",
         ble_mac="9c70c759-1d54-4f61-a067-bb4294bef7ae",
-        functions = a21_light.functions,
+        functions=a21_light.functions,
         children=a21_light.children,
     )
     assert dev.sensors == {
@@ -90,7 +90,7 @@ async def test_initialize_door_lock(mocked_controller):
         parent_id=door_lock.device_id,
         wifi_mac="6f6882f2-b35f-451f-bab1-4feafe33dbb3",
         ble_mac="1392f7cb-e23a-470e-b803-6be2e48ce5c0",
-        functions = door_lock.functions,
+        functions=door_lock.functions,
         children=door_lock.children,
     )
     assert dev.sensors == {
@@ -122,7 +122,7 @@ async def test_initialize_binary_sensors(mocked_controller):
         parent_id=freezer.device_id,
         wifi_mac="351cccd0-87ff-41b3-b18c-568cf781d56d",
         ble_mac="c2e189e8-c80c-4948-9492-14ac390f480d",
-        functions = freezer.functions,
+        functions=freezer.functions,
         children=freezer.children,
     )
     assert dev.sensors == {
@@ -167,7 +167,7 @@ async def test_initialize_binary_sensors(mocked_controller):
 
 
 @pytest.mark.parametrize(
-    "filename, expected",
+    ("filename", "expected"),
     [
         (
             "hs_data.json",
@@ -342,7 +342,9 @@ async def test__process_update_response(mocked_controller, mocker):
         [utils.create_hs_raw_from_device(a21_light)]
     )
     await bridge.async_block_until_done()
-    handle_event = mocker.patch.object(mocked_controller, "_handle_event", return_value=None)
+    handle_event = mocker.patch.object(
+        mocked_controller, "_handle_event", return_value=None
+    )
     dev = utils.create_devices_from_data("light-a21.json")[0]
     await mocked_controller._process_update_response(
         event.EventType.RESOURCE_UPDATE_RESPONSE,

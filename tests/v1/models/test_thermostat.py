@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.thermostat import Thermostat
 
 
@@ -43,13 +43,13 @@ def populated_entity():
         ),
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
         ),
         sensors={},
         binary_sensors={},
@@ -75,7 +75,7 @@ def empty_entity():
 
 
 @pytest.mark.parametrize(
-    "mode,prev_mode,expected",
+    ("mode", "prev_mode", "expected"),
     [
         ("cool", "cool", "cool"),
         ("heat", "heat", "heat"),

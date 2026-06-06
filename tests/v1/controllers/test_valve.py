@@ -4,9 +4,8 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.valve import ValveController, features
-
-from .. import utils
+from aioafero.v1.controllers.valve import features
+from tests.v1 import utils
 
 valve = utils.create_devices_from_data("water-timer.json")[0]
 
@@ -87,13 +86,22 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("water-timer.json")[0]
     new_states = [
         AferoState(
-            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="spigot-1"
+            functionClass="toggle",
+            value="on",
+            lastUpdateTime=0,
+            functionInstance="spigot-1",
         ),
         AferoState(
-            functionClass="toggle", value="off", lastUpdateTime=0, functionInstance="spigot-2"
+            functionClass="toggle",
+            value="off",
+            lastUpdateTime=0,
+            functionInstance="spigot-2",
         ),
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:

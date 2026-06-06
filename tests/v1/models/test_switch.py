@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.switch import Switch
 
 
@@ -12,14 +12,14 @@ def populated_entity():
         on={None: features.OnFeature(on=True)},
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 
@@ -31,14 +31,14 @@ def empty_entity():
         on=None,
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 

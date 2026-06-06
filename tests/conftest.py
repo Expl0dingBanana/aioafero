@@ -1,20 +1,20 @@
-import datetime
 import asyncio
+import datetime
 import inspect
 from unittest.mock import Mock
 
+import aiohttp
 from aioresponses import aioresponses
 import pytest
 import pytest_asyncio
-import aiohttp
+import securelogging
 
-from aioafero.v1 import AferoBridgeV1
 from aioafero import AferoDevice
+from aioafero.v1 import AferoBridgeV1
 from aioafero.v1.auth import TokenData
+from aioafero.v1.controllers.base import dataclass_to_afero
 from aioafero.v1.controllers.event import EventType
 from tests.v1.utils import create_hs_raw_from_device
-from aioafero.v1.controllers.base import BaseResourcesController, dataclass_to_afero
-import securelogging
 
 
 def _patch_aioresponses_for_aiohttp_314() -> None:
@@ -24,7 +24,10 @@ def _patch_aioresponses_for_aiohttp_314() -> None:
     argument that aiohttp 3.14 made required. Remove once aioresponses ships
     the fix (see pnuckowski/aioresponses#288).
     """
-    if "stream_writer" not in inspect.signature(aiohttp.ClientResponse.__init__).parameters:
+    if (
+        "stream_writer"
+        not in inspect.signature(aiohttp.ClientResponse.__init__).parameters
+    ):
         return
     if getattr(aiohttp.ClientResponse.__init__, "_aioafero_aiohttp314_patch", False):
         return
@@ -46,7 +49,6 @@ _patch_aioresponses_for_aiohttp_314()
 def reset_logging_secrets():
     securelogging._called_from_test = True
     securelogging.reset_secrets()
-    yield
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -112,16 +114,23 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
         resp = mocker.AsyncMock()
         resp.json = json_resp
         resp.status = 200
-        mocker.patch("aioafero.v1.controllers.base.BaseResourcesController.update_afero_api", return_value=resp)
+        mocker.patch(
+            "aioafero.v1.controllers.base.BaseResourcesController.update_afero_api",
+            return_value=resp,
+        )
 
     # Enable "results" to be returned on update
     actual_dataclass_to_afero = dataclass_to_afero
+
     def mocked_dataclass_to_afero(*args, **kwargs):
         result = actual_dataclass_to_afero(*args, **kwargs)
         mock_update_afero_api(args[0].id, result)
         return result
 
-    mocker.patch("aioafero.v1.controllers.base.dataclass_to_afero", side_effect=mocked_dataclass_to_afero)
+    mocker.patch(
+        "aioafero.v1.controllers.base.dataclass_to_afero",
+        side_effect=mocked_dataclass_to_afero,
+    )
 
     bridge.mock_update_afero_api = mock_update_afero_api
     bridge.generate_devices_from_data = generate_devices_from_data
@@ -142,7 +151,9 @@ def mocked_bridge_req(mocker, aio_sess):
     )
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
     mocker.patch.object(bridge, "initialize", side_effect=mocker.AsyncMock())
-    mocker.patch.object(bridge, "fetch_discovery_data", side_effect=bridge.fetch_discovery_data)
+    mocker.patch.object(
+        bridge, "fetch_discovery_data", side_effect=bridge.fetch_discovery_data
+    )
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     mocker.patch.object(bridge, "_web_session", aio_sess)
     bridge._close_session = False
@@ -208,11 +219,11 @@ async def bridge(mocker):
 async def bridge_with_acct(mocker):
     bridge = AferoBridgeV1("user", "passwd")
     bridge._auth._token_data = TokenData(
-            "mock-token",
-            None,
-            "mock-refresh-token",
-            expiration=datetime.datetime.now().timestamp() + 200,
-        )
+        "mock-token",
+        None,
+        "mock-refresh-token",
+        expiration=datetime.datetime.now().timestamp() + 200,
+    )
     yield bridge
     await bridge.close()
 
@@ -224,11 +235,11 @@ async def bridge_with_acct_req(mocker):
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
     bridge._auth._token_data = TokenData(
-            "mock-token",
-            None,
-            "mock-refresh-token",
-            expiration=datetime.datetime.now().timestamp() + 200,
-        )
+        "mock-token",
+        None,
+        "mock-refresh-token",
+        expiration=datetime.datetime.now().timestamp() + 200,
+    )
     await bridge.initialize()
     await bridge.async_block_until_done()
     yield bridge

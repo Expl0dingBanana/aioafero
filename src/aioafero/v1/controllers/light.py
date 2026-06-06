@@ -126,7 +126,7 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
     children: list[str] = []
     if afero_device.device_class == ResourceTypes.LIGHT.value:
         for instance, resource_type in instances:
-            instance_name = instance if instance else "primary"
+            instance_name = instance or "primary"
             cloned = copy.deepcopy(afero_device)
             cloned.device_class = resource_type.value
             cloned.id = generate_split_name(afero_device, instance)

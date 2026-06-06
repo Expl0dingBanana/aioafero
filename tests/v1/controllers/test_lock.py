@@ -4,9 +4,8 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
-from aioafero.v1.controllers.lock import LockController, features
-
-from .. import utils
+from aioafero.v1.controllers.lock import features
+from tests.v1 import utils
 
 lock = utils.create_devices_from_data("door-lock-TBD.json")[0]
 
@@ -37,7 +36,10 @@ async def test_lock(mocked_controller):
     assert len(mocked_controller.items) == 1
     await mocked_controller.lock(lock.id)
     await mocked_controller._bridge.async_block_until_done()
-    assert mocked_controller.items[0].position.position == features.CurrentPositionEnum.LOCKING
+    assert (
+        mocked_controller.items[0].position.position
+        == features.CurrentPositionEnum.LOCKING
+    )
 
 
 @pytest.mark.asyncio
@@ -49,7 +51,10 @@ async def test_unlock(mocked_controller):
     assert len(mocked_controller.items) == 1
     await mocked_controller.unlock(lock.id)
     await mocked_controller._bridge.async_block_until_done()
-    assert mocked_controller.items[0].position.position == features.CurrentPositionEnum.UNLOCKING
+    assert (
+        mocked_controller.items[0].position.position
+        == features.CurrentPositionEnum.UNLOCKING
+    )
 
 
 @pytest.mark.asyncio
@@ -66,7 +71,7 @@ async def test_empty_update(mocked_controller):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "value, expected, expected_updates",
+    ("value", "expected", "expected_updates"),
     [
         ("locking", features.CurrentPositionEnum.LOCKING, {"position"}),
         ("unlocking", features.CurrentPositionEnum.UNLOCKING, {"position"}),
@@ -84,10 +89,16 @@ async def test_update_elem(value, expected, expected_updates, mocked_controller)
     dev_update = utils.create_devices_from_data("door-lock-TBD.json")[0]
     new_states = [
         AferoState(
-            functionClass="lock-control", value=value, lastUpdateTime=0, functionInstance=None
+            functionClass="lock-control",
+            value=value,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     expected_updates.add("available")

@@ -4,20 +4,20 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers.portable_ac import (
-    PortableACController,
     features,
     generate_split_name,
     get_valid_states,
     portable_ac_callback,
 )
 from aioafero.v1.models import ResourceTypes
-
-from .. import utils
+from tests.v1 import utils
 
 portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 portable_ac_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
 
-portable_ac_swing = utils.create_devices_from_data("myko-portable-ac-with-swing.json")[1]
+portable_ac_swing = utils.create_devices_from_data("myko-portable-ac-with-swing.json")[
+    1
+]
 portable_ac_swing_id = "c31e1854-87de-47a7-ac62-f1cefe3ecba4"
 
 portable_ac_f = utils.create_devices_from_data("portable-ac-f.json")[0]
@@ -207,13 +207,22 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("portable-ac.json")[0]
     new_states = [
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="temperature", value=19, lastUpdateTime=0, functionInstance="current-temp"
+            functionClass="temperature",
+            value=19,
+            lastUpdateTime=0,
+            functionInstance="current-temp",
         ),
         AferoState(
-            functionClass="temperature", value=18, lastUpdateTime=0, functionInstance="cooling-target"
+            functionClass="temperature",
+            value=18,
+            lastUpdateTime=0,
+            functionInstance="cooling-target",
         ),
         AferoState(
             functionClass="mode", value="cool", lastUpdateTime=0, functionInstance=None
@@ -277,7 +286,10 @@ async def test_set_state(mocked_controller):
         portable_ac_id,
         hvac_mode="cool",
         target_temperature=22.5,
-        selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100", ("nope", "exist", None): "nope"},
+        selects={
+            ("fan-speed", "ac-fan-speed"): "fan-speed-2-100",
+            ("nope", "exist", None): "nope",
+        },
     )
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller.items[0]
@@ -285,6 +297,7 @@ async def test_set_state(mocked_controller):
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
+
 
 @pytest.mark.asyncio
 async def test_set_state_invalid_dev(mocked_controller):

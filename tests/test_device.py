@@ -1,22 +1,18 @@
 import json
-import os
+from pathlib import Path
 
 import pytest
 
 from aioafero import device
 from aioafero.device import AferoState, merge_afero_states
-from pathlib import Path
 
-current_path = os.path.dirname(os.path.realpath(__file__))
-
-
-with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
+with (Path(__file__).parent / "v1" / "data" / "device_lock.json").open() as fh:
     device_lock_response = json.load(fh)
     lock_dev = device.get_afero_device(device_lock_response[0])
 
 
 @pytest.mark.parametrize(
-    "afero_device,expected",
+    ("afero_device", "expected"),
     [
         # Everything is set correctly
         (
@@ -32,7 +28,15 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="model", device_class="device_class", default_name="default_name", default_image="default_image", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                model="model",
+                device_class="device_class",
+                default_name="default_name",
+                default_image="default_image",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
         # DriskolFan
@@ -49,7 +53,15 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="Driskol", device_class="fan", default_name="default_name", default_image="ceiling-fan-snyder-park-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                model="Driskol",
+                device_class="fan",
+                default_name="default_name",
+                default_image="ceiling-fan-snyder-park-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
         # VinwoodFan
@@ -66,7 +78,15 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="Vinwood", device_class="fan", default_name="default_name", default_image="ceiling-fan-vinings-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                model="Vinwood",
+                device_class="fan",
+                default_name="default_name",
+                default_image="ceiling-fan-vinings-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
         # ZandraFan
@@ -83,7 +103,15 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="Zandra", device_class="fan", default_name="default_name", default_image="ceiling-fan-chandra-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                model="Zandra",
+                device_class="fan",
+                default_name="default_name",
+                default_image="ceiling-fan-chandra-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
         # NevaliFan
@@ -100,7 +128,15 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="Nevali", device_class="fan", default_name="default_name", default_image="ceiling-fan-ac-cct-dardanus-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                model="Nevali",
+                device_class="fan",
+                default_name="default_name",
+                default_image="ceiling-fan-ac-cct-dardanus-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
         # TagerFan
@@ -117,7 +153,15 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="Tager", device_class="fan", default_name="default_name", default_image="ceiling-fan-slender-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                model="Tager",
+                device_class="fan",
+                default_name="default_name",
+                default_image="ceiling-fan-slender-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
         # Dimmer switch
@@ -133,16 +177,30 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        functionClass="brightness", functionInstance=None, lastUpdateTime=1668551478232, value=40
+                        functionClass="brightness",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value=40,
                     )
                 ],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="dimmer", device_class="light", default_name="default_name", default_image="ceiling-fan-slender-icon", friendly_name="friendly_name", functions=["functions!"], states=[
-                        device.AferoState(
-                            functionClass="brightness", functionInstance=None, lastUpdateTime=1668551478232, value=40
-                        )
-                    ]
+                id="id",
+                device_id="device_id",
+                model="dimmer",
+                device_class="light",
+                default_name="default_name",
+                default_image="ceiling-fan-slender-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[
+                    device.AferoState(
+                        functionClass="brightness",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value=40,
+                    )
+                ],
             ),
         ),
         # Glass door
@@ -158,16 +216,31 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
                     )
                 ],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="glass-door", device_class="switch", default_name="default_name", default_image="glass-door-icon", friendly_name="friendly_name", functions=["functions!"], states=[
-                        device.AferoState(
-                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
-                        )
-                    ], manufacturerName="Feather River Doors"
+                id="id",
+                device_id="device_id",
+                model="glass-door",
+                device_class="switch",
+                default_name="default_name",
+                default_image="glass-door-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[
+                    device.AferoState(
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
+                    )
+                ],
+                manufacturerName="Feather River Doors",
             ),
         ),
         # Exhaust fan
@@ -183,16 +256,31 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
                     )
                 ],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="BF1112", device_class="exhaust-fan", default_name="default_name", default_image="fan-exhaust-icon", friendly_name="friendly_name", functions=["functions!"], states=[
-                        device.AferoState(
-                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
-                        )
-                    ], manufacturerName=None
+                id="id",
+                device_id="device_id",
+                model="BF1112",
+                device_class="exhaust-fan",
+                default_name="default_name",
+                default_image="fan-exhaust-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[
+                    device.AferoState(
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
+                    )
+                ],
+                manufacturerName=None,
             ),
         ),
         # 12A19060WRGBWH2
@@ -208,16 +296,31 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
                     )
                 ],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="12A19060WRGBWH2", device_class="light", default_name="default_name", default_image="a19-e26-color-cct-60w-smd-frosted-icon", friendly_name="friendly_name", functions=["functions!"], states=[
-                        device.AferoState(
-                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
-                        )
-                    ], manufacturerName=None
+                id="id",
+                device_id="device_id",
+                model="12A19060WRGBWH2",
+                device_class="light",
+                default_name="default_name",
+                default_image="a19-e26-color-cct-60w-smd-frosted-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[
+                    device.AferoState(
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
+                    )
+                ],
+                manufacturerName=None,
             ),
         ),
         (
@@ -232,16 +335,31 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
                     )
                 ],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="HPDA110NWBP", device_class="light", default_name="default_name", default_image="slide-dimmer-icon", friendly_name="friendly_name", functions=["functions!"], states=[
-                        device.AferoState(
-                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
-                        )
-                    ], manufacturerName=None
+                id="id",
+                device_id="device_id",
+                model="HPDA110NWBP",
+                device_class="light",
+                default_name="default_name",
+                default_image="slide-dimmer-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[
+                    device.AferoState(
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
+                    )
+                ],
+                manufacturerName=None,
             ),
         ),
         (
@@ -256,16 +374,31 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "functions": ["functions!"],
                 "states": [
                     device.AferoState(
-                        functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
                     )
                 ],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", model="HPSA11CWB", device_class="switch", default_name="default_name", default_image="smart-switch-icon", friendly_name="friendly_name", functions=["functions!"], states=[
-                        device.AferoState(
-                            functionClass="power", functionInstance=None, lastUpdateTime=1668551478232, value="off"
-                        )
-                    ], manufacturerName=None
+                id="id",
+                device_id="device_id",
+                model="HPSA11CWB",
+                device_class="switch",
+                default_name="default_name",
+                default_image="smart-switch-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[
+                    device.AferoState(
+                        functionClass="power",
+                        functionInstance=None,
+                        lastUpdateTime=1668551478232,
+                        value="off",
+                    )
+                ],
+                manufacturerName=None,
             ),
         ),
         # LCN3002LM-01 WH
@@ -282,7 +415,16 @@ with open(os.path.join(current_path, "v1", "data", "device_lock.json")) as fh:
                 "states": [],
             },
             device.AferoDevice(
-                id="id", device_id="device_id", manufacturerName="Commercial-Electric", model="LCN3002LM-01 WH", device_class="light", default_name="default_name", default_image="bright-edgelit-flushmount-light-icon", friendly_name="friendly_name", functions=["functions!"], states=[]
+                id="id",
+                device_id="device_id",
+                manufacturerName="Commercial-Electric",
+                model="LCN3002LM-01 WH",
+                device_class="light",
+                default_name="default_name",
+                default_image="bright-edgelit-flushmount-light-icon",
+                friendly_name="friendly_name",
+                functions=["functions!"],
+                states=[],
             ),
         ),
     ],
@@ -292,7 +434,7 @@ def test_AferoDevice(afero_device, expected):
 
 
 @pytest.mark.parametrize(
-    "afero_device,expected_attrs",
+    ("afero_device", "expected_attrs"),
     [
         # Validate when values are missing
         (
@@ -327,13 +469,13 @@ def test_AferoDevice(afero_device, expected):
 def test_get_afero_device(afero_device, expected_attrs):
     dev = device.get_afero_device(afero_device)
     for key, val in expected_attrs.items():
-        assert (
-            getattr(dev, key) == val
-        ), f"Key {key} did not match, {getattr(dev, key)} != {val}"
+        assert getattr(dev, key) == val, (
+            f"Key {key} did not match, {getattr(dev, key)} != {val}"
+        )
 
 
 @pytest.mark.parametrize(
-    "data,expected_attrs",
+    ("data", "expected_attrs"),
     [
         # verify defaults
         (
@@ -378,7 +520,7 @@ def test_AferoDevice_hash():
 
 
 @pytest.mark.parametrize(
-    "functions, func_class, func_instance, expected",
+    ("functions", "func_class", "func_instance", "expected"),
     [
         ([], "cool", "beans", None),
         (lock_dev.functions, "lock-pin", None, None),
@@ -392,42 +534,35 @@ def test_get_function_from_device(functions, func_class, func_instance, expected
     )
 
 
-
 @pytest.mark.parametrize(
-        (("capability"), ("expected")), [
-            (
-                {
-                    "functionClass": "sensor-state",
-                    "functionInstance": "sensor-1",
-                    "type": "object",
-                    "schedulable": False,
-                    "name": "Aaaaa",
-                    "locale": "en_US"
-                },
-                device.AferoCapability(
-                    functionClass="sensor-state",
-                    type="object",
-                    schedulable=False,
-                    functionInstance="sensor-1",
-                    _opts={
-                        "name": "Aaaaa",
-                        "locale": "en_US"
-                    }
-                )
+    (("capability"), ("expected")),
+    [
+        (
+            {
+                "functionClass": "sensor-state",
+                "functionInstance": "sensor-1",
+                "type": "object",
+                "schedulable": False,
+                "name": "Aaaaa",
+                "locale": "en_US",
+            },
+            device.AferoCapability(
+                functionClass="sensor-state",
+                type="object",
+                schedulable=False,
+                functionInstance="sensor-1",
+                _opts={"name": "Aaaaa", "locale": "en_US"},
             ),
-            (
-                {
-                    "functionClass": "siren-action",
-                    "type": "object",
-                    "schedulable": False
-                },
-                device.AferoCapability(
-                    functionClass="siren-action",
-                    type="object",
-                    schedulable=False,
-                )
-            )
-        ]
+        ),
+        (
+            {"functionClass": "siren-action", "type": "object", "schedulable": False},
+            device.AferoCapability(
+                functionClass="siren-action",
+                type="object",
+                schedulable=False,
+            ),
+        ),
+    ],
 )
 def test_transform_capability(capability, expected):
     actual = device.transform_capability(capability)
@@ -435,8 +570,10 @@ def test_transform_capability(capability, expected):
     assert actual.options == expected._opts
 
 
-def test_get_afero_device():
-    path_to_file: Path = Path(__file__).parent / "v1" / "data" / "device-with-capabilities.json"
+def test_get_afero_device_with_capabilities():
+    path_to_file: Path = (
+        Path(__file__).parent / "v1" / "data" / "device-with-capabilities.json"
+    )
     with path_to_file.open() as fh:
         data = json.load(fh)
     dev = device.get_afero_device(data[0])
@@ -445,21 +582,14 @@ def test_get_afero_device():
 
 capabilities = [
     device.AferoCapability(
-        **{
-            "functionClass": "temperature",
-            "type": "numeric",
-            "schedulable": True,
-            "functionInstance": "cooling-target",
-            "_opts": {
-                "range": {
-                    "min": 60,
-                    "max": 86,
-                    "step": 1
-                }
-            }
-        }
+        functionClass="temperature",
+        type="numeric",
+        schedulable=True,
+        functionInstance="cooling-target",
+        _opts={"range": {"min": 60, "max": 86, "step": 1}},
     )
 ]
+
 
 @pytest.mark.parametrize(
     ("capabilities", "func_class", "func_instance", "expected"),
@@ -470,7 +600,10 @@ capabilities = [
     ],
 )
 def test_get_capability_from_device(capabilities, func_class, func_instance, expected):
-    assert device.get_capability_from_device(capabilities, func_class, func_instance) == expected
+    assert (
+        device.get_capability_from_device(capabilities, func_class, func_instance)
+        == expected
+    )
 
 
 def test_capability_raw_dump():
@@ -480,11 +613,7 @@ def test_capability_raw_dump():
         "type": "numeric",
         "schedulable": True,
         "functionInstance": "cooling-target",
-        "range": {
-            "min": 60,
-            "max": 86,
-            "step": 1
-        }
+        "range": {"min": 60, "max": 86, "step": 1},
     }
 
 

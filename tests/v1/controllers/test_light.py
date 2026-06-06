@@ -1,20 +1,19 @@
 """Test LightController"""
 
-from unittest.mock import AsyncMock
-
 import pytest
-from dataclasses import asdict
 
 from aioafero.device import AferoDevice, AferoState, merge_afero_states
 from aioafero.v1.controllers import event, light
 from aioafero.v1.controllers.base import get_afero_instance_for_state
-from aioafero.v1.controllers.light import LightController, features, process_color_temps
-from aioafero.v1.controllers.light import state_matches_instance
+from aioafero.v1.controllers.light import (
+    features,
+    process_color_temps,
+    state_matches_instance,
+)
 from aioafero.v1.models.features import ColorFeature, EffectFeature
 from aioafero.v1.models.light import Light
-from aioafero.v1.models.resource import ResourceTypes, DeviceInformation
-
-from .. import utils
+from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
+from tests.v1 import utils
 
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
@@ -114,7 +113,7 @@ def test_generate_split_name():
 
 
 @pytest.mark.parametrize(
-    "device, expected",
+    ("device", "expected"),
     [
         # Flushmount splits
         (
@@ -136,7 +135,6 @@ def test_generate_split_name():
         (a21_light, []),
         (zandra_light, []),
         (dimmer_light, []),
-
     ],
 )
 def test_get_split_instances(device, expected):
@@ -144,7 +142,7 @@ def test_get_split_instances(device, expected):
 
 
 @pytest.mark.parametrize(
-    "device, instance, expected",
+    ("device", "instance", "expected"),
     [
         # Flushmount white
         (
@@ -326,20 +324,49 @@ def test_get_split_instances(device, expected):
                     lastUpdateTime=0,
                     functionInstance=None,
                 ),
-
-            ]
+            ],
         ),
         # Trim Light - main
         (
             trim_light,
             "main",
             [
-                AferoState(functionClass='color-mode', value='white', lastUpdateTime=0, functionInstance='main'),
-                AferoState(functionClass='color-rgb', value={'color-rgb': {'r': 255, 'b': 0, 'g': 51}}, lastUpdateTime=0, functionInstance='main'),
-                AferoState(functionClass='color-temperature', value=3000, lastUpdateTime=0, functionInstance='main'),
-                AferoState(functionClass='brightness', value=100, lastUpdateTime=0, functionInstance='main'),
-                AferoState(functionClass='power', value='on', lastUpdateTime=0, functionInstance='main'),
-                AferoState(functionClass='available', value=False, lastUpdateTime=0, functionInstance=None)
+                AferoState(
+                    functionClass="color-mode",
+                    value="white",
+                    lastUpdateTime=0,
+                    functionInstance="main",
+                ),
+                AferoState(
+                    functionClass="color-rgb",
+                    value={"color-rgb": {"r": 255, "b": 0, "g": 51}},
+                    lastUpdateTime=0,
+                    functionInstance="main",
+                ),
+                AferoState(
+                    functionClass="color-temperature",
+                    value=3000,
+                    lastUpdateTime=0,
+                    functionInstance="main",
+                ),
+                AferoState(
+                    functionClass="brightness",
+                    value=100,
+                    lastUpdateTime=0,
+                    functionInstance="main",
+                ),
+                AferoState(
+                    functionClass="power",
+                    value="on",
+                    lastUpdateTime=0,
+                    functionInstance="main",
+                ),
+                AferoState(
+                    functionClass="available",
+                    value=False,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
             ],
         ),
         # Trim Light - trim
@@ -347,12 +374,37 @@ def test_get_split_instances(device, expected):
             trim_light,
             "trim",
             [
-                AferoState(functionClass='color-mode', value='white', lastUpdateTime=0, functionInstance='trim'),
-                AferoState(functionClass='color-rgb', value={'color-rgb': {'r': 255, 'b': 0, 'g': 255}}, lastUpdateTime=0, functionInstance='trim'),
-                AferoState(functionClass='brightness', value=100, lastUpdateTime=0, functionInstance='trim'),
-                AferoState(functionClass='power', value='off', lastUpdateTime=0, functionInstance='trim'),
-                AferoState(functionClass='available', value=False, lastUpdateTime=0, functionInstance=None)
-            ]
+                AferoState(
+                    functionClass="color-mode",
+                    value="white",
+                    lastUpdateTime=0,
+                    functionInstance="trim",
+                ),
+                AferoState(
+                    functionClass="color-rgb",
+                    value={"color-rgb": {"r": 255, "b": 0, "g": 255}},
+                    lastUpdateTime=0,
+                    functionInstance="trim",
+                ),
+                AferoState(
+                    functionClass="brightness",
+                    value=100,
+                    lastUpdateTime=0,
+                    functionInstance="trim",
+                ),
+                AferoState(
+                    functionClass="power",
+                    value="off",
+                    lastUpdateTime=0,
+                    functionInstance="trim",
+                ),
+                AferoState(
+                    functionClass="available",
+                    value=False,
+                    lastUpdateTime=0,
+                    functionInstance=None,
+                ),
+            ],
         ),
     ],
 )
@@ -409,7 +461,7 @@ def test_light_trim_callback():
 
 
 @pytest.mark.parametrize(
-    "state, expected",
+    ("state", "expected"),
     [
         (
             AferoState(
@@ -465,7 +517,7 @@ def test_state_matches_instance_trim_zone(state, expected):
 
 
 @pytest.mark.parametrize(
-    "state, expected",
+    ("state", "expected"),
     [
         (
             AferoState(
@@ -530,7 +582,7 @@ def test_state_matches_instance_flushmount_color_zone(state, expected):
 
 
 @pytest.mark.parametrize(
-    "state, expected",
+    ("state", "expected"),
     [
         (
             AferoState(
@@ -568,7 +620,9 @@ def test_state_matches_instance_flushmount_white_zone(state, expected):
 
 
 @pytest.mark.asyncio
-async def test_update_elem_flushmount_color_applies_null_instance_rgb(mocked_controller):
+async def test_update_elem_flushmount_color_applies_null_instance_rgb(
+    mocked_controller,
+):
     """Inbound null-instance color-rgb must update the flushmount color split."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-flushmount.json")
@@ -610,10 +664,12 @@ async def test_parent_cache_keeps_full_states_after_trim_split(mocked_bridge):
     parent = mocked_bridge.get_afero_device(trim_light.id)
     assert parent.device_class == "light"
     assert any(
-        s.functionClass == "power" and s.functionInstance == "main" for s in parent.states
+        s.functionClass == "power" and s.functionInstance == "main"
+        for s in parent.states
     )
     assert any(
-        s.functionClass == "power" and s.functionInstance == "trim" for s in parent.states
+        s.functionClass == "power" and s.functionInstance == "trim"
+        for s in parent.states
     )
 
 
@@ -743,7 +799,8 @@ async def test_generate_update_dev_merges_partial_trim_states(mocked_controller)
     await mocked_controller._bridge.async_block_until_done()
     parent = mocked_controller._bridge.get_afero_device(trim_light.id)
     assert any(
-        s.functionClass == "power" and s.functionInstance == "trim" for s in parent.states
+        s.functionClass == "power" and s.functionInstance == "trim"
+        for s in parent.states
     )
     mocked_controller.generate_update_dev(
         trim_light.id,
@@ -757,7 +814,8 @@ async def test_generate_update_dev_merges_partial_trim_states(mocked_controller)
         ],
     )
     assert any(
-        s.functionClass == "power" and s.functionInstance == "trim" for s in parent.states
+        s.functionClass == "power" and s.functionInstance == "trim"
+        for s in parent.states
     )
 
 
@@ -1109,16 +1167,25 @@ async def test_set_brightness_split(mocked_controller, mocker):
     dev_update = utils.create_devices_from_data("light-flushmount.json")[0]
     new_states = [
         AferoState(
-            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="white"
+            functionClass="toggle",
+            value="on",
+            lastUpdateTime=0,
+            functionInstance="white",
         ),
         AferoState(
-            functionClass="brightness", value=20, lastUpdateTime=0, functionInstance="white"
+            functionClass="brightness",
+            value=20,
+            lastUpdateTime=0,
+            functionInstance="white",
         ),
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
     json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": utils.convert_states(dev_update.states)}
+    json_resp.return_value = {
+        "metadeviceId": flushmount_light.id,
+        "values": utils.convert_states(dev_update.states),
+    }
     resp = mocker.AsyncMock()
     resp.json = json_resp
     resp.status = 200
@@ -1129,6 +1196,7 @@ async def test_set_brightness_split(mocked_controller, mocker):
     dev = mocked_controller[flushmount_light_white_id]
     assert dev.is_on
     assert dev.dimming.brightness == 20
+
 
 @pytest.mark.asyncio
 async def test_set_rgb(mocked_controller):
@@ -1224,7 +1292,9 @@ async def test_update_elem_trim_ignores_main_power(mocked_controller):
     await mocked_controller._bridge.async_block_until_done()
     trim_dev = mocked_controller[trim_light_trim_id]
     trim_dev.on.on = True
-    await mocked_controller.update_elem(_trim_update_with_states(trim_dev, main_power="off"))
+    await mocked_controller.update_elem(
+        _trim_update_with_states(trim_dev, main_power="off")
+    )
     assert trim_dev.on.on is True
 
 
@@ -1434,8 +1504,7 @@ async def test_set_state_temperature_respects_explicit_color_mode(
     )
     await mocked_controller._bridge.async_block_until_done()
     by_class = {
-        state["functionClass"]: state
-        for state in update_afero_api.call_args[0][1]
+        state["functionClass"]: state for state in update_afero_api.call_args[0][1]
     }
     assert by_class["color-mode"]["value"] == "color"
     assert "color-temperature" not in by_class
@@ -1634,28 +1703,43 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("light-a21.json")[0]
     new_states = [
         AferoState(
-            functionClass="color-temperature", value="3000K", lastUpdateTime=0, functionInstance=None
+            functionClass="color-temperature",
+            value="3000K",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="brightness", value=40, lastUpdateTime=0, functionInstance=None
+            functionClass="brightness",
+            value=40,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="color-rgb", value={
-                    "color-rgb": {
-                        "r": 2,
-                        "g": 3,
-                        "b": 4,
-                    }
-                }, lastUpdateTime=0, functionInstance=None
+            functionClass="color-rgb",
+            value={
+                "color-rgb": {
+                    "r": 2,
+                    "g": 3,
+                    "b": 4,
+                }
+            },
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
             functionClass="power", value="on", lastUpdateTime=0, functionInstance=None
         ),
         AferoState(
-            functionClass="color-mode", value="color", lastUpdateTime=0, functionInstance=None
+            functionClass="color-mode",
+            value="color",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="available", value=True, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=True,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:
@@ -1692,26 +1776,38 @@ async def test_update_elem_no_updates(mocked_controller):
 
 states_custom = [
     AferoState(
-        functionClass="color-sequence", functionInstance="preset", lastUpdateTime=0, value="custom"
+        functionClass="color-sequence",
+        functionInstance="preset",
+        lastUpdateTime=0,
+        value="custom",
     ),
     AferoState(
-        functionClass="color-sequence", functionInstance="custom", lastUpdateTime=0, value="rainbow"
+        functionClass="color-sequence",
+        functionInstance="custom",
+        lastUpdateTime=0,
+        value="rainbow",
     ),
 ]
 
 states_preset = [
     AferoState(
-        functionClass="color-sequence", functionInstance="preset", lastUpdateTime=0, value="fade-7"
+        functionClass="color-sequence",
+        functionInstance="preset",
+        lastUpdateTime=0,
+        value="fade-7",
     ),
     AferoState(
-        functionClass="color-sequence", functionInstance="custom", lastUpdateTime=0, value="rainbow",
+        functionClass="color-sequence",
+        functionInstance="custom",
+        lastUpdateTime=0,
+        value="rainbow",
     ),
 ]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "new_states, expected",
+    ("new_states", "expected"),
     [
         (states_custom, "rainbow"),
         (states_preset, "fade-7"),
@@ -1782,19 +1878,31 @@ async def test_set_state_no_dev(mocked_controller, caplog):
 
 seq_custom = {
     "preset": AferoState(
-        functionClass="color-sequence", value="custom", lastUpdateTime=0, functionInstance="preset"
+        functionClass="color-sequence",
+        value="custom",
+        lastUpdateTime=0,
+        functionInstance="preset",
     ),
     "custom": AferoState(
-        functionClass="color-sequence", value="rainbow", lastUpdateTime=0, functionInstance="custom"
+        functionClass="color-sequence",
+        value="rainbow",
+        lastUpdateTime=0,
+        functionInstance="custom",
     ),
 }
 
 seq_preset = {
     "preset": AferoState(
-        functionClass="color-sequence", value="fade-3", lastUpdateTime=0, functionInstance="preset"
+        functionClass="color-sequence",
+        value="fade-3",
+        lastUpdateTime=0,
+        functionInstance="preset",
     ),
     "custom": AferoState(
-        functionClass="color-sequence", value="rainbow", lastUpdateTime=0, functionInstance="custom"
+        functionClass="color-sequence",
+        value="rainbow",
+        lastUpdateTime=0,
+        functionInstance="custom",
     ),
 }
 
@@ -1812,19 +1920,19 @@ light1_no_update = Light(
     _id="test-light-1",
     available=True,
     effect=EffectFeature(effect="rainbow", effects=light1_effects),
-device_information=DeviceInformation(model="TBD"),
+    device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update_preset = Light(
     _id="test-light-1",
     available=True,
     effect=EffectFeature(effect="fade-3", effects=light1_effects),
-device_information=DeviceInformation(model="TBD"),
+    device_information=DeviceInformation(model="TBD"),
 )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "elem, color_seq_states, expected_effect, updated",
+    ("elem", "color_seq_states", "expected_effect", "updated"),
     [
         (light1, {}, "getting-ready", False),
         (light1, seq_custom, "rainbow", True),
@@ -1919,7 +2027,9 @@ async def test_set_state_white_light(mocked_controller):
         [utils.create_hs_raw_from_device(speaker_power_light)]
     )
     await bridge.async_block_until_done()
-    await mocked_controller.set_state(speaker_power_light.id, on=True, force_white_mode=75)
+    await mocked_controller.set_state(
+        speaker_power_light.id, on=True, force_white_mode=75
+    )
     await mocked_controller._bridge.async_block_until_done()
     assert mocked_controller[speaker_power_light.id].on.on is True
     assert mocked_controller[speaker_power_light.id].color_mode.mode == "white"
@@ -1935,10 +2045,10 @@ async def test_set_state_speed(mocked_controller):
     await bridge.async_block_until_done()
     await mocked_controller.set_state(
         speed_light.id,
-        numbers={
-            ("speed", "color-sequence"): 5,
-            ("doesnt-exist", "color-sequence"): 5
-        }
+        numbers={("speed", "color-sequence"): 5, ("doesnt-exist", "color-sequence"): 5},
     )
     await mocked_controller._bridge.async_block_until_done()
-    assert mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value == 5
+    assert (
+        mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value
+        == 5
+    )

@@ -1,19 +1,14 @@
 """Test Security System Sensor"""
 
 import copy
+from dataclasses import asdict
 
 import pytest
 
 from aioafero.device import AferoState
-from aioafero.v1.controllers import event
 from aioafero.v1.controllers.security_system import security_system_callback
-from aioafero.v1.controllers.security_system_sensor import (
-    AferoBinarySensor,
-    features,
-)
-from dataclasses import asdict
-
-from .. import utils
+from aioafero.v1.controllers.security_system_sensor import AferoBinarySensor, features
+from tests.v1 import utils
 
 security_system = utils.create_devices_from_data("security-system.json")[1]
 security_system_sensors = security_system_callback(
@@ -97,13 +92,48 @@ async def test_update_elem(mocked_controller, caplog):
     await mocked_controller._bridge.async_block_until_done()
     dev_update = copy.deepcopy(security_system_sensor_2)
     new_states = [
-        AferoState(functionClass='chirpMode', value='On', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='triggerType', value='Away', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='bypassType', value='Manual', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='top-level-key', value='security-sensor-config-v2', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='tampered', value='On', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='triggered', value='Off', lastUpdateTime=None, functionInstance=None),
-        AferoState(functionClass='available', value=False, lastUpdateTime=None, functionInstance=None)
+        AferoState(
+            functionClass="chirpMode",
+            value="On",
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="triggerType",
+            value="Away",
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="bypassType",
+            value="Manual",
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="top-level-key",
+            value="security-sensor-config-v2",
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="tampered",
+            value="On",
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="triggered",
+            value="Off",
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
+        AferoState(
+            functionClass="available",
+            value=False,
+            lastUpdateTime=None,
+            functionInstance=None,
+        ),
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
@@ -228,7 +258,10 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
         utils.modify_state(dev_update, AferoState(**state))
     # Split devices need their IDs correctly set
     json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": security_system.id, "values": [asdict(x) for x in dev_update.states]}
+    json_resp.return_value = {
+        "metadeviceId": security_system.id,
+        "values": [asdict(x) for x in dev_update.states],
+    }
     resp = mocker.AsyncMock()
     resp.json = json_resp
     resp.status = 200
@@ -236,9 +269,9 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
     await mocked_controller.set_state(device.id, **updates)
     await bridge.async_block_until_done()
     dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
-    assert dev.selects[("chirpMode", None)].selected == 'On'
-    assert dev.selects[("triggerType", None)].selected == 'Away'
-    assert dev.selects[("bypassType", None)].selected == 'On'
+    assert dev.selects[("chirpMode", None)].selected == "On"
+    assert dev.selects[("triggerType", None)].selected == "Away"
+    assert dev.selects[("bypassType", None)].selected == "On"
 
 
 @pytest.mark.asyncio
@@ -298,4 +331,6 @@ async def test_emitting(mocked_bridge):
     await mocked_bridge.generate_devices_from_data([dev_update])
     await mocked_bridge.async_block_until_done()
     assert len(mocked_bridge.security_systems_sensors._items) == 3
-    assert not mocked_bridge.security_systems_sensors._items["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"].available
+    assert not mocked_bridge.security_systems_sensors._items[
+        "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
+    ].available

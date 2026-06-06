@@ -18,7 +18,7 @@ def normalize_afero_last_update_time_ms(last_update_time: int | None) -> int:
     return last_update_time
 
 
-def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int) -> _T:
+def percentage_to_ordered_list_item[T](ordered_list: list[T], percentage: int) -> T:
     """Find the item that most closely matches the percentage in an ordered list.
 
     When using this utility for fan speeds, do not include "off"
@@ -44,7 +44,7 @@ def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int)
     return ordered_list[-1]
 
 
-def ordered_list_item_to_percentage[_T](ordered_list: list[_T], item: _T) -> int:
+def ordered_list_item_to_percentage[T](ordered_list: list[T], item: T) -> int:
     """Determine the percentage of an item in an ordered list.
 
     When using this utility for fan speeds, do not include "off"

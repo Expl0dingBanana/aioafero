@@ -96,7 +96,6 @@ def test_EffectFeature():
     assert not feat.is_preset("rainbow")
 
 
-
 def test_HVACModeFeature():
     feat = features.HVACModeFeature(
         mode="beans",

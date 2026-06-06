@@ -6,8 +6,7 @@ from aioafero.device import AferoState
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.switch import features
 from aioafero.v1.models import AferoSensor
-
-from .. import utils
+from tests.v1 import utils
 
 transformer = utils.create_devices_from_data("transformer.json")[0]
 glass_door = utils.create_devices_from_data("glass-door.json")[0]
@@ -18,7 +17,7 @@ portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 @pytest.fixture
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
-    yield mocked_bridge.switches
+    return mocked_bridge.switches
 
 
 @pytest.mark.asyncio
@@ -192,14 +191,17 @@ async def test_turn_on_split_device(mocked_bridge, mocker):
     dev = mocked_controller[speaker_id]
     # Split devices need their IDs correctly set
     json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f", "values": [
-        {
-            "functionClass": "toggle",
-            "functionInstance": "speaker-power",
-            "value": "on",
-            "lastUpdateTime": 0,
-        },
-    ]}
+    json_resp.return_value = {
+        "metadeviceId": "3bec6eaa-3d87-4f3c-a065-a2b32f87c39f",
+        "values": [
+            {
+                "functionClass": "toggle",
+                "functionInstance": "speaker-power",
+                "value": "on",
+                "lastUpdateTime": 0,
+            },
+        ],
+    }
     resp = mocker.AsyncMock()
     resp.json = json_resp
     resp.status = 200
@@ -259,13 +261,22 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("transformer.json")[0]
     new_states = [
         AferoState(
-            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="zone-1"
+            functionClass="toggle",
+            value="on",
+            lastUpdateTime=0,
+            functionInstance="zone-1",
         ),
         AferoState(
-            functionClass="toggle", value="off", lastUpdateTime=0, functionInstance="zone-2"
+            functionClass="toggle",
+            value="off",
+            lastUpdateTime=0,
+            functionInstance="zone-2",
         ),
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
             functionClass="watts",

@@ -133,7 +133,7 @@ def get_valid_states(afero_states: list, sensor_id: int) -> list:
 def get_model_type(states: list[AferoState], sensor_id: int) -> str:
     """Get the model type from the state list."""
     for state in states:
-        if state.functionClass not in ["sensor-state"] or state.value is None:
+        if state.functionClass != "sensor-state" or state.value is None:
             continue
         state_sensor_split = state.functionInstance.rsplit("-", 1)
         state_sensor_id = int(state_sensor_split[1])

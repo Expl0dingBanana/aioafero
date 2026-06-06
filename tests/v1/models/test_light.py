@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.light import Light
 
 
@@ -25,13 +25,14 @@ def populated_light():
         device_information=DeviceInformation(
             model="AL-TP-RGBICTW-1",
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ],
+        ),
     )
 
 
@@ -50,13 +51,14 @@ def empty_light():
         device_information=DeviceInformation(
             model="a21-light",
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ],
+        ),
     )
 
 

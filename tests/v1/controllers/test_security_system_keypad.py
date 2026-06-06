@@ -2,11 +2,9 @@
 
 import pytest
 
-from aioafero.v1.controllers.security_system_keypad import SecuritySystemKeypadController, features, AferoBinarySensor
 from aioafero import AferoState
-
-from .. import utils
-
+from aioafero.v1.controllers.security_system_keypad import AferoBinarySensor, features
+from tests.v1 import utils
 
 security_system = utils.create_devices_from_data("security-system.json")
 keypad_id = "1f31be19-b9b9-4ca8-8a22-20d0015ec2dd"
@@ -33,13 +31,14 @@ async def test_initialize(mocked_controller):
         ),
     }
     assert dev.binary_sensors == {
-        'tamper-detection|None': AferoBinarySensor(
-            id='tamper-detection|None',
-            owner='ce68c348-cd68-4ce3-937d-bf18619ae970',
-            current_value='not-tampered',
-            _error='tampered',
+        "tamper-detection|None": AferoBinarySensor(
+            id="tamper-detection|None",
+            owner="ce68c348-cd68-4ce3-937d-bf18619ae970",
+            current_value="not-tampered",
+            _error="tampered",
             unit=None,
-            instance=None)
+            instance=None,
+        )
     }
 
 
@@ -63,13 +62,22 @@ async def test_update_elem(mocked_controller):
     update = utils.create_devices_from_data("security-system.json")[0]
     new_states = [
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="volume", value="volume-03", lastUpdateTime=0, functionInstance="buzzer-volume"
+            functionClass="volume",
+            value="volume-03",
+            lastUpdateTime=0,
+            functionInstance="buzzer-volume",
         ),
         AferoState(
-            functionClass="tamper-detection", value="tampered", lastUpdateTime=0, functionInstance=None
+            functionClass="tamper-detection",
+            value="tampered",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:
@@ -107,6 +115,7 @@ async def test_set_state(mocked_controller):
     dev = mocked_controller[keypad_id]
     assert dev.selects[("volume", "buzzer-volume")].selected == "volume-03"
 
+
 @pytest.mark.asyncio
 async def test_set_state_bad_device(mocked_controller):
     await mocked_controller._bridge.generate_devices_from_data(security_system)
@@ -129,13 +138,22 @@ async def test_emitting(mocked_controller):
     update = utils.create_devices_from_data("security-system.json")[0]
     new_states = [
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="volume", value="volume-03", lastUpdateTime=0, functionInstance="buzzer-volume"
+            functionClass="volume",
+            value="volume-03",
+            lastUpdateTime=0,
+            functionInstance="buzzer-volume",
         ),
         AferoState(
-            functionClass="tamper-detection", value="tampered", lastUpdateTime=0, functionInstance=None
+            functionClass="tamper-detection",
+            value="tampered",
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:

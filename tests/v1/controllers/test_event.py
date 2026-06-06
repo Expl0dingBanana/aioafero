@@ -1,12 +1,12 @@
 import asyncio
+import contextlib
 import copy
+from datetime import UTC, datetime, timedelta
 import logging
 from unittest.mock import AsyncMock
 
-from aioafero.v1.v1_const import VERSION_POLL_INTERVAL_SECONDS
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from aioafero import InvalidAuth
 from aioafero.v1.controllers import (
@@ -17,8 +17,8 @@ from aioafero.v1.controllers import (
     security_system,
 )
 from aioafero.v1.models.resource import ResourceTypes
-
-from .. import utils
+from aioafero.v1.v1_const import VERSION_POLL_INTERVAL_SECONDS
+from tests.v1 import utils
 
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
 switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
@@ -45,13 +45,15 @@ async def test_properties(bridge):
     stream._version_poll_time = None
     assert stream.poll_version is True
     assert stream.poll_version is False
-    stream._version_poll_time = datetime.now(timezone.utc) - timedelta(seconds=VERSION_POLL_INTERVAL_SECONDS)
+    stream._version_poll_time = datetime.now(UTC) - timedelta(
+        seconds=VERSION_POLL_INTERVAL_SECONDS
+    )
     assert stream.poll_version is True
-    stream._version_poll_time = datetime.now(timezone.utc) - timedelta(seconds=VERSION_POLL_INTERVAL_SECONDS)
+    stream._version_poll_time = datetime.now(UTC) - timedelta(
+        seconds=VERSION_POLL_INTERVAL_SECONDS
+    )
     stream._version_poll_enabled = False
     assert stream.poll_version is False
-
-
 
 
 @pytest.mark.asyncio
@@ -71,7 +73,7 @@ async def test_stop(bridge):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "call,event_filter,resource_filter,expected",
+    ("call", "event_filter", "resource_filter", "expected"),
     [
         (min, None, None, (min, None, None)),
         (
@@ -92,7 +94,9 @@ async def test_stop(bridge):
         ),
     ],
 )
-async def test_subscribe(call, event_filter, resource_filter, expected, mocked_bridge_req):
+async def test_subscribe(
+    call, event_filter, resource_filter, expected, mocked_bridge_req
+):
     events = mocked_bridge_req.events
     unsub = events.subscribe(call, event_filter, resource_filter)
     assert callable(unsub)
@@ -110,7 +114,9 @@ async def test_event_discovery_dev_add(bridge, mocker):
 
     light_raw = utils.get_raw_dump("light-a21-raw.json")
 
-    mocker.patch.object(bridge, "fetch_discovery_data", AsyncMock(return_value=light_raw))
+    mocker.patch.object(
+        bridge, "fetch_discovery_data", AsyncMock(return_value=light_raw)
+    )
     await stream.initialize_discovery()
     max_retry = 10
     retry = 0
@@ -178,7 +184,7 @@ def gather_data_invalid_auth():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "status, response_gen, expected_messages, expected_error, expected_emits",
+    ("status", "response_gen", "expected_messages", "expected_error", "expected_emits"),
     [
         # Successful with no issues
         (
@@ -415,8 +421,11 @@ async def test_generate_events_from_data_multi(bridge):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     (
-        "gather_data_return,gather_data_side_effect,"
-        "generate_events_from_data_side_effect,expected_emits,expected_queue"
+        "gather_data_return",
+        "gather_data_side_effect",
+        "generate_events_from_data_side_effect",
+        "expected_emits",
+        "expected_queue",
     ),
     [
         # Happy path
@@ -472,7 +481,9 @@ async def test_perform_discovery_poll(
     stream = bridge.events
     await stream.stop()
     if gather_data_side_effect:
-        mocker.patch.object(stream, "gather_discovery_data", side_effect=gather_data_side_effect)
+        mocker.patch.object(
+            stream, "gather_discovery_data", side_effect=gather_data_side_effect
+        )
     else:
         mocker.patch.object(
             stream, "gather_discovery_data", AsyncMock(return_value=gather_data_return)
@@ -500,9 +511,9 @@ async def test_perform_discovery_poll(
             event_to_process["polled_data"] = mocker.ANY
         elif event_to_process["type"] == event.EventType.POLLED_DEVICES:
             event_to_process["polled_devices"] = mocker.ANY
-        assert (
-            await stream._event_queue.get() == event_to_process
-        ), f"Issue at index {index}"
+        assert await stream._event_queue.get() == event_to_process, (
+            f"Issue at index {index}"
+        )
 
 
 @pytest.mark.asyncio
@@ -584,7 +595,7 @@ async def test_event_discovery_dev_delete(bridge, mocker):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "pop_event,has_exception",
+    ("pop_event", "has_exception"),
     [
         (
             {
@@ -646,7 +657,7 @@ async def test___event_processor(bridge, mocker):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("is_coroutine", [True, False])
 @pytest.mark.parametrize(
-    "event_type, event_filter, expected",
+    ("event_type", "event_filter", "expected"),
     [
         (event.EventType.RESOURCE_ADDED, (event.EventType.RESOURCE_ADDED,), True),
         (event.EventType.RESOURCE_UPDATED, (event.EventType.RESOURCE_ADDED,), False),
@@ -688,7 +699,7 @@ async def test_emit_invalid_auth(bridge, mocker):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("is_coroutine", [True, False])
 @pytest.mark.parametrize(
-    "device, resource_filter, expected",
+    ("device", "resource_filter", "expected"),
     [
         (a21_light, (ResourceTypes.LIGHT,), True),
         (a21_light, (ResourceTypes.FAN,), False),
@@ -768,10 +779,8 @@ async def test_device_polling(bridge, mocker):
     assert event_obj["type"] == event.EventType.RESOURCE_UPDATE_RESPONSE
     assert event_obj["device_id"] == "dev1"
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass  # Expected cancellation, ignore
 
 
 @pytest.mark.asyncio
@@ -788,10 +797,8 @@ async def test_device_polling_exception(bridge, mocker, caplog):
     task = asyncio.create_task(stream._EventStream__device_polling())
     await asyncio.sleep(0.05)
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass  # Expected cancellation, ignore
     assert "Unable to poll device states" in caplog.text
 
 
@@ -808,7 +815,9 @@ async def test_emit_resource_filter_edge_cases(bridge, mocker):
     callback.reset_mock()
 
     # Case 2: data has no 'device' key
-    stream.emit(event.EventType.RESOURCE_UPDATED, {"type": event.EventType.RESOURCE_UPDATED})
+    stream.emit(
+        event.EventType.RESOURCE_UPDATED, {"type": event.EventType.RESOURCE_UPDATED}
+    )
     callback.assert_called_once()
     callback.reset_mock()
 

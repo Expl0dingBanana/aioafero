@@ -2,7 +2,8 @@ from dataclasses import dataclass, field, fields, replace
 import logging
 
 import pytest
-import asyncio
+import pytest_asyncio
+
 from aioafero import AferoDevice, AferoState, TemperatureUnit
 from aioafero.device import get_afero_device
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
@@ -22,9 +23,7 @@ from aioafero.v1.controllers.base import (
 from aioafero.v1.models.features import ColorFeature, SelectFeature
 from aioafero.v1.models.light import Light
 from aioafero.v1.models.resource import DeviceInformation
-import pytest_asyncio
-
-from .. import utils
+from tests.v1 import utils
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,7 +89,7 @@ class TestResource:
     on: TestFeatureBool
     beans: dict[str | None, TestFeatureInstance]
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+    instances: dict = field(default_factory=dict, repr=False, init=False)
 
 
 @dataclass
@@ -100,7 +99,7 @@ class TestResourceWithFunctions:
     on: TestFeatureBool
     beans: dict[str | None, TestFeatureInstance]
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    instances: dict = field(default_factory=lambda: dict(), repr=False, init=False)
+    instances: dict = field(default_factory=dict, repr=False, init=False)
 
     def __init__(self, functions: list, **kwargs):
         for key, value in kwargs.items():
@@ -456,7 +455,7 @@ class Example1ResourceController(BaseResourcesController):
             beans=beans,
             device_information=DeviceInformation(
                 device_class=afero_dev.device_class,
-            )
+            ),
         )
 
     async def update_elem(self, afero_dev: AferoDevice) -> set:
@@ -473,7 +472,11 @@ class Example1ResourceController(BaseResourcesController):
                 if cur_item.beans[state.functionInstance].on != new_val:
                     updated_keys.add("on")
                     cur_item.beans[state.functionInstance].on = state.value == "on"
-            elif (update_key := await self.update_sensor(state, cur_item)) or (update_key := await self.update_number(state, cur_item)) or (update_key := await self.update_select(state, cur_item)):
+            elif (
+                (update_key := await self.update_sensor(state, cur_item))
+                or (update_key := await self.update_number(state, cur_item))
+                or (update_key := await self.update_select(state, cur_item))
+            ):
                 updated_keys.add(update_key)
         return updated_keys
 
@@ -502,7 +505,7 @@ class Example2ResourceController(BaseResourcesController):
             selects=selects,
             device_information=DeviceInformation(
                 device_class=afero_device.device_class,
-            )
+            ),
         )
 
     async def update_elem(self, afero_dev: AferoDevice) -> set:
@@ -563,7 +566,14 @@ def test_basic(ex1_rc):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "init_elem, evt_type, item_id, evt_data, expected_devs, expected_return",
+    (
+        "init_elem",
+        "evt_type",
+        "item_id",
+        "evt_data",
+        "expected_devs",
+        "expected_return",
+    ),
     [
         # Device added
         (
@@ -680,7 +690,7 @@ async def test__handle_event_type(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("is_coroutine", [True, False])
 @pytest.mark.parametrize(
-    "id_filter, event_filter, event_type, expected",
+    ("id_filter", "event_filter", "event_type", "expected"),
     [
         ("beans", event.EventType.RESOURCE_ADDED, event.EventType.RESOURCE_ADDED, True),
         (
@@ -700,7 +710,6 @@ async def test__handle_event_type(
 async def test_emit_to_subscribers(
     is_coroutine, id_filter, event_filter, event_type, expected, ex1_rc, mocker
 ):
-
     callback = mocker.AsyncMock() if is_coroutine else mocker.Mock()
     ex1_rc.subscribe(callback, id_filter=id_filter, event_filter=event_filter)
     await ex1_rc.emit_to_subscribers(event_type, "beans", test_res)
@@ -712,7 +721,7 @@ async def test_emit_to_subscribers(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "evt_type, evt_data, called",
+    ("evt_type", "evt_data", "called"),
     [
         # No data
         (event.EventType.RECONNECTED, None, False),
@@ -762,7 +771,7 @@ def mocked_get_filtered_devices(initial_data) -> list[AferoDevice]:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "get_filtered_devices, expected_ids",
+    ("get_filtered_devices", "expected_ids"),
     [
         (
             False,
@@ -804,7 +813,7 @@ async def test_initialize_not_needed(ex1_rc, mocker):
 @pytest.mark.parametrize("item_types", [True])
 async def test_initialize(item_types, ex1_rc, mocker):
     ex1_rc._initialized = False
-    handle_event = mocker.patch.object(ex1_rc, "_handle_event")
+    mocker.patch.object(ex1_rc, "_handle_event")
     await ex1_rc.initialize()
     assert len(ex1_rc._bridge.events._subscribers) == 14
     assert "nada" in ex1_rc._bridge.events.registered_multiple_devices
@@ -862,7 +871,7 @@ async def test_initialize_number(state, expected_name, expected_unit, ex1_rc):
 
 
 @pytest.mark.parametrize(
-    "id_filter, event_filter, expected, expected_unsub",
+    ("id_filter", "event_filter", "expected", "expected_unsub"),
     [
         # No ID filter
         (None, None, {"*": [(min, None)]}, {"*": []}),
@@ -934,10 +943,10 @@ async def test__process_state_update(ex1_rc):
     [
         (TemperatureUnit.CELSIUS),
         (TemperatureUnit.FAHRENHEIT),
-    ]
+    ],
 )
 @pytest.mark.parametrize(
-    "response, response_err, states, expected_call, expected, messages",
+    ("response", "response_err", "states", "expected_call", "expected", "messages"),
     [
         # Happy path
         (
@@ -1054,9 +1063,11 @@ async def test_update_afero_api(
 ):
     device_id = "cool"
     ex1_rc._bridge.temperature_unit = temperature_unit
-    mock_response_url = ex1_rc._bridge.generate_api_url(v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
-        ex1_rc._bridge.account_id, str(device_id)
-    ))
+    mock_response_url = ex1_rc._bridge.generate_api_url(
+        v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
+            ex1_rc._bridge.account_id, str(device_id)
+        )
+    )
     query_url = mock_response_url[:]
     if temperature_unit == TemperatureUnit.FAHRENHEIT:
         expected_call["params"]["units"] = temperature_unit.value
@@ -1073,7 +1084,6 @@ async def test_update_afero_api(
     else:
         assert await ex1_rc.update_afero_api(device_id, states) == expected
     if expected_call:
-
         ex1_rc._bridge.request.assert_called_with("put", query_url, **expected_call)
     else:
         ex1_rc._bridge.request.assert_not_called()
@@ -1090,7 +1100,7 @@ async def test_update_dev_not_found(ex1_rc, caplog):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "obj_in, states, expected_states, expected_item, successful",
+    ("obj_in", "states", "expected_states", "expected_item", "successful"),
     [
         # Obj in without updates
         (TestResourcePut(on=None, beans=None), None, None, test_res, True),
@@ -1165,7 +1175,10 @@ async def test_update(
         resp = mocker.AsyncMock()
         resp.status = 200
         json_resp = mocker.AsyncMock()
-        json_resp.return_value = {"metadeviceId": test_device.id, "values": expected_states}
+        json_resp.return_value = {
+            "metadeviceId": test_device.id,
+            "values": expected_states,
+        }
         resp.json = json_resp
         update_afero_api = mocker.patch.object(
             ex1_rc, "update_afero_api", return_value=resp
@@ -1185,7 +1198,7 @@ async def test_update(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "device, obj_in, states, expected_states, expected_item, successful",
+    ("device", "obj_in", "states", "expected_states", "expected_item", "successful"),
     [
         (
             test_device_dict,
@@ -1229,7 +1242,14 @@ async def test_update(
     ],
 )
 async def test_update_dict(
-    device, obj_in, states, expected_states, expected_item, successful, ex2_rc_mocked, mocker
+    device,
+    obj_in,
+    states,
+    expected_states,
+    expected_item,
+    successful,
+    ex2_rc_mocked,
+    mocker,
 ):
     ex2_rc = ex2_rc_mocked
     await ex2_rc.initialize()
@@ -1238,7 +1258,9 @@ async def test_update_dict(
     ex2_rc._bridge.add_device(device.id, ex2_rc)
     ex2_rc._bridge.add_afero_dev(device)
     if successful:
-        json_resp = mocker.AsyncMock(return_value={"metadeviceId": test_device.id, "values": expected_states})
+        json_resp = mocker.AsyncMock(
+            return_value={"metadeviceId": test_device.id, "values": expected_states}
+        )
     else:
         json_resp = mocker.AsyncMock(return_value=False)
     resp = mocker.AsyncMock()
@@ -1257,7 +1279,7 @@ async def test_update_dict(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "starting_items,device_id,expected",
+    ("starting_items", "device_id", "expected"),
     [
         ({"cool": "beans"}, "not-a-device", None),
         ({"cool": "beans"}, "cool", "beans"),
@@ -1429,20 +1451,24 @@ async def callback_test(elem, update_vals: dataclass):
             ),
             {},
             True,
-             [
-                 {
-                     'functionClass': 'b2',
-                     'functionInstance': 'two',
-                     'lastUpdateTime': MOCK_LAST_UPDATE_TIME_MS,
-                     'value': 'cool',
-                    },
-                ]
+            [
+                {
+                    "functionClass": "b2",
+                    "functionInstance": "two",
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
+                    "value": "cool",
+                },
+            ],
         ),
     ],
 )
-def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, expected, mocker):
+def test_dataclass_to_afero(
+    elem, update_obj, mapping, send_duplicate_states, expected, mocker
+):
     patch_last_update_time(mocker)
-    assert dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states) == expected
+    assert (
+        dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states) == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -1480,7 +1506,7 @@ def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, ex
             ],
         ),
         # Send dupes
-(
+        (
             replace(test_res_default_dict),
             "selects",
             {
@@ -1515,18 +1541,23 @@ def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, ex
                     "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
-        )
+        ),
     ],
 )
 def test_get_afero_states_from_mapped(
     element, field_name, update_vals, send_duplicate_states, expected, mocker
 ):
     patch_last_update_time(mocker)
-    assert get_afero_states_from_mapped(element, field_name, update_vals, send_duplicate_states) == expected
+    assert (
+        get_afero_states_from_mapped(
+            element, field_name, update_vals, send_duplicate_states
+        )
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
-    "elem, feat, mapped_afero_key, expected",
+    ("elem", "feat", "mapped_afero_key", "expected"),
     [
         # Utilize func_instance
         (test_res, TestFeatureInstance(on=True, func_instance="bean1"), None, "bean1"),
@@ -1548,7 +1579,7 @@ def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected):
 
 
 @pytest.mark.parametrize(
-    "func_class, func_instance, current_val, expected",
+    ("func_class", "func_instance", "current_val", "expected"),
     [
         # Non-dict val
         (
@@ -1603,7 +1634,7 @@ def test_get_afero_state_from_feature(
 
 
 @pytest.mark.parametrize(
-    "states, expected",
+    ("states", "expected"),
     [
         (
             [
@@ -1648,7 +1679,11 @@ def test_unsubscribe(ex1_rc):
 
     unsub = ex1_rc.subscribe(whatever, id_filter="beans")
     unsub2 = ex1_rc.subscribe(whatever, id_filter="beans2")
-    assert ex1_rc._subscribers == {"*": [], "beans": [(whatever, None)], "beans2": [(whatever, None)]}
+    assert ex1_rc._subscribers == {
+        "*": [],
+        "beans": [(whatever, None)],
+        "beans2": [(whatever, None)],
+    }
     ex1_rc._subscribers = {"*": [], "beans": [(whatever, None)]}
     # Ensure no error if unsub called if its somehow removed
     unsub2()

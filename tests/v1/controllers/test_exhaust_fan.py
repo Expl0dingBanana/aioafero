@@ -5,7 +5,6 @@ import pytest
 from aioafero.device import AferoState
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.exhaust_fan import (
-    ExhaustFanController,
     exhaust_fan_callback,
     features,
     generate_split_name,
@@ -14,8 +13,7 @@ from aioafero.v1.controllers.exhaust_fan import (
 )
 from aioafero.v1.models import ResourceTypes
 from aioafero.v1.models.sensor import AferoBinarySensor
-
-from .. import utils
+from tests.v1 import utils
 
 exhaust_fan = utils.create_devices_from_data("exhaust-fan.json")[0]
 a21_light = utils.create_devices_from_data("light-a21.json")[0]
@@ -143,16 +141,28 @@ async def test_update_elem(mocked_controller):
     dev_update = utils.create_devices_from_data("exhaust-fan.json")[0]
     new_states = [
         AferoState(
-            functionClass="available", value=False, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=False,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
         AferoState(
-            functionClass="humidity-threshold-met", value="above-threshold", lastUpdateTime=0, functionInstance="humidity-threshold-met"
+            functionClass="humidity-threshold-met",
+            value="above-threshold",
+            lastUpdateTime=0,
+            functionInstance="humidity-threshold-met",
         ),
         AferoState(
-            functionClass="auto-off-timer", value=120, lastUpdateTime=0, functionInstance="auto-off"
+            functionClass="auto-off-timer",
+            value=120,
+            lastUpdateTime=0,
+            functionInstance="auto-off",
         ),
         AferoState(
-            functionClass="motion-action", value="both", lastUpdateTime=0, functionInstance="exhaust-fan"
+            functionClass="motion-action",
+            value="both",
+            lastUpdateTime=0,
+            functionInstance="exhaust-fan",
         ),
     ]
     for state in new_states:
@@ -161,7 +171,9 @@ async def test_update_elem(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.available is False
     assert (
-        dev.binary_sensors["humidity-threshold-met|humidity-threshold-met"].current_value
+        dev.binary_sensors[
+            "humidity-threshold-met|humidity-threshold-met"
+        ].current_value
         == "above-threshold"
     )
     assert dev.numbers[("auto-off-timer", "auto-off")].value == 120
@@ -186,7 +198,10 @@ async def test_update_state_no_change(mocked_controller):
     dev_update = utils.create_devices_from_data("exhaust-fan.json")[0]
     new_states = [
         AferoState(
-            functionClass="available", value=True, lastUpdateTime=0, functionInstance=None
+            functionClass="available",
+            value=True,
+            lastUpdateTime=0,
+            functionInstance=None,
         ),
     ]
     for state in new_states:

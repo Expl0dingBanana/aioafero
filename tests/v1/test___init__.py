@@ -1,12 +1,23 @@
 import asyncio
+from dataclasses import asdict
+import json
 import logging
 from unittest.mock import AsyncMock
+from urllib.parse import urlencode
 
+from aiohttp.client_exceptions import ClientResponseError
 import pytest
 
-from aioafero import EventType, InvalidAuth, AferoDevice, AferoState, TemperatureUnit
-from aioafero.errors import DeviceNotFound, AferoError, ExceededMaximumRetries
-from aioafero.v1 import AferoBridgeV1, TokenData, add_secret, v1_const, TemperatureUnit
+from aioafero import AferoDevice, AferoState, EventType, InvalidAuth
+from aioafero.errors import AferoError, DeviceNotFound, ExceededMaximumRetries
+from aioafero.v1 import (
+    AferoBridgeV1,
+    TemperatureUnit,
+    TokenData,
+    add_secret,
+    auth,
+    v1_const,
+)
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -14,11 +25,6 @@ from aioafero.v1.controllers.light import LightController
 from aioafero.v1.controllers.lock import LockController
 from aioafero.v1.controllers.switch import SwitchController
 from aioafero.v1.controllers.valve import ValveController
-from aiohttp.client_exceptions import ClientResponseError
-from dataclasses import asdict
-from aioafero.v1 import auth
-import json
-from urllib.parse import urlencode
 
 from . import utils
 
@@ -117,15 +123,18 @@ def test_set_polling_interval(mocked_bridge):
 @pytest.mark.asyncio
 async def test_initialize(bridge_with_acct, mocker):
     mocker.patch.object(bridge_with_acct, "request")
-    mocker.patch.object(bridge_with_acct, "get_account_id", return_value="mocked-account-id")
+    mocker.patch.object(
+        bridge_with_acct, "get_account_id", return_value="mocked-account-id"
+    )
     mocker.patch.object(bridge_with_acct.events, "wait_for_first_poll")
     mocker.patch.object(bridge_with_acct.devices, "_initialized", True)
     await bridge_with_acct.initialize()
     await bridge_with_acct.async_block_until_done()
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "expected_val,error,temperature_unit",
+    ("expected_val", "error", "temperature_unit"),
     [
         # good data
         ([], False, TemperatureUnit.FAHRENHEIT),
@@ -134,7 +143,9 @@ async def test_initialize(bridge_with_acct, mocker):
         ("i dont know", True, TemperatureUnit.CELSIUS),
     ],
 )
-async def test_fetch_discovery_data(expected_val, error, temperature_unit, mocked_bridge_req, mocker):
+async def test_fetch_discovery_data(
+    expected_val, error, temperature_unit, mocked_bridge_req, mocker
+):
     expected = mocker.Mock()
     mocked_bridge_req.temperature_unit = temperature_unit
     mocker.patch.object(
@@ -162,11 +173,11 @@ def fake_version_data(*args, **kwargs):
 
 @pytest.mark.asyncio
 async def test_fetch_discovery_data_with_version(mocked_bridge_req, mocker):
-    get_device_versions = mocker.patch.object(mocked_bridge_req, "get_device_version", side_effect=fake_version_data())
+    get_device_versions = mocker.patch.object(
+        mocked_bridge_req, "get_device_version", side_effect=fake_version_data()
+    )
     mocked_response = [
-        {
-            "typeId": "metadevice.room"
-        },
+        {"typeId": "metadevice.room"},
         {
             "typeId": "metadevice.device",
             "deviceId": "test_device_id",
@@ -190,10 +201,22 @@ async def test_fetch_discovery_data_with_version(mocked_bridge_req, mocker):
     assert get_device_versions.call_args_list[0][0][0] == "test_device_id"
     assert get_device_versions.call_args_list[1][0][0] == "test_device_id2"
     assert resp == [
-        {'typeId': 'metadevice.room'},
-        {'typeId': 'metadevice.device', 'deviceId': 'test_device_id', 'version_data': {'version': '1.0.0'}},
-        {'typeId': 'metadevice.device', 'deviceId': 'test_device_id2', 'version_data': {'version': '2.0.0'}},
-        {'typeId': 'metadevice.device', 'deviceId': 'test_device_id', 'version_data': {'version': '1.0.0'}}
+        {"typeId": "metadevice.room"},
+        {
+            "typeId": "metadevice.device",
+            "deviceId": "test_device_id",
+            "version_data": {"version": "1.0.0"},
+        },
+        {
+            "typeId": "metadevice.device",
+            "deviceId": "test_device_id2",
+            "version_data": {"version": "2.0.0"},
+        },
+        {
+            "typeId": "metadevice.device",
+            "deviceId": "test_device_id",
+            "version_data": {"version": "1.0.0"},
+        },
     ]
 
 
@@ -201,7 +224,10 @@ async def test_fetch_discovery_data_with_version(mocked_bridge_req, mocker):
 async def test_get_device_versions(mocked_bridge, mocker):
     req = mocker.patch.object(mocked_bridge, "request")
     await mocked_bridge.get_device_version("test_device_id")
-    req.assert_called_once_with("GET", "https://api2.afero.net/v1/accounts/mocked-account-id/devices/test_device_id/versions")
+    req.assert_called_once_with(
+        "GET",
+        "https://api2.afero.net/v1/accounts/mocked-account-id/devices/test_device_id/versions",
+    )
 
 
 @pytest.mark.asyncio
@@ -219,7 +245,9 @@ async def test_send_service_request(mocked_bridge, mocker):
     await mocked_bridge.async_block_until_done()
     mocked_bridge.add_device(zandra_light.id, controller)
     assert controller[zandra_light.id].on.on is True
-    states = [{"functionClass": "power", "functionInstance": "light-power", "value": "off"}]
+    states = [
+        {"functionClass": "power", "functionInstance": "light-power", "value": "off"}
+    ]
     expected_states = [
         {
             "functionClass": "power",
@@ -286,14 +314,8 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
             {
                 "status": 200,
                 "payload": {
-                    "accountAccess": [
-                        {
-                            "account": {
-                                "accountId": "test_account_id"
-                            }
-                        }
-                    ]
-                }
+                    "accountAccess": [{"account": {"accountId": "test_account_id"}}]
+                },
             },
             "test_account_id",
             None,
@@ -304,14 +326,8 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
             {
                 "status": 400,
                 "payload": {
-                    "accountAccess": [
-                        {
-                            "account": {
-                                "accountId": "test_account_id"
-                            }
-                        }
-                    ]
-                }
+                    "accountAccess": [{"account": {"accountId": "test_account_id"}}]
+                },
             },
             None,
             ClientResponseError,
@@ -319,11 +335,7 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
         # Uninitialized, bad response
         (
             None,
-            {
-                "status": 200,
-                "payload": {
-                }
-            },
+            {"status": 200, "payload": {}},
             None,
             AferoError,
         ),
@@ -333,15 +345,19 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
             None,
             "mocked-account-id",
             None,
-        )
-    ]
+        ),
+    ],
 )
-async def test_get_account_id(account_id, response, expected, err, mock_aioresponse, bridge_with_acct, mocker):
+async def test_get_account_id(
+    account_id, response, expected, err, mock_aioresponse, bridge_with_acct, mocker
+):
     bridge = bridge_with_acct
     mocker.patch.object(bridge, "_account_id", account_id)
     if account_id is None:
         url = bridge.generate_api_url(v1_const.AFERO_GENERICS["ACCOUNT_ID_ENDPOINT"])
-        mock_aioresponse.get(url, payload=response["payload"], status=response["status"])
+        mock_aioresponse.get(
+            url, payload=response["payload"], status=response["status"]
+        )
         if not err:
             assert await bridge.get_account_id() == expected
         else:
@@ -403,19 +419,15 @@ class AsyncContextManagerMock:
         pass
 
 
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "max_retries, times_to_sleep, response_gen, exp_error", [
+    ("max_retries", "times_to_sleep", "response_gen", "exp_error"),
+    [
         # Out of retries
-        (
-            0, 0, None, ExceededMaximumRetries
-        ),
+        (0, 0, None, ExceededMaximumRetries),
         # Double retry
-        (
-            None, 2, True, None
-        )
-    ]
+        (None, 2, True, None),
+    ],
 )
 async def test_request(max_retries, times_to_sleep, response_gen, exp_error, mocker):
     bridge = AferoBridgeV1("username", "password")
@@ -423,7 +435,9 @@ async def test_request(max_retries, times_to_sleep, response_gen, exp_error, moc
     try:
         if response_gen:
             async_mock_response = AsyncContextManagerMock()
-            mocker.patch.object(bridge, "create_request", return_value=async_mock_response)
+            mocker.patch.object(
+                bridge, "create_request", return_value=async_mock_response
+            )
         if max_retries is not None:
             mocker.patch.object(v1_const, "MAX_RETRIES", max_retries)
         if exp_error:
@@ -445,7 +459,9 @@ def test_get_afero_device(mocked_bridge):
 def test_fetch_device_states(mocked_bridge, mocker):
     states = [
         AferoState(functionClass="power", functionInstance="light-power", value="on"),
-        AferoState(functionClass="brightness", functionInstance="light-brightness", value="100"),
+        AferoState(
+            functionClass="brightness", functionInstance="light-brightness", value="100"
+        ),
     ]
     dummy_dev = AferoDevice(
         id="beans",
@@ -485,7 +501,9 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
     hs_auth = mocked_bridge_req._auth
     challenge = await hs_auth.generate_challenge_data()
     hs_auth._bridge._web_session = aio_sess
-    auth_sess_data = auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id")
+    auth_sess_data = auth.AuthSessionData(
+        "url_sess_code", "url_exec_code", "url_tab_id"
+    )
     url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
     hs_auth._otp_data = {
         "params": url_params,
@@ -544,14 +562,17 @@ def test_unsubscribe():
 
 
 @pytest.mark.parametrize(
-    ("start_unit", "new_unit", "called"), [
+    ("start_unit", "new_unit", "called"),
+    [
         # No change
         (TemperatureUnit.CELSIUS, TemperatureUnit.CELSIUS, False),
         # Change detected
         (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT, True),
-    ]
+    ],
 )
-async def test_adjust_temperature_unit(start_unit, new_unit, called, mocked_bridge, mocker):
+async def test_adjust_temperature_unit(
+    start_unit, new_unit, called, mocked_bridge, mocker
+):
     mocker.patch.object(mocked_bridge, "temperature_unit", start_unit)
     mocker.patch.object(mocked_bridge, "add_job", side_effect=mocked_bridge.add_job)
     await mocked_bridge.adjust_temperature_unit(new_unit)
@@ -583,9 +604,10 @@ async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
         if device_id == "dev2":
             return "dev2", states2
         if device_id == "dev3":
-            raise Exception("Boom")
+            raise RuntimeError("Boom")
         if device_id == "dev4":
             return "dev4", states4
+        return None
 
     mocker.patch.object(mocked_bridge, "_fetch_device_states", side_effect=side_effect)
     updated_devices = await mocked_bridge.fetch_all_device_states()
@@ -647,7 +669,7 @@ def test_add_afero_dev_explicit_cache_key(mocked_bridge):
 
 
 @pytest.mark.parametrize(
-    "device_id, expected",
+    ("device_id", "expected"),
     [
         ("plain-id", "plain-id"),
         ("parent-light-id-light-main", "parent-light-id"),

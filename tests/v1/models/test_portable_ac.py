@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import PortableAC, features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, PortableAC, features
 
 
 @pytest.fixture
@@ -43,14 +43,14 @@ def populated_entity():
         selects=selects,
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 
@@ -107,7 +107,7 @@ def test_empty():
         ("heat", "heat", "heat"),
         ("heat", None, "heat"),
         ("fan", None, None),
-    ]
+    ],
 )
 def test_get_mode_to_check(mode, previous_mode, expected, populated_entity):
     populated_entity.hvac_mode.mode = mode

@@ -32,7 +32,7 @@ def test_normalize_afero_last_update_time_ms(last_update_time, expected, mocker)
 
 
 @pytest.mark.parametrize(
-    "vals, percentage, expected, err",
+    ("vals", "percentage", "expected", "err"),
     [
         ([], None, None, True),
         ([1, 2, 3], 50, 2, False),
@@ -48,7 +48,7 @@ def test_percentage_to_ordered_list_item(vals, percentage, expected, err):
 
 
 @pytest.mark.parametrize(
-    "vals, value, expected, err",
+    ("vals", "value", "expected", "err"),
     [
         ([1, 2, 3], 4, None, True),
         ([1, 2, 3], 2, 66, False),
@@ -63,11 +63,11 @@ def test_ordered_list_item_to_percentage(vals, value, expected, err):
 
 
 @pytest.mark.parametrize(
-    "range_vals, expected",
+    ("range_vals", "expected"),
     [
         ({"range": {"min": 100, "max": 100, "step": 1}}, [100]),
         ({"range": {"min": 0, "max": 100, "step": 1}}, list(range(0, 101, 1))),
-        ({"range": {"min": 0, "max": 100, "step": 3}}, list(range(0, 100, 3)) + [100]),
+        ({"range": {"min": 0, "max": 100, "step": 3}}, [*list(range(0, 100, 3)), 100]),
     ],
 )
 def test_process_range(range_vals, expected):
@@ -75,7 +75,7 @@ def test_process_range(range_vals, expected):
 
 
 @pytest.mark.parametrize(
-    "functions, func_class, func_instance, expected",
+    ("functions", "func_class", "func_instance", "expected"),
     [
         # None
         ([], "cool", None, []),

@@ -1,10 +1,10 @@
 import json
-import os
+from pathlib import Path
 from typing import Any
 
-from aioafero.device import AferoDevice, AferoState, AferoCapability
+from aioafero.device import AferoCapability, AferoDevice, AferoState
 
-current_path: str = os.path.dirname(os.path.realpath(__file__))
+current_path = Path(__file__).parent
 
 
 def get_device_dump(file_name: str) -> Any:
@@ -12,7 +12,7 @@ def get_device_dump(file_name: str) -> Any:
 
     :param file_name: Name of the file to load
     """
-    with open(os.path.join(current_path, "device_dumps", file_name)) as fh:
+    with (current_path / "device_dumps" / file_name).open() as fh:
         return json.load(fh)
 
 
@@ -21,7 +21,7 @@ def get_raw_dump(file_name: str) -> Any:
 
     :param file_name: Name of the file to load
     """
-    with open(os.path.join(current_path, "data", file_name)) as fh:
+    with (current_path / "data" / file_name).open() as fh:
         return json.load(fh)
 
 
@@ -31,21 +31,14 @@ def create_devices_from_data(file_name: str) -> list[AferoDevice]:
     :param file_name: Name of the file to load
     """
     devices = get_device_dump(file_name)
-    processed = []
-    for device in devices:
-        processed.append(create_device_from_data(device))
-    return processed
+    return [create_device_from_data(device) for device in devices]
 
 
 def create_device_from_data(device: dict) -> AferoDevice:
-    processed_states = []
-    for state in device["states"]:
-        processed_states.append(AferoState(**state))
-    device["states"] = processed_states
-    processed_capabilities = []
-    for cap in device.get("capabilities", []):
-        processed_capabilities.append(AferoCapability(**cap))
-    device["capabilities"] = processed_capabilities
+    device["states"] = [AferoState(**state) for state in device["states"]]
+    device["capabilities"] = [
+        AferoCapability(**cap) for cap in device.get("capabilities", [])
+    ]
     if "children" not in device:
         device["children"] = []
     return AferoDevice(**device)
@@ -60,9 +53,9 @@ def get_json_call(mocked_controller):
 
 def ensure_states_sent(mocked_controller, expected_states, device_id=None):
     req = get_json_call(mocked_controller)
-    assert len(req["values"]) == len(
-        expected_states
-    ), f"States Sent: {len(req)}. Expected: {len(expected_states)}. Actual: {req}"
+    assert len(req["values"]) == len(expected_states), (
+        f"States Sent: {len(req)}. Expected: {len(expected_states)}. Actual: {req}"
+    )
     for state in expected_states:
         assert state in req["values"], (
             f"Missing {state['functionClass']} / "
@@ -133,10 +126,10 @@ def create_hs_raw_from_dump(file_name: str) -> list[dict]:
     :param file_name: Name of the file that contains the dump
     :return: List of dictionaries containing the generated Hubspace payload
     """
-    hs_raw: list[dict] = []
-    for device in create_devices_from_data(file_name):
-        hs_raw.append(create_hs_raw_from_device(device))
-    return hs_raw
+    return [
+        create_hs_raw_from_device(device)
+        for device in create_devices_from_data(file_name)
+    ]
 
 
 def convert_states(states: list[AferoState]) -> list[dict]:

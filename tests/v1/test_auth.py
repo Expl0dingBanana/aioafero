@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import os
 import pathlib
 import time
 from urllib.parse import urlencode
@@ -14,7 +13,7 @@ from aioafero.v1 import auth, v1_const
 current_path = pathlib.Path(__file__).parent.resolve()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def hs_auth(mocked_bridge_req):
     return auth.AferoAuth(mocked_bridge_req, "username", "password")
 
@@ -25,7 +24,7 @@ async def build_url(base_url: str, qs: dict[str, str]) -> str:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "time_offset,is_expired",
+    ("time_offset", "is_expired"),
     [
         # No token
         (None, True),
@@ -45,7 +44,7 @@ async def test_is_expired(time_offset, is_expired, hs_auth):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "page_filename,form_id,err_msg,expected",
+    ("page_filename", "form_id", "err_msg", "expected"),
     [
         # Valid
         (
@@ -78,8 +77,7 @@ async def test_is_expired(time_offset, is_expired, hs_auth):
     ],
 )
 async def test_extract_login_data(page_filename, form_id, err_msg, expected):
-    with open(os.path.join(current_path, "data", page_filename)) as f:
-        page_data = f.read()
+    page_data = (current_path / "data" / page_filename).read_text()
     if expected:
         assert await auth.extract_login_data(page_data, form_id) == expected
     else:
@@ -89,7 +87,7 @@ async def test_extract_login_data(page_filename, form_id, err_msg, expected):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "page_filename, gc_exp, redirect, response, expected_err",
+    ("page_filename", "gc_exp", "redirect", "response", "expected_err"),
     [
         # Invalid status code
         (None, None, False, {"status": 403}, auth.InvalidResponse),
@@ -142,8 +140,7 @@ async def test_webapp_login(
 ):
     hs_auth._bridge._web_session = aio_sess
     if page_filename:
-        with open(os.path.join(current_path, "data", page_filename)) as f:
-            response["body"] = f.read()
+        response["body"] = (current_path / "data" / page_filename).read_text()
     challenge = await hs_auth.generate_challenge_data()
     generate_code = mocker.patch.object(hs_auth, "generate_code")
     parse_code = mocker.patch.object(auth.AferoAuth, "parse_code")
@@ -179,7 +176,7 @@ async def test_generate_challenge_data():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "auth_data, response, expected_err, expected",
+    ("auth_data", "response", "expected_err", "expected"),
     [
         # Invalid response
         (
@@ -205,10 +202,14 @@ async def test_generate_challenge_data():
         # OTP login required
         (
             auth.AuthSessionData("sess_code", "execution", "tab_id"),
-            {"status": 200, "headers": {"location": "https://cool.beans?code=beans"}, "body": '<form id="kc-otp-login-form" class="form-horizontal" action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=session_code&amp;execution=execution&amp;client_id=hubspace_android&amp;tab_id=tab_id" method="post" onsubmit="return submitForm()">'},
+            {
+                "status": 200,
+                "headers": {"location": "https://cool.beans?code=beans"},
+                "body": '<form id="kc-otp-login-form" class="form-horizontal" action="https://accounts.hubspaceconnect.com/auth/realms/thd/login-actions/authenticate?session_code=session_code&amp;execution=execution&amp;client_id=hubspace_android&amp;tab_id=tab_id" method="post" onsubmit="return submitForm()">',
+            },
             auth.OTPRequired,
             None,
-        )
+        ),
     ],
 )
 async def test_generate_code(
@@ -230,10 +231,7 @@ async def test_generate_code(
     url = await build_url(url, params)
     aioresponses.post(url, **response)
     if not expected_err:
-        assert (
-            await hs_auth.generate_code(auth_data, None)
-            == expected
-        )
+        assert await hs_auth.generate_code(auth_data, None) == expected
     else:
         with pytest.raises(expected_err):
             await hs_auth.generate_code(auth_data, None)
@@ -241,10 +239,17 @@ async def test_generate_code(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "secure_mode,code,response,expected,expected_messages, err",
+    ("secure_mode", "code", "response", "expected", "expected_messages", "err"),
     [
         # Invalid refresh token
-        (True, "code", {"status": 403}, None, None, aiohttp.web_exceptions.HTTPForbidden),
+        (
+            True,
+            "code",
+            {"status": 403},
+            None,
+            None,
+            aiohttp.web_exceptions.HTTPForbidden,
+        ),
         # Incorrect format
         (
             True,
@@ -335,22 +340,18 @@ async def test_generate_refresh_token(
         assert (
             expected
             == (
-                await hs_auth.generate_refresh_token(
-                    code=code, challenge=challenge
-                )
+                await hs_auth.generate_refresh_token(code=code, challenge=challenge)
             ).refresh_token
         )
     else:
         with pytest.raises(err):
-            await hs_auth.generate_refresh_token(
-                code=code, challenge=challenge
-            )
+            await hs_auth.generate_refresh_token(code=code, challenge=challenge)
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
     # Add in the user-agent that is generated from the bridge
-    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
-        client_name="aioafero"
-    )
+    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS[
+        "DEFAULT_USERAGENT"
+    ].safe_substitute(client_name="aioafero")
     assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "authorization_code",
@@ -366,7 +367,7 @@ async def test_generate_refresh_token(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "secure_mode,refresh_token,response,expected,expected_message,err",
+    ("secure_mode", "refresh_token", "response", "expected", "expected_message", "err"),
     [
         # Refresh token invalidated due to password change
         (
@@ -378,7 +379,14 @@ async def test_generate_refresh_token(
             auth.InvalidAuth,
         ),
         # Invalid status
-        (True, "code", {"status": 403}, None, None, aiohttp.web_exceptions.HTTPForbidden),
+        (
+            True,
+            "code",
+            {"status": 403},
+            None,
+            None,
+            aiohttp.web_exceptions.HTTPForbidden,
+        ),
         # Unexpected code returned
         (True, "code", {"status": 400}, None, None, auth.InvalidResponse),
         # bad response
@@ -455,18 +463,16 @@ async def test_generate_refresh_token_from_refresh(
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
     aioresponses.post(url, **response)
     if expected:
-        assert (
-            expected == (await hs_auth.generate_refresh_token()).refresh_token
-        )
+        assert expected == (await hs_auth.generate_refresh_token()).refresh_token
     else:
         with pytest.raises(err):
             await hs_auth.generate_refresh_token()
     aioresponses.assert_called_once()
     call_args = list(aioresponses.requests.values())[0][0]
     # Add in the user-agent that is generated from the bridge
-    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS["DEFAULT_USERAGENT"].safe_substitute(
-        client_name="aioafero"
-    )
+    hs_auth._token_headers["user-agent"] = v1_const.AFERO_GENERICS[
+        "DEFAULT_USERAGENT"
+    ].safe_substitute(client_name="aioafero")
     assert call_args.kwargs["headers"] == hs_auth._token_headers
     assert call_args.kwargs["data"] == {
         "grant_type": "refresh_token",
@@ -480,7 +486,7 @@ async def test_generate_refresh_token_from_refresh(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "webapp_login_return, generate_refresh_token_return",
+    ("webapp_login_return", "generate_refresh_token_return"),
     [
         ("cool", "beans"),
     ],
@@ -492,14 +498,12 @@ async def test_perform_initial_login(
     mocker.patch.object(
         hs_auth, "generate_refresh_token", return_value=generate_refresh_token_return
     )
-    assert (
-        await hs_auth.perform_initial_login() == generate_refresh_token_return
-    )
+    assert await hs_auth.perform_initial_login() == generate_refresh_token_return
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "hide_secrets, refresh_token",
+    ("hide_secrets", "refresh_token"),
     [
         (True, None),
         (False, "yes"),
@@ -507,7 +511,11 @@ async def test_perform_initial_login(
 )
 async def test_AferoAuth_init(hide_secrets, refresh_token, mocker, bridge):
     test_auth = auth.AferoAuth(
-        bridge, "username", "password", hide_secrets=hide_secrets, refresh_token=refresh_token
+        bridge,
+        "username",
+        "password",
+        hide_secrets=hide_secrets,
+        refresh_token=refresh_token,
     )
     if hide_secrets:
         assert test_auth.secret_logger == auth.LogRedactorMessage
@@ -538,7 +546,13 @@ def bad_refresh_token_invalid(*args, **kwargs):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "token_data, results_perform_initial_login, results_generate_refresh_token,expected,messages",
+    (
+        "token_data",
+        "results_perform_initial_login",
+        "results_generate_refresh_token",
+        "expected",
+        "messages",
+    ),
     [
         # Perform full login
         (
@@ -680,17 +694,22 @@ def test_property_refresh_token(bridge):
         ("auth_webapp_login_otp_failed.html", "Invalid access code."),
         # Can't find OTP error
         ("auth_webapp_login.html", "Unknown error"),
-    ]
+    ],
 )
 def test_get_kc_error(page_filename, expected):
-    with open(os.path.join(current_path, "data", page_filename)) as f:
-        page_data = f.read()
+    page_data = (current_path / "data" / page_filename).read_text()
     assert auth.get_kc_error(page_data) == expected
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("page_filename", "response", "expected_code", "expected_error", "expected_error_match"),
+    (
+        "page_filename",
+        "response",
+        "expected_code",
+        "expected_error",
+        "expected_error_match",
+    ),
     [
         # Valid OTP submission
         (
@@ -720,7 +739,7 @@ def test_get_kc_error(page_filename, expected):
             auth.InvalidOTP,
             "Invalid access code.",
         ),
-    ]
+    ],
 )
 async def test_submit_otp(
     page_filename,
@@ -734,7 +753,9 @@ async def test_submit_otp(
 ):
     challenge = await hs_auth.generate_challenge_data()
     hs_auth._bridge._web_session = aio_sess
-    auth_sess_data = auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id")
+    auth_sess_data = auth.AuthSessionData(
+        "url_sess_code", "url_exec_code", "url_tab_id"
+    )
     url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
     hs_auth._otp_data = {
         "params": url_params,
@@ -742,8 +763,7 @@ async def test_submit_otp(
         "challenge": challenge,
     }
     if page_filename:
-        with open(os.path.join(current_path, "data", page_filename)) as f:
-            response["body"] = f.read()
+        response["body"] = (current_path / "data" / page_filename).read_text()
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_CODE_ENDPOINT"])
     url = await build_url(url, url_params)
     mock_aioresponse.post(url, **response)
@@ -758,7 +778,9 @@ async def test_submit_otp(
 async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth, mocker):
     challenge = await hs_auth.generate_challenge_data()
     hs_auth._bridge._web_session = aio_sess
-    auth_sess_data = auth.AuthSessionData("url_sess_code", "url_exec_code", "url_tab_id")
+    auth_sess_data = auth.AuthSessionData(
+        "url_sess_code", "url_exec_code", "url_tab_id"
+    )
     url_params = auth.extract_login_codes(auth_sess_data, hs_auth._afero_client)
     hs_auth._otp_data = {
         "params": url_params,
@@ -794,6 +816,7 @@ async def test_perform_otp_login(mock_aioresponse, aio_sess, hs_auth, mocker):
         refresh_token="refresh_token",
         expiration=mocker.ANY,
     )
+
 
 @pytest.mark.asyncio
 async def test_perform_otp_login_not_ready(hs_auth):

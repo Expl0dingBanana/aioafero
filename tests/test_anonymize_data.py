@@ -3,7 +3,7 @@ from dataclasses import replace
 import pytest
 
 from aioafero import anonomyize_data
-from aioafero.device import AferoDevice, AferoState, AferoCapability
+from aioafero.device import AferoCapability, AferoDevice, AferoState
 
 POWER_STATE = {
     "functionClass": "power",
@@ -70,10 +70,7 @@ parent_dev_1 = AferoDevice(
             type="object",
             schedulable=False,
             functionInstance="sensor-1",
-            _opts={
-                "name": "Aaaaa",
-                "locale": "en_US"
-            }
+            _opts={"name": "Aaaaa", "locale": "en_US"},
         )
     ],
     functions=[],
@@ -102,7 +99,7 @@ def mock_uuid(mocker):
 
 
 @pytest.mark.parametrize(
-    "state,only_geo,expected",
+    ("state", "only_geo", "expected"),
     [
         # Non-geo + only_geo
         (
@@ -173,7 +170,7 @@ def test_anonymize_state(state, only_geo, expected, mocker):
 
 
 @pytest.mark.parametrize(
-    "device, device_links, parent_mapping, anon_name, expected",
+    ("device", "device_links", "parent_mapping", "anon_name", "expected"),
     [
         # Anon name
         (
@@ -250,7 +247,7 @@ def test_anonymize_device(
 
 
 @pytest.mark.parametrize(
-    "devices, expected, new_children",
+    ("devices", "expected", "new_children"),
     [
         # No parents
         ([child_dev_1], {}, []),
@@ -285,14 +282,14 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "friendly_name": "test-dev-1",
             "capabilities": [
                 {
-                '_opts': {
-                    'locale': 'en_US',
-                    'name': 'Aaaaa',
-                },
-                'functionClass': 'sensor-state',
-                'functionInstance': 'sensor-1',
-                'schedulable': False,
-                'type': 'object',
+                    "_opts": {
+                        "locale": "en_US",
+                        "name": "Aaaaa",
+                    },
+                    "functionClass": "sensor-state",
+                    "functionInstance": "sensor-1",
+                    "schedulable": False,
+                    "type": "object",
                 },
             ],
             "functions": [],
@@ -318,7 +315,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             ],
             "children": ["its-a-2", "its-a-1"],
             "manufacturerName": "test-manuf",
-            'version_data': None,
+            "version_data": None,
         },
         {
             "split_identifier": None,
@@ -353,7 +350,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             ],
             "children": [],
             "manufacturerName": "test-manuf",
-            'version_data': None,
+            "version_data": None,
         },
         {
             "split_identifier": None,
@@ -388,7 +385,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             ],
             "children": [],
             "manufacturerName": "test-manuf",
-            'version_data': None,
+            "version_data": None,
         },
     ]
     if anon_name:

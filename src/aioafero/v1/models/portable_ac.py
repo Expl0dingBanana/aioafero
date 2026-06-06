@@ -40,7 +40,7 @@ class PortableAC(StandardMixin, HVACMixin):
             "heat",
         ]:
             return checked_mode
-        if checked_mode in ["dehumidify"]:
+        if checked_mode == "dehumidify":
             return checked_prev_mode
         return None
 

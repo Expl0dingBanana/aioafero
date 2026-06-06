@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero.v1.models import features, DeviceInformation
+from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.fan import Fan
 
 
@@ -17,14 +17,14 @@ def populated_fan():
         ),
         device_information=DeviceInformation(
             functions=[
-            {
-                "functionClass": "preset",
-                "functionInstance": "preset-1",
-                "value": "on",
-                "lastUpdateTime": 0,
-            }
-        ]
-        )
+                {
+                    "functionClass": "preset",
+                    "functionInstance": "preset-1",
+                    "value": "on",
+                    "lastUpdateTime": 0,
+                }
+            ]
+        ),
     )
 
 
@@ -66,7 +66,6 @@ def test_empty_fan(empty_fan):
     assert not empty_fan.current_direction
     assert not empty_fan.supports_on
     assert not empty_fan.is_on
-
 
 
 @pytest.mark.parametrize(
