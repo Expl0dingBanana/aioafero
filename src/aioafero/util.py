@@ -9,6 +9,15 @@ def get_afero_base_time_ms() -> int:
     return int(datetime.now(UTC).timestamp() * 1000)
 
 
+def normalize_afero_last_update_time_ms(last_update_time: int | None) -> int:
+    """Normalize v1 lastUpdateTime values to epoch milliseconds."""
+    if last_update_time is None:
+        return get_afero_base_time_ms()
+    if last_update_time < 10_000_000_000:
+        return last_update_time * 1000
+    return last_update_time
+
+
 def percentage_to_ordered_list_item[_T](ordered_list: list[_T], percentage: int) -> _T:
     """Find the item that most closely matches the percentage in an ordered list.
 

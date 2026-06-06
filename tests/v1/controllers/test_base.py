@@ -1136,7 +1136,6 @@ async def test_update_dev_not_found(ex1_rc, caplog):
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
                     "value": "on",
-                    "lastUpdateTime": 123456,
                 }
             ],
             [
@@ -1144,7 +1143,7 @@ async def test_update_dev_not_found(ex1_rc, caplog):
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
                     "value": "on",
-                    "lastUpdateTime": 123456,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 }
             ],
             test_res_update,
@@ -1415,7 +1414,7 @@ async def callback_test(elem, update_vals: dataclass):
             TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
             TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),
             {},
-False,
+            False,
             [],
         ),
         # Test duplicates
@@ -1503,7 +1502,7 @@ def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, ex
                     "value": "False",
                     "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
-{
+                {
                     "functionClass": "b2",
                     "functionInstance": "one",
                     "value": "beans",
@@ -1568,6 +1567,23 @@ def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected):
             "cool",
             "beans",
             {"functionClass": "beans", "functionInstance": "cool", "value": 12},
+            {
+                "functionClass": "beans",
+                "functionInstance": "cool",
+                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
+                "value": 12,
+            },
+        ),
+        # dict val with stale lastUpdateTime is replaced on outbound states
+        (
+            "cool",
+            "beans",
+            {
+                "functionClass": "beans",
+                "functionInstance": "cool",
+                "value": 12,
+                "lastUpdateTime": 12345,
+            },
             {
                 "functionClass": "beans",
                 "functionInstance": "cool",

@@ -415,15 +415,7 @@ class BaseResourcesController(Generic[AferoResource]):
     async def _process_state_update(
         self, cur_item: AferoResource, device_id: str, states: list[dict]
     ) -> None:
-        dev_states = [
-            AferoState(
-                functionClass=state["functionClass"],
-                value=state["value"],
-                functionInstance=state.get("functionInstance"),
-                lastUpdateTime=get_afero_base_time_ms(),
-            )
-            for state in states
-        ]
+        dev_states = [convert_state(state) for state in states]
         dummy_update = AferoDevice(
             id=device_id,
             device_id=cur_item.device_information.parent_id,
@@ -517,7 +509,7 @@ class BaseResourcesController(Generic[AferoResource]):
                 self._logger.debug("No states to send. Skipping")
                 return None
         else:  # Manually setting states
-            device_states = states
+            device_states = get_afero_states_from_list(states) if states else None
         # @TODO - Implement bluetooth logic for update
         if res := await self.update_afero_api(update_id, device_states):
             resp_json = await res.json()
@@ -637,20 +629,20 @@ def get_afero_state_from_feature(
     new_state = {
         "functionClass": func_class,
         "functionInstance": func_instance,
-        "lastUpdateTime": get_afero_base_time_ms(),
         "value": None,
     }
     if isinstance(current_val, dict):
         new_state.update(current_val)
     else:
         new_state["value"] = current_val
+    new_state["lastUpdateTime"] = get_afero_base_time_ms()
     return new_state
 
 
 def get_afero_states_from_list(states: list[dict]) -> list[dict]:
     """Add timestamp to the states.
 
-    Assume the state already has functionClass, functionState, and value
+    Assume the state already has functionClass, functionInstance, and value
     """
     return [
         get_afero_state_from_feature(

@@ -16,6 +16,22 @@ def test_get_afero_base_time_ms(mocker):
 
 
 @pytest.mark.parametrize(
+    ("last_update_time", "expected"),
+    [
+        (None, 12345000),
+        (12345, 12345000),
+        (1668551478232, 1668551478232),
+    ],
+)
+def test_normalize_afero_last_update_time_ms(last_update_time, expected, mocker):
+    mocker.patch(
+        "aioafero.util.get_afero_base_time_ms",
+        return_value=12345000,
+    )
+    assert util.normalize_afero_last_update_time_ms(last_update_time) == expected
+
+
+@pytest.mark.parametrize(
     "vals, percentage, expected, err",
     [
         ([], None, None, True),
