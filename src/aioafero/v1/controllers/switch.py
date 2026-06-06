@@ -10,10 +10,9 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class SwitchController(BaseResourcesController[Switch]):
-    """Controller holding and managing Afero IoT resources of type `switch`.
+    """Switch devices on ``bridge.switches``.
 
-    A switch can have one or more toggleable elements. They are controlled
-    by their functionInstance.
+    A switch can have one or more toggleable elements controlled by ``instance``.
     """
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
@@ -30,11 +29,23 @@ class SwitchController(BaseResourcesController[Switch]):
     ITEM_BINARY_SENSORS: dict[str, str] = {}
 
     async def turn_on(self, device_id: str, instance: str | None = None) -> None:
-        """Turn on the switch."""
+        """Turn on the switch.
+
+        Args:
+            device_id: Device ID from this controller.
+            instance: ``functionInstance`` when the device has multiple toggles.
+
+        """
         await self.set_state(device_id, on=True, instance=instance)
 
     async def turn_off(self, device_id: str, instance: str | None = None) -> None:
-        """Turn off the switch."""
+        """Turn off the switch.
+
+        Args:
+            device_id: Device ID from this controller.
+            instance: ``functionInstance`` when the device has multiple toggles.
+
+        """
         await self.set_state(device_id, on=False, instance=instance)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Switch:
@@ -114,7 +125,14 @@ class SwitchController(BaseResourcesController[Switch]):
         on: bool | None = None,
         instance: str | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Update switch state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            on: Power state for the selected instance.
+            instance: ``functionInstance`` when the device has multiple toggles.
+
+        """
         update_obj = SwitchPut()
         try:
             cur_item = self.get_device(device_id)

@@ -9,7 +9,7 @@ from .base import AferoBinarySensor, BaseResourcesController
 
 
 class SecuritySystemKeypadController(BaseResourcesController[SecuritySystemKeypad]):
-    """Controller holding and managing Afero IoT resources of type `security-system-keypad`."""
+    """Security keypads on ``bridge.security_systems_keypads``."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.SECURITY_SYSTEM_KEYPAD]
@@ -86,7 +86,13 @@ class SecuritySystemKeypadController(BaseResourcesController[SecuritySystemKeypa
         device_id: str,
         selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
-        """Set supported feature(s) to Security System resource."""
+        """Update security keypad selects in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            selects: Select features keyed by ``(functionClass, functionInstance)``.
+
+        """
         update_obj = SecuritySystemKeypadPut()
         try:
             cur_item = self.get_device(device_id)

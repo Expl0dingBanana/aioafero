@@ -219,7 +219,7 @@ def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
 
 
 class SecuritySystemController(BaseResourcesController[SecuritySystem]):
-    """Controller holding and managing Afero IoT resources of type `security-system`."""
+    """Security systems on ``bridge.security_systems``."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.SECURITY_SYSTEM]
@@ -272,19 +272,40 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
     }
 
     async def disarm(self, device_id: str, disarm_pin: int) -> None:
-        """Disarm the system."""
+        """Disarm the security system.
+
+        Args:
+            device_id: Device ID from this controller.
+            disarm_pin: Numeric PIN configured on the panel.
+
+        """
         await self.set_state(device_id, disarm_pin=disarm_pin)
 
     async def arm_home(self, device_id: str) -> None:
-        """Arms the system while someone is home."""
+        """Arm the system in home mode.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, command=4)
 
     async def arm_away(self, device_id: str) -> None:
-        """Arms the system while no one is home."""
+        """Arm the system in away mode.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, command=2)
 
     async def alarm_trigger(self, device_id: str) -> None:
-        """Manually trigger the alarm."""
+        """Manually trigger the alarm siren.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, command=5)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> SecuritySystem:
@@ -407,7 +428,16 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
         numbers: dict[tuple[str, str | None], float] | None = None,
         selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
-        """Set supported feature(s) to Security System resource."""
+        """Update security system state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            disarm_pin: PIN for disarm commands.
+            command: Panel command code (``2`` away, ``4`` home, ``5`` alarm trigger).
+            numbers: Number features keyed by ``(functionClass, functionInstance)``.
+            selects: Select features keyed by ``(functionClass, functionInstance)``.
+
+        """
         update_obj = SecuritySystemPut()
         force_mode = False
         try:

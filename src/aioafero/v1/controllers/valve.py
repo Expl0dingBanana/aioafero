@@ -10,10 +10,9 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class ValveController(BaseResourcesController[Valve]):
-    """Controller holding and managing Afero IoT resources of type `valve`.
+    """Valve / water-timer devices on ``bridge.valves``.
 
-    A valve can have one or more toggleable elements. They are controlled
-    by their functionInstance.
+    Valves can have multiple toggleable elements controlled by ``instance``.
     """
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
@@ -22,11 +21,23 @@ class ValveController(BaseResourcesController[Valve]):
     ITEM_MAPPING = {}
 
     async def turn_on(self, device_id: str, instance: str | None = None) -> None:
-        """Open the valve."""
+        """Open the valve.
+
+        Args:
+            device_id: Device ID from this controller.
+            instance: ``functionInstance`` for multi-zone valves.
+
+        """
         await self.set_state(device_id, valve_open=True, instance=instance)
 
     async def turn_off(self, device_id: str, instance: str | None = None) -> None:
-        """Close the valve."""
+        """Close the valve.
+
+        Args:
+            device_id: Device ID from this controller.
+            instance: ``functionInstance`` for multi-zone valves.
+
+        """
         await self.set_state(device_id, valve_open=False, instance=instance)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Valve:
@@ -99,7 +110,14 @@ class ValveController(BaseResourcesController[Valve]):
         valve_open: bool | None = None,
         instance: str | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Update valve state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            valve_open: ``True`` to open, ``False`` to close.
+            instance: ``functionInstance`` for multi-zone valves.
+
+        """
         update_obj = ValvePut()
         try:
             cur_item = self.get_device(device_id)

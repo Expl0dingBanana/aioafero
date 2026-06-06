@@ -105,7 +105,7 @@ class AferoBridgeV1:
         for device state updates. Defaults to 30 seconds.
     :param discovery_interval: The interval in seconds between polling the Afero API
         for new devices. Defaults to 3600 seconds (1 hour).
-    :param afero_client: The Afero client identifier (e.g., "hubspace", "myko").
+    :param afero_client: The Afero client identifier (``"hubspace"``).
         Defaults to "hubspace".
     :param hide_secrets: If True, sensitive information will be redacted from logs.
         Defaults to True.
@@ -332,11 +332,18 @@ class AferoBridgeV1:
         self,
         callback: EventCallBackType,
     ) -> Callable:
-        """Subscribe to status changes for all resources.
+        """Register a callback for resource changes on all initialized controllers.
 
-        :param callback: The function to call when an event occurs.
+        The cloud API is polled on ``polling_interval``; when state changes, controllers
+        merge updates and invoke ``callback(event_type, item)`` in-process. ``item`` is
+        the controller's resource model (``Fan``, ``Light``, etc.).
 
-        :return: A function that can be called to unsubscribe from the events.
+        Args:
+            callback: Called as ``callback(event_type, item)``. May be sync or async.
+
+        Returns:
+            Callable that removes this subscription from every controller.
+
         """
         unsubscribes = [
             controller.subscribe(callback) for controller in self.controllers

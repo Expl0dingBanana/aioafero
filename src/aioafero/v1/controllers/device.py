@@ -9,7 +9,7 @@ from .event import AferoEvent, EventType
 
 
 class DeviceController(BaseResourcesController[Device]):
-    """Controller that identifies top-level components."""
+    """Top-level / parent devices on ``bridge.devices`` (read-only)."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = []

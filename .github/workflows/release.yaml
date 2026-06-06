@@ -29,3 +29,17 @@ jobs:
           tox -e build
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  docs-publish:
+    needs: ci
+    name: publish documentation to Read the Docs
+    runs-on: ubuntu-latest
+    if: github.ref_name == github.event.repository.default_branch
+    steps:
+      - name: Trigger Read the Docs build
+        env:
+          READTHEDOCS_TOKEN: ${{ secrets.READTHEDOCS_TOKEN }}
+        run: |
+          curl --fail-with-body -X POST \
+            -H "Authorization: Token ${READTHEDOCS_TOKEN}" \
+            "https://readthedocs.org/api/v3/projects/aioafero/versions/latest/builds/"

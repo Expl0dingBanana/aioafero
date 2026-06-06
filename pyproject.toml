@@ -21,12 +21,13 @@ maintainers = [
 description = "Talk to the Afero API asynchronously"
 readme = "README.rst"
 license = {file = "LICENSE.txt"}
-keywords = ["Afero", "Afero IoT", "Hubspace", "Myko"]
+keywords = ["Afero", "Afero IoT", "Hubspace"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 
 [project.optional-dependencies]
@@ -46,12 +47,18 @@ test = [
   "anyio[trio]",
   "tox",
 ]
+docs = [
+  "sphinx>=9.1.0",
+  "furo",
+  "sphinx-copybutton",
+]
 cli = [
   "click",
 ]
 
 [project.urls]
 Repository = "https://github.com/Expl0dingBanana/aioafero"
+Documentation = "https://aioafero.readthedocs.io/en/latest/"
 Changelog = "https://github.com/Expl0dingBanana/aioafero/blob/main/CHANGELOG.rst"
 
 # pyproject.toml

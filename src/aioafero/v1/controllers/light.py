@@ -164,7 +164,7 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
 
 
 class LightController(BaseResourcesController[Light]):
-    """Controller holding and managing Hubspace resources of type `light`."""
+    """Light devices on ``bridge.lights`` (including split zones)."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.LIGHT]
@@ -185,15 +185,31 @@ class LightController(BaseResourcesController[Light]):
     }
 
     async def turn_on(self, device_id: str) -> None:
-        """Turn on the light."""
+        """Turn on the light.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, on=True)
 
     async def turn_off(self, device_id: str) -> None:
-        """Turn off the light."""
+        """Turn off the light.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, on=False)
 
     async def set_color_temperature(self, device_id: str, temperature: int) -> None:
-        """Set color temperature, or white mode when the zone has no CCT function."""
+        """Set color temperature or white mode when CCT is unavailable.
+
+        Args:
+            device_id: Device ID from this controller.
+            temperature: Color temperature in kelvin.
+
+        """
         try:
             cur_item = self.get_device(device_id)
         except errors.DeviceNotFound:
@@ -222,23 +238,50 @@ class LightController(BaseResourcesController[Light]):
         on: bool | None = True,
         brightness: int | None = None,
     ) -> None:
-        """Set API white mode (color-mode white) without a color-temperature function."""
+        """Set white mode without a color-temperature function.
+
+        Args:
+            device_id: Device ID from this controller.
+            on: Power state (defaults to ``True``).
+            brightness: Brightness percentage when ``on`` is ``True``.
+
+        """
         await self.set_state(
             device_id, on=on, color_mode="white", brightness=brightness
         )
 
     async def set_brightness(self, device_id: str, brightness: int) -> None:
-        """Set brightness of the light. Turn on light if it's currently off."""
+        """Set brightness, turning the light on if needed.
+
+        Args:
+            device_id: Device ID from this controller.
+            brightness: Brightness percentage.
+
+        """
         await self.set_state(device_id, on=True, brightness=brightness)
 
     async def set_rgb(self, device_id: str, red: int, green: int, blue: int) -> None:
-        """Set RGB of the light. Turn on light if it's currently off."""
+        """Set RGB color, turning the light on if needed.
+
+        Args:
+            device_id: Device ID from this controller.
+            red: Red channel ``0``–``255``.
+            green: Green channel ``0``–``255``.
+            blue: Blue channel ``0``–``255``.
+
+        """
         await self.set_state(
             device_id, on=True, color=(red, green, blue), color_mode="color"
         )
 
     async def set_effect(self, device_id: str, effect: str) -> None:
-        """Set effect of the light. Turn on light if it's currently off."""
+        """Set a color sequence effect, turning the light on if needed.
+
+        Args:
+            device_id: Device ID from this controller.
+            effect: Effect name from the model's ``effect.effects`` list.
+
+        """
         await self.set_state(device_id, on=True, effect=effect, color_mode="sequence")
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Light:
@@ -433,9 +476,19 @@ class LightController(BaseResourcesController[Light]):
         force_white_mode: int | None = None,
         numbers: dict[tuple[str, str], float] | None = None,
     ) -> None:
-        """Set supported feature(s) to light resource.
+        """Update light state in the cloud.
 
-        force_white_mode's value should be the brightness percentage after switching to white
+        Args:
+            device_id: Device ID from this controller.
+            on: Power state.
+            temperature: Color temperature in kelvin.
+            brightness: Brightness percentage.
+            color_mode: API color mode (``white``, ``color``, ``sequence``, etc.).
+            color: RGB tuple ``(red, green, blue)``.
+            effect: Named color sequence effect.
+            force_white_mode: Brightness to apply after forcing white mode.
+            numbers: Number features keyed by ``(functionClass, functionInstance)``.
+
         """
         update_obj = LightPut()
         try:

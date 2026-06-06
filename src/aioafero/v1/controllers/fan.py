@@ -12,7 +12,7 @@ KNOWN_PRESETS = {"comfort-breeze"}
 
 
 class FanController(BaseResourcesController[Fan]):
-    """Controller holding and managing Afero IoT resources of type `fan`."""
+    """Fan devices on ``bridge.fans``."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.FAN]
@@ -24,19 +24,42 @@ class FanController(BaseResourcesController[Fan]):
     }
 
     async def turn_on(self, device_id: str) -> None:
-        """Turn on the fan."""
+        """Turn on the fan.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, on=True)
 
     async def turn_off(self, device_id: str) -> None:
-        """Turn off the fan."""
+        """Turn off the fan.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(device_id, on=False)
 
     async def set_speed(self, device_id: str, speed: int) -> None:
-        """Set the speed of the fan, as a percentage."""
+        """Set fan speed as a percentage.
+
+        Args:
+            device_id: Device ID from this controller.
+            speed: Speed percentage (``0`` turns the fan off).
+
+        """
         await self.set_state(device_id, on=True, speed=speed)
 
     async def set_direction(self, device_id: str, forward: bool) -> None:
-        """Set the direction of the fan to forward."""
+        """Set fan rotation direction.
+
+        Args:
+            device_id: Device ID from this controller.
+            forward: ``True`` for forward, ``False`` for reverse. Ignored if the fan
+                is off (Hubspace API quirk).
+
+        """
         cur_item = self.get_device(device_id)
         if not cur_item.is_on:
             # Thanks Hubspace for this one! Additionally, turning it on and setting
@@ -45,7 +68,13 @@ class FanController(BaseResourcesController[Fan]):
         await self.set_state(device_id, forward=forward)
 
     async def set_preset(self, device_id: str, preset: bool) -> None:
-        """Set the preset of the fan."""
+        """Enable or disable the comfort-breeze preset.
+
+        Args:
+            device_id: Device ID from this controller.
+            preset: ``True`` to enable the preset, ``False`` to disable.
+
+        """
         await self.set_state(device_id, on=True, preset=preset)
 
     async def initialize_elem(self, afero_device: AferoDevice) -> Fan:
@@ -164,7 +193,16 @@ class FanController(BaseResourcesController[Fan]):
         forward: bool | None = None,
         preset: bool | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Update fan state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            on: Power state.
+            speed: Fan speed percentage (``0`` turns off).
+            forward: ``True`` for forward rotation, ``False`` for reverse.
+            preset: Comfort-breeze preset enabled state.
+
+        """
         update_obj = FanPut()
         cur_item = self.get_device(device_id)
         if on is not None:

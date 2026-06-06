@@ -1,25 +1,51 @@
-===========
-aiohubspace
-===========
-
-This package enables easy access to the HubSpace API by providing a username
-and password. The package also only supports async and will not work in a
-synchronous environment.
-
-
-Contents
 ========
+aioafero
+========
+
+Async Python library for the Afero / Hubspace cloud API.
+
+This package enables async access to Hubspace (Afero cloud) accounts. It is
+library-only — Home Assistant integrations such as
+`Hubspace-Homeassistant <https://github.com/jdeath/Hubspace-Homeassistant>`_ consume
+it from PyPI.
+
+**Documentation:** https://aioafero.readthedocs.io/
+
+Quick links
+===========
 
 .. toctree::
    :maxdepth: 2
+   :caption: User guide
 
-   Overview <readme>
-   Contributions & Help <contributing>
-   License <license>
-   Authors <authors>
-   Changelog <changelog>
-   Module Reference <api/modules>
+   user/overview
+   user/installation
+   user/bridge
+   user/controllers/index
+   user/examples
+   user/troubleshooting
+   user/device_splitting
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contributing
+
+   contributing
+   testing
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API reference
+
+   reference/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Project info
+
+   changelog
+   license
+   authors
 
 Indices and tables
 ==================

@@ -9,7 +9,7 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 
 
 class LockController(BaseResourcesController[Lock]):
-    """Controller holding and managing Afero IoT resources of type `lock`."""
+    """Lock devices on ``bridge.locks``."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.LOCK]
@@ -17,13 +17,23 @@ class LockController(BaseResourcesController[Lock]):
     ITEM_MAPPING = {"position": "lock-control"}
 
     async def lock(self, device_id: str) -> None:
-        """Engage the lock."""
+        """Engage the lock.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(
             device_id, lock_position=features.CurrentPositionEnum.LOCKING
         )
 
     async def unlock(self, device_id: str) -> None:
-        """Disengage the lock."""
+        """Disengage the lock.
+
+        Args:
+            device_id: Device ID from this controller.
+
+        """
         await self.set_state(
             device_id, lock_position=features.CurrentPositionEnum.UNLOCKING
         )
@@ -94,7 +104,13 @@ class LockController(BaseResourcesController[Lock]):
         device_id: str,
         lock_position: features.CurrentPositionEnum | None = None,
     ) -> None:
-        """Set supported feature(s) to lock resource."""
+        """Update lock state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            lock_position: Target lock position (``LOCKING`` / ``UNLOCKING``).
+
+        """
         update_obj = LockPut()
         if lock_position is not None:
             update_obj.position = features.CurrentPositionFeature(

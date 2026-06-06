@@ -15,9 +15,7 @@ from tests.v1 import utils
 portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
 portable_ac_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
 
-portable_ac_swing = utils.create_devices_from_data("myko-portable-ac-with-swing.json")[
-    1
-]
+portable_ac_swing = utils.create_devices_from_data("portable-ac-with-swing.json")[1]
 portable_ac_swing_id = "c31e1854-87de-47a7-ac62-f1cefe3ecba4"
 
 portable_ac_f = utils.create_devices_from_data("portable-ac-f.json")[0]

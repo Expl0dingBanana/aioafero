@@ -50,7 +50,11 @@ class NumbersName(NamedTuple):
 
 
 class BaseResourcesController[AferoResource]:
-    """Base Controller for Afero IoT Cloud devices."""
+    """Base controller for device types registered on ``AferoBridgeV1``.
+
+    Subclasses expose typed models and action methods. Use ``get_device`` to read
+    state and ``subscribe`` for update callbacks.
+    """
 
     ITEM_TYPE_ID: ResourceTypes | None = None
     ITEM_TYPES: list[ResourceTypes] | None = None
@@ -531,8 +535,19 @@ class BaseResourcesController[AferoResource]:
         afero_dev.states = merge_afero_states(afero_dev.states, states)
         return afero_dev
 
-    def get_device(self, device_id) -> AferoResource:
-        """Lookup the device with the given ID."""
+    def get_device(self, device_id: str) -> AferoResource:
+        """Return the current model for a tracked device.
+
+        Args:
+            device_id: Device ID on this controller (split or parent metadevice ID).
+
+        Returns:
+            Resource model with parsed feature state.
+
+        Raises:
+            DeviceNotFound: If ``device_id`` is not tracked by this controller.
+
+        """
         try:
             return self[device_id]
         except KeyError as err:

@@ -33,6 +33,19 @@ jobs:
           pip install tox
           tox -e lint
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python ${{ inputs.lint-python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.lint-python-version }}
+      - name: Build documentation (tox -e docs)
+        run: |
+          pip install tox
+          tox -e docs
+
   run_tests:
     runs-on: ubuntu-latest
     strategy:

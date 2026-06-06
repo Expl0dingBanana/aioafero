@@ -48,7 +48,10 @@ def portable_ac_callback(afero_device: AferoDevice) -> CallbackResponse:
 
 
 class PortableACController(ClimateController[PortableAC]):
-    """Controller holding and managing Afero IoT resources of type `portable-air-conditioner`."""
+    """Portable air conditioners on ``bridge.portable_acs``.
+
+    The power toggle is split onto ``bridge.switches``.
+    """
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.PORTABLE_AC]
@@ -110,7 +113,18 @@ class PortableACController(ClimateController[PortableAC]):
         return await self.update_climate_elem(afero_device)
 
     async def set_state(self, device_id: str, **kwargs) -> None:
-        """Set supported feature(s) to portable ac resource."""
+        """Update portable AC climate state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            hvac_mode: HVAC mode name from ``hvac_mode.supported_modes``.
+            target_temperature: Cooling setpoint shorthand.
+            target_temperature_cooling: Cooling setpoint.
+            target_temperature_heating: Heating setpoint (when supported).
+            selects: Select features keyed by ``(functionClass, functionInstance)``.
+            **kwargs: Remaining climate fields forwarded to ``set_climate_state``.
+
+        """
         update_obj = PortableACPut()
         hvac_mode: str | None = kwargs.get("hvac_mode")
         target_temperature: float | None = kwargs.get("target_temperature")

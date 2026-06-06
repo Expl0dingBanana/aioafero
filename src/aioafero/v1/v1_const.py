@@ -12,14 +12,6 @@ AFERO_CLIENTS: Final[dict[str, dict[str, str]]] = {
         "AUTH_OPENID_HOST": "accounts.hubspaceconnect.com",
         "AUTH_REALM": "thd",
     },
-    "myko": {
-        "API_DATA_HOST": "semantics2.sxz2xlhh.afero.net",
-        "API_HOST": "api2.sxz2xlhh.afero.net",
-        "AUTH_DEFAULT_CLIENT_ID": "kfi_android",
-        "AUTH_DEFAULT_REDIRECT_URI": "kfi-app://loginredirect",
-        "AUTH_OPENID_HOST": "accounts.mykoapp.com",
-        "AUTH_REALM": "kfi",
-    },
 }
 
 

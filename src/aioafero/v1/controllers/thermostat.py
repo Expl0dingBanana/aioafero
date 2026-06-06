@@ -12,7 +12,7 @@ from .climate import ClimateController
 
 
 class ThermostatController(ClimateController[Thermostat]):
-    """Controller holding and managing Afero IoT resources of type `thermostat`."""
+    """Thermostat devices on ``bridge.thermostats``."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.THERMOSTAT]
@@ -123,23 +123,48 @@ class ThermostatController(ClimateController[Thermostat]):
         return updated_keys
 
     async def set_fan_mode(self, device_id: str, fan_mode: str) -> None:
-        """Enable or disable fan mode."""
+        """Set thermostat fan mode.
+
+        Args:
+            device_id: Device ID from this controller.
+            fan_mode: Fan mode name from the device model's ``fan_mode.modes``.
+
+        """
         return await self.set_state(device_id, fan_mode=fan_mode)
 
     async def set_hvac_mode(self, device_id: str, hvac_mode: str) -> None:
-        """Set the current mode of the HVAC system."""
+        """Set HVAC mode.
+
+        Args:
+            device_id: Device ID from this controller.
+            hvac_mode: Mode name from ``hvac_mode.supported_modes`` on the model.
+
+        """
         return await self.set_state(device_id, hvac_mode=hvac_mode)
 
     async def set_target_temperature(
         self, device_id: str, target_temperature: float
     ) -> None:
-        """Set the target temperature."""
+        """Set target temperature for the active heat/cool mode.
+
+        Args:
+            device_id: Device ID from this controller.
+            target_temperature: Target temperature in the bridge's configured unit.
+
+        """
         return await self.set_state(device_id, target_temperature=target_temperature)
 
     async def set_temperature_range(
         self, device_id: str, temp_low: float, temp_high: float
     ) -> None:
-        """Set the temperature range for the thermostat."""
+        """Set auto-mode heating/cooling setpoints.
+
+        Args:
+            device_id: Device ID from this controller.
+            temp_low: Auto-mode heating setpoint.
+            temp_high: Auto-mode cooling setpoint.
+
+        """
         return await self.set_state(
             device_id,
             target_temperature_auto_heating=temp_low,
@@ -159,7 +184,22 @@ class ThermostatController(ClimateController[Thermostat]):
         target_temperature_cooling: float | None = None,
         **kwargs,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Update thermostat state in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            fan_mode: Fan mode name.
+            hvac_mode: HVAC mode name.
+            safety_max_temp: Maximum safety cutoff temperature.
+            safety_min_temp: Minimum safety cutoff temperature.
+            target_temperature_auto_heating: Auto-mode heating setpoint.
+            target_temperature_auto_cooling: Auto-mode cooling setpoint.
+            target_temperature_heating: Heating setpoint.
+            target_temperature_cooling: Cooling setpoint.
+            target_temperature: Shorthand applied to the active heat/cool setpoint.
+            **kwargs: Remaining climate fields forwarded to ``set_climate_state``.
+
+        """
         update_obj = ThermostatPut()
         cur_item = self.get_device(device_id)
         if fan_mode is not None:

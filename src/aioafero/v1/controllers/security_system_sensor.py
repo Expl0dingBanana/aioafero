@@ -15,7 +15,7 @@ from .security_system import (
 
 
 class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSensor]):
-    """Controller holding and managing Afero IoT `security-system` for the sensors."""
+    """Security sensors split from a system on ``bridge.security_systems_sensors``."""
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.SECURITY_SYSTEM_SENSOR]
@@ -110,7 +110,15 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         device_id: str,
         selects: dict[tuple[str, int | None], str] | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Update security sensor selects in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            selects: Select values keyed by ``(functionClass, functionInstance)``.
+                Supported keys include ``chirpMode``, ``triggerType``, and
+                ``bypassType``.
+
+        """
         update_obj = SecuritySystemSensorPut()
         try:
             cur_item: SecuritySystemSensor = self.get_device(device_id)

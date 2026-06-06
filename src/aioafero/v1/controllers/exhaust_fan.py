@@ -62,11 +62,10 @@ def exhaust_fan_callback(afero_device: AferoDevice) -> CallbackResponse:
 
 
 class ExhaustFanController(BaseResourcesController[ExhaustFan]):
-    """Controller holding and managing Afero IoT resources of type `exhaust-fan`.
+    """Exhaust fans on ``bridge.exhaust_fans``.
 
-    An exhaust fan tracks sensors, numbers, and selects. Toggles are controlled by
-    SwitchController, fan is controlled by FanController, and light is controlled
-    by LightController.
+    Tracks sensors, numbers, and selects. Toggles, fan speed, and light on the same
+    unit are on ``bridge.switches``, ``bridge.fans``, and ``bridge.lights``.
     """
 
     ITEM_TYPE_ID = ResourceTypes.DEVICE
@@ -168,7 +167,14 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
         numbers: dict[tuple[str, str], float] | None = None,
         selects: dict[tuple[str, str], str] | None = None,
     ) -> None:
-        """Set supported feature(s) to fan resource."""
+        """Update exhaust fan numbers and selects in the cloud.
+
+        Args:
+            device_id: Device ID from this controller.
+            numbers: Number features keyed by ``(functionClass, functionInstance)``.
+            selects: Select features keyed by ``(functionClass, functionInstance)``.
+
+        """
         update_obj = ExhaustFanPut()
         try:
             cur_item = self.get_device(device_id)
