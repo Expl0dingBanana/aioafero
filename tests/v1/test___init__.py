@@ -220,15 +220,30 @@ async def test_send_service_request(mocked_bridge, mocker):
     mocked_bridge.add_device(zandra_light.id, controller)
     assert controller[zandra_light.id].on.on is True
     states = [{"functionClass": "power", "functionInstance": "light-power", "value": "off"}]
+    expected_states = [
+        {
+            "functionClass": "power",
+            "functionInstance": "light-power",
+            "value": "off",
+            "lastUpdateTime": 12345000,
+        }
+    ]
     resp = mocker.AsyncMock()
-    resp.json = mocker.AsyncMock(return_value={"metadeviceId": zandra_light.id, "values": states})
-    mocker.patch.object(
+    resp.json = mocker.AsyncMock(
+        return_value={"metadeviceId": zandra_light.id, "values": expected_states}
+    )
+    update_afero_api = mocker.patch.object(
         controller, "update_afero_api", return_value=resp
+    )
+    mocker.patch(
+        "aioafero.v1.controllers.base.get_afero_base_time_ms",
+        return_value=12345000,
     )
     await mocked_bridge.send_service_request(
         zandra_light.id,
         states,
     )
+    update_afero_api.assert_called_once_with(zandra_light.id, expected_states)
     await mocked_bridge.async_block_until_done()
     assert controller[zandra_light.id].on.on is False
 

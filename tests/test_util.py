@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from aioafero import util
@@ -5,6 +7,28 @@ from aioafero import util
 from .v1 import utils
 
 thermostat = utils.create_devices_from_data("thermostat.json")[0]
+
+
+def test_get_afero_base_time_ms(mocker):
+    mock_datetime = mocker.patch("aioafero.util.datetime")
+    mock_datetime.now.return_value = datetime.fromtimestamp(12345, tz=UTC)
+    assert util.get_afero_base_time_ms() == 12345000
+
+
+@pytest.mark.parametrize(
+    ("last_update_time", "expected"),
+    [
+        (None, 12345000),
+        (12345, 12345000),
+        (1668551478232, 1668551478232),
+    ],
+)
+def test_normalize_afero_last_update_time_ms(last_update_time, expected, mocker):
+    mocker.patch(
+        "aioafero.util.get_afero_base_time_ms",
+        return_value=12345000,
+    )
+    assert util.normalize_afero_last_update_time_ms(last_update_time) == expected
 
 
 @pytest.mark.parametrize(

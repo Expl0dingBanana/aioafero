@@ -28,6 +28,16 @@ from .. import utils
 
 _LOGGER = logging.getLogger(__name__)
 
+MOCK_LAST_UPDATE_TIME = 12345
+MOCK_LAST_UPDATE_TIME_MS = MOCK_LAST_UPDATE_TIME * 1000
+
+
+def patch_last_update_time(mocker):
+    """Patch lastUpdateTime generation to a fixed millisecond value."""
+    return mocker.patch(
+        "aioafero.v1.controllers.base.get_afero_base_time_ms",
+        return_value=MOCK_LAST_UPDATE_TIME_MS,
+    )
 
 
 @dataclass
@@ -1095,7 +1105,7 @@ async def test_update_dev_not_found(ex1_rc, caplog):
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
                     "value": "on",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 }
             ],
             test_res_update,
@@ -1112,7 +1122,7 @@ async def test_update_dev_not_found(ex1_rc, caplog):
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
                     "value": "on",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 }
             ],
             test_res,
@@ -1126,7 +1136,6 @@ async def test_update_dev_not_found(ex1_rc, caplog):
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
                     "value": "on",
-                    "lastUpdateTime": 123456,
                 }
             ],
             [
@@ -1134,7 +1143,7 @@ async def test_update_dev_not_found(ex1_rc, caplog):
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
                     "value": "on",
-                    "lastUpdateTime": 123456,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 }
             ],
             test_res_update,
@@ -1147,7 +1156,7 @@ async def test_update(
 ):
     ex1_rc = ex1_rc_mocked
     await ex1_rc.initialize()
-    mocker.patch("time.time", return_value=12345)
+    patch_last_update_time(mocker)
     await ex1_rc._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(test_device)]
     )
@@ -1199,19 +1208,19 @@ async def test_update(
                     "functionClass": "b1",
                     "functionInstance": None,
                     "value": "False",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "functionClass": "b2",
                     "functionInstance": "one",
                     "value": "cool",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "functionClass": "b2",
                     "functionInstance": "two",
                     "value": "beans",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
             test_res_update_dict,
@@ -1224,7 +1233,7 @@ async def test_update_dict(
 ):
     ex2_rc = ex2_rc_mocked
     await ex2_rc.initialize()
-    mocker.patch("time.time", return_value=12345)
+    patch_last_update_time(mocker)
     ex2_rc._items[device.id] = await ex2_rc.initialize_elem(device)
     ex2_rc._bridge.add_device(device.id, ex2_rc)
     ex2_rc._bridge.add_afero_dev(device)
@@ -1340,19 +1349,19 @@ async def callback_test(elem, update_vals: dataclass):
                     "functionClass": "b1",
                     "functionInstance": None,
                     "value": "False",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "functionClass": "b2",
                     "functionInstance": "one",
                     "value": "cool",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "functionClass": "b2",
                     "functionInstance": "two",
                     "value": "beans",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
         ),
@@ -1368,14 +1377,14 @@ async def callback_test(elem, update_vals: dataclass):
                 {
                     "functionClass": "power",
                     "functionInstance": None,
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                     "value": False,
                 },
                 {
                     "value": "on",
                     "functionClass": "mapped_beans",
                     "functionInstance": "bean2",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
         ),
@@ -1390,13 +1399,13 @@ async def callback_test(elem, update_vals: dataclass):
                     "value": "cool",
                     "functionClass": "bean-type",
                     "functionInstance": "temperature",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "value": "bean",
                     "functionClass": "bean-type",
                     "functionInstance": "warmth",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
         ),
@@ -1405,7 +1414,7 @@ async def callback_test(elem, update_vals: dataclass):
             TestResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
             TestResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),
             {},
-False,
+            False,
             [],
         ),
         # Test duplicates
@@ -1424,7 +1433,7 @@ False,
                  {
                      'functionClass': 'b2',
                      'functionInstance': 'two',
-                     'lastUpdateTime': 12345,
+                     'lastUpdateTime': MOCK_LAST_UPDATE_TIME_MS,
                      'value': 'cool',
                     },
                 ]
@@ -1432,7 +1441,7 @@ False,
     ],
 )
 def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, expected, mocker):
-    mocker.patch("time.time", return_value=12345)
+    patch_last_update_time(mocker)
     assert dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states) == expected
 
 
@@ -1460,13 +1469,13 @@ def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, ex
                     "functionClass": "b1",
                     "functionInstance": None,
                     "value": "False",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "functionClass": "b2",
                     "functionInstance": "two",
                     "value": "beans",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
         ),
@@ -1491,19 +1500,19 @@ def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, ex
                     "functionClass": "b1",
                     "functionInstance": None,
                     "value": "False",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
-{
+                {
                     "functionClass": "b2",
                     "functionInstance": "one",
                     "value": "beans",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
                 {
                     "functionClass": "b2",
                     "functionInstance": "two",
                     "value": "beans",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 },
             ],
         )
@@ -1512,7 +1521,7 @@ def test_dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states, ex
 def test_get_afero_states_from_mapped(
     element, field_name, update_vals, send_duplicate_states, expected, mocker
 ):
-    mocker.patch("time.time", return_value=12345)
+    patch_last_update_time(mocker)
     assert get_afero_states_from_mapped(element, field_name, update_vals, send_duplicate_states) == expected
 
 
@@ -1534,8 +1543,7 @@ def test_get_afero_states_from_mapped(
         (test_res_funcs, TestFeatureBool(on=True), None, None),
     ],
 )
-def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected, mocker):
-    mocker.patch("time.time", return_value=12345)
+def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected):
     assert get_afero_instance_for_state(elem, feat, mapped_afero_key) == expected
 
 
@@ -1550,7 +1558,7 @@ def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected, mo
             {
                 "functionClass": "cool",
                 "functionInstance": "beans",
-                "lastUpdateTime": 12345,
+                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 "value": "super-beans",
             },
         ),
@@ -1562,7 +1570,24 @@ def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected, mo
             {
                 "functionClass": "beans",
                 "functionInstance": "cool",
+                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
+                "value": 12,
+            },
+        ),
+        # dict val with stale lastUpdateTime is replaced on outbound states
+        (
+            "cool",
+            "beans",
+            {
+                "functionClass": "beans",
+                "functionInstance": "cool",
+                "value": 12,
                 "lastUpdateTime": 12345,
+            },
+            {
+                "functionClass": "beans",
+                "functionInstance": "cool",
+                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 "value": 12,
             },
         ),
@@ -1571,7 +1596,7 @@ def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected, mo
 def test_get_afero_state_from_feature(
     func_class, func_instance, current_val, expected, mocker
 ):
-    mocker.patch("time.time", return_value=12345)
+    patch_last_update_time(mocker)
     assert (
         get_afero_state_from_feature(func_class, func_instance, current_val) == expected
     )
@@ -1597,13 +1622,13 @@ def test_get_afero_state_from_feature(
                 {
                     "functionClass": "beans",
                     "functionInstance": "cool",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                     "value": 12,
                 },
                 {
                     "functionClass": "beans",
                     "functionInstance": "cool2",
-                    "lastUpdateTime": 12345,
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                     "value": 12,
                 },
             ],
@@ -1611,7 +1636,7 @@ def test_get_afero_state_from_feature(
     ],
 )
 def test_get_afero_states_from_list(states, expected, mocker):
-    mocker.patch("time.time", return_value=12345)
+    patch_last_update_time(mocker)
     assert get_afero_states_from_list(states) == expected
 
 

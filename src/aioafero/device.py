@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass, field, fields
 import logging
 from typing import Any, TypeVar
 
+from aioafero.util import normalize_afero_last_update_time_ms
+
 logger = logging.getLogger(__name__)
 
 
@@ -146,7 +148,7 @@ def convert_state(state: dict[str, Any]) -> AferoState:
     return AferoState(
         functionClass=state.get("functionClass"),
         value=state.get("value"),
-        lastUpdateTime=state.get("lastUpdateTime"),
+        lastUpdateTime=normalize_afero_last_update_time_ms(state.get("lastUpdateTime")),
         functionInstance=state.get("functionInstance"),
     )
 

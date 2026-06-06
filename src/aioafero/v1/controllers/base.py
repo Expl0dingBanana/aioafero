@@ -5,9 +5,7 @@ from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable, Iterator
 import contextlib
 from dataclasses import dataclass, fields
-from datetime import UTC, datetime
 import re
-import time
 from typing import TYPE_CHECKING, Any, Generic, NamedTuple
 
 import aiohttp
@@ -22,7 +20,7 @@ from aioafero.device import (
 )
 from aioafero.errors import DeviceNotFound, ExceededMaximumRetries
 from aioafero.types import TemperatureUnit
-from aioafero.util import process_function
+from aioafero.util import get_afero_base_time_ms, process_function
 from aioafero.v1 import v1_const
 from aioafero.v1.models.features import NumbersFeature, SelectFeature
 from aioafero.v1.models.resource import ResourceTypes
@@ -417,15 +415,7 @@ class BaseResourcesController(Generic[AferoResource]):
     async def _process_state_update(
         self, cur_item: AferoResource, device_id: str, states: list[dict]
     ) -> None:
-        dev_states = [
-            AferoState(
-                functionClass=state["functionClass"],
-                value=state["value"],
-                functionInstance=state.get("functionInstance"),
-                lastUpdateTime=int(datetime.now(UTC).timestamp() * 1000),
-            )
-            for state in states
-        ]
+        dev_states = [convert_state(state) for state in states]
         dummy_update = AferoDevice(
             id=device_id,
             device_id=cur_item.device_information.parent_id,
@@ -519,7 +509,7 @@ class BaseResourcesController(Generic[AferoResource]):
                 self._logger.debug("No states to send. Skipping")
                 return None
         else:  # Manually setting states
-            device_states = states
+            device_states = get_afero_states_from_list(states) if states else None
         # @TODO - Implement bluetooth logic for update
         if res := await self.update_afero_api(update_id, device_states):
             resp_json = await res.json()
@@ -609,14 +599,7 @@ def get_afero_states_from_mapped(
     for key, val in update_vals.items():
         if val == current_elems.get(key, None) and not send_duplicate_states:
             continue
-        states.append(
-            {
-                "functionClass": key[0],
-                "functionInstance": key[1],
-                "lastUpdateTime": int(time.time()),
-                "value": val.api_value,
-            }
-        )
+        states.append(get_afero_state_from_feature(key[0], key[1], val.api_value))
     return states
 
 
@@ -646,21 +629,26 @@ def get_afero_state_from_feature(
     new_state = {
         "functionClass": func_class,
         "functionInstance": func_instance,
-        "lastUpdateTime": int(time.time()),
         "value": None,
     }
     if isinstance(current_val, dict):
         new_state.update(current_val)
     else:
         new_state["value"] = current_val
+    new_state["lastUpdateTime"] = get_afero_base_time_ms()
     return new_state
 
 
 def get_afero_states_from_list(states: list[dict]) -> list[dict]:
     """Add timestamp to the states.
 
-    Assume the state already has functionClass, functionState, and value
+    Assume the state already has functionClass, functionInstance, and value
     """
-    for state in states:
-        state["lastUpdateTime"] = int(time.time())
-    return states
+    return [
+        get_afero_state_from_feature(
+            state["functionClass"],
+            state.get("functionInstance"),
+            state,
+        )
+        for state in states
+    ]
