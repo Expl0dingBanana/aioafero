@@ -167,7 +167,7 @@ class AferoAuth:
         return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_OPENID_HOST']}/auth/realms/{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_REALM']}/{endpoint}"
 
     def set_token_data(self, data: TokenData) -> None:
-        """Set the current taken data."""
+        """Set the current token data."""
         self._token_data = data
 
     def set_session(self, session: aiohttp.ClientSession) -> None:
