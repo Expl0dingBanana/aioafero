@@ -2,7 +2,7 @@ from dataclasses import replace
 
 import pytest
 
-from aioafero import anonomyize_data
+from aioafero import anonymize_data
 from aioafero.device import AferoCapability, AferoDevice, AferoState
 
 POWER_STATE = {
@@ -95,7 +95,7 @@ def mock_uuid(mocker):
             return "its-a-1"
         return "its-a-2"
 
-    mocker.patch.object(anonomyize_data, "uuid4", side_effect=get_uuid)
+    mocker.patch.object(anonymize_data, "uuid4", side_effect=get_uuid)
 
 
 @pytest.mark.parametrize(
@@ -165,8 +165,8 @@ def mock_uuid(mocker):
     ],
 )
 def test_anonymize_state(state, only_geo, expected, mocker):
-    mocker.patch.object(anonomyize_data, "uuid4", return_value="anon data")
-    assert anonomyize_data.anonymize_state(state, only_geo=only_geo) == expected
+    mocker.patch.object(anonymize_data, "uuid4", return_value="anon data")
+    assert anonymize_data.anonymize_state(state, only_geo=only_geo) == expected
 
 
 @pytest.mark.parametrize(
@@ -237,7 +237,7 @@ def test_anonymize_state(state, only_geo, expected, mocker):
 def test_anonymize_device(
     device, device_links, parent_mapping, anon_name, expected, mock_uuid
 ):
-    anon_dev = anonomyize_data.anonymize_device(
+    anon_dev = anonymize_data.anonymize_device(
         device, parent_mapping, device_links, anon_name
     )
     assert device.device_id in device_links
@@ -263,7 +263,7 @@ def test_anonymize_device(
     ],
 )
 def test_generate_parent_mapping(devices, expected, new_children, mock_uuid):
-    assert anonomyize_data.generate_parent_mapping(devices) == expected
+    assert anonymize_data.generate_parent_mapping(devices) == expected
     if new_children:
         assert devices[0].children == new_children
 
@@ -393,7 +393,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
         expected[1]["friendly_name"] = "friendly-device-2"
         expected[2]["friendly_name"] = "friendly-device-3"
     assert (
-        anonomyize_data.anonymize_devices(
+        anonymize_data.anonymize_devices(
             [parent_dev_1, child_dev_1, child_dev_2], anon_name=anon_name
         )
         == expected
