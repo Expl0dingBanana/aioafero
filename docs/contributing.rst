@@ -97,14 +97,10 @@ For faster iteration while editing RST files, sync **docs** and call Sphinx dire
    uv sync --extra docs
    uv run sphinx-build -W -b html docs docs/_build/html
 
-Open ``docs/_build/html/index.html`` in a browser, or serve the tree locally:
+Hosted docs are published on `Read the Docs <https://aioafero.readthedocs.io/>`_.
+Read the Docs builds automatically when changes land on the default branch (GitHub
+webhook). Pull requests run ``tox -e docs`` in CI as a build check only.
 
-.. code-block:: bash
-
-   cd docs/_build/html && python -m http.server 8000
-
-Then browse http://localhost:8000/ (user guide pages are under ``/user/``).
-
-Hosted docs are rebuilt when the **Publish** workflow runs after a release; until then,
-``main`` on GitHub may be ahead of what you see on Read the Docs — use a local build to
-review doc changes before merge.
+One-time RTD setup: import the GitHub repo on `readthedocs.org
+<https://readthedocs.org/>`_ with project slug ``aioafero`` and confirm
+``.readthedocs.yaml`` when prompted.

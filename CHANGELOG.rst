@@ -33,10 +33,11 @@ Breaking changes:
  * Redact PKCE ``code_verifier`` in challenge debug logs.
  * Removed implicit ``StreamHandler`` from ``AferoBridgeV1``; configure logging in the host app.
  * Dependency floors: ``aiohttp>=3.14.0``, ``beautifulsoup4>=4.12.0`` (``aiohttp`` 3.14+ addresses published CVEs).
-
-Other:
-
  * CI security scanning: Bandit (pre-commit), pip-audit (``tox -e audit``), CodeQL, Dependabot alerts/updates.
+
+Version 7.0.4
+=============
+ * Re-send ``color-mode: white`` when setting white on no-CCT split-light zones, even if the cached mode is already white
 
 Version 7.0.3
 =============

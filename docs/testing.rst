@@ -115,9 +115,8 @@ Workflows:
 * ``.github/workflows/codeql-analysis.yml`` — CodeQL static analysis (push/PR/weekly).
 * ``.github/workflows/reusable-ci.yaml`` — shared jobs; inputs for Python versions and
   ``run-codecov``.
-* ``.github/workflows/release.yaml`` — runs CI then ``tox -e build`` and PyPI publish,
-  and triggers a Read the Docs build (default branch only; requires
-  ``READTHEDOCS_TOKEN``).
+* ``.github/workflows/release.yaml`` — runs CI then ``tox -e build`` and PyPI publish
+  (default branch only). Read the Docs builds separately via its GitHub webhook.
 
 CI test step mirrors tox py envs: ``COVERAGE_FILE=.coverage.py312``, pytest with
 ``-o addopts="--cov=aioafero --cov-report="``, JUnit XML per version. Coverage artifacts use
