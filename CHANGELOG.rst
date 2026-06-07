@@ -2,6 +2,10 @@
 Changelog
 =========
 
+Version 7.0.4
+=============
+ * Re-send ``color-mode: white`` when setting white on no-CCT split-light zones, even if the cached mode is already white
+
 Version 7.0.3
 =============
  * Fix an issue where lastUpdateTime was not being set correctly
