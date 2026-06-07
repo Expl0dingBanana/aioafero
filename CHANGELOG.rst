@@ -2,6 +2,26 @@
 Changelog
 =========
 
+Version 8.1.0
+=============
+
+ * Add an opt-in Conclave push client (`AferoBridgeV1(..., enable_conclave=True)`)
+   that connects to ``conclave-stream1.afero.net:443`` over TLS after the first
+   REST discovery poll. ``attr_change`` and ``status_change`` events update the
+   same cached models REST polling uses; REST remains the source of truth for
+   discovery, writes, and slow reconciliation.
+ * New subpackage ``aioafero.v1.conclave`` (``access``, ``protocol``, ``frames``,
+   ``semantics``, ``events``, ``client``) exposing ``ConclaveClient``,
+   ``ConclaveAccess``, frame decoding, attribute semantics, and push-to-cache
+   helpers.
+ * ``AferoBridgeV1`` and ``AferoBridgeV1.open`` accept a new keyword-only
+   ``enable_conclave`` flag (default ``False``); ``bridge.conclave`` exposes the
+   running client when enabled and ``bridge.close()`` stops it.
+ * Conclave connection lifecycle events on ``bridge.events``:
+   ``CONCLAVE_CONNECTING``, ``CONCLAVE_CONNECTED``, ``CONCLAVE_DISCONNECTED``,
+   and ``CONCLAVE_RECONNECTED``. ``ConclaveClient.status`` / ``connected`` mirror
+   the live session.
+
 Version 8.0.0
 =============
 

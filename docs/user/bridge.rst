@@ -24,6 +24,8 @@ Common options (``afero_client``, ``hide_secrets``, and ``client_name`` also app
 * ``hide_secrets`` — redact sensitive log values (default ``True``)
 * ``poll_version`` — fetch firmware version metadata (default ``True``)
 * ``client_name`` — User-Agent token (default ``"aioafero"``)
+* ``enable_conclave`` — open the Conclave push socket once the first discovery
+  poll completes (:doc:`conclave`, default ``False``)
 
 ``bridge.refresh_token`` tracks the current refresh token (including rotation).
 ``bridge.set_token_data(token_data)`` restores or updates tokens.
@@ -64,14 +66,20 @@ In that case ``close()`` closes it:
 Events
 ------
 
-There is no WebSocket from the cloud. ``EventStream`` polls the REST API every
-``polling_interval`` seconds, merges changes into controller models, and runs your
-callbacks in-process:
+By default there is no live push channel from the cloud — only REST polling.
+``EventStream`` polls the API every ``polling_interval`` seconds, merges changes
+into controller models, and runs your callbacks in-process:
 
 1. ``fetch_all_device_states()`` runs on the timer.
 2. Changes queue on ``bridge.events``.
 3. Controllers update their models.
 4. Callbacks receive ``(event_type, item)``.
+
+With ``enable_conclave=True`` (:doc:`conclave`), a background TLS client also
+merges ``attr_change`` and ``status_change`` pushes into the same models and
+invokes the same callbacks. Subscribers do not need a separate API. Conclave
+connection lifecycle events (``CONCLAVE_CONNECTING``, ``CONCLAVE_CONNECTED``, …)
+are emitted on ``bridge.events`` alongside the REST poll status events.
 
 ``item`` is the typed model (``Fan``, ``Light``, …) after the merge. Callbacks can be
 sync or ``async def``.

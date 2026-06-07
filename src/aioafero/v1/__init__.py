@@ -6,6 +6,8 @@ __all__ = [
     "AferoController",
     "AferoModelResource",
     "BaseResourcesController",
+    "ConclaveClient",
+    "ConclaveStatus",
     "DeviceController",
     "FanController",
     "LightController",
@@ -45,6 +47,7 @@ from aioafero.types import TemperatureUnit
 
 from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
+from .conclave import ConclaveClient, ConclaveStatus
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
@@ -119,6 +122,11 @@ class AferoBridgeV1:
         Defaults to "aioafero".
     :param temperature_unit: The desired temperature unit for API responses.
         Defaults to `TemperatureUnit.CELSIUS`.
+    :param enable_conclave: If True, also open the Conclave push socket once the
+        first REST discovery poll completes. Push events update the same
+        cached models REST polling uses. Emits ``CONCLAVE_*`` lifecycle events
+        on :attr:`events`. Defaults to False so existing consumers keep their
+        REST-only behaviour.
 
     """
 
@@ -137,6 +145,7 @@ class AferoBridgeV1:
         poll_version: bool = True,
         client_name: str | None = "aioafero",
         temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
+        enable_conclave: bool = False,
     ):
         """Initialize the AferoBridgeV1 instance.
 
@@ -189,6 +198,17 @@ class AferoBridgeV1:
         self.add_controller("switches", SwitchController)
         self.add_controller("thermostats", ThermostatController)
         self.add_controller("valves", ValveController)
+        self._enable_conclave = enable_conclave
+        self._conclave: ConclaveClient | None = None
+
+    @property
+    def conclave(self) -> ConclaveClient | None:
+        """Return the Conclave push client when enabled, otherwise ``None``.
+
+        When running, :attr:`~aioafero.v1.conclave.client.ConclaveClient.status`
+        and ``connected`` reflect the live TLS session.
+        """
+        return self._conclave
 
     @property
     def refresh_token(self) -> str | None:
@@ -264,6 +284,24 @@ class AferoBridgeV1:
         except KeyError as err:
             raise DeviceNotFound(f"Unable to find device for {device_id}") from err
 
+    def find_afero_devices_by_conclave_id(self, device_id: str) -> list[AferoDevice]:
+        """Return cached devices matching a Conclave ``deviceId``.
+
+        Conclave pushes use the physical ``deviceId`` (16 hex chars). The bridge
+        normally caches metadevices under their metadevice UUID, so lookup scans
+        ``device.device_id`` as well as the cache key. Split clones that share a
+        physical radio may return multiple entries.
+        """
+        matches: list[AferoDevice] = []
+        seen: set[str] = set()
+        for cached in self._known_afero_devices.values():
+            if cached.id in seen:
+                continue
+            if device_id in (cached.device_id, cached.id):
+                matches.append(cached)
+                seen.add(cached.id)
+        return matches
+
     def resolve_metadevice_id(self, device_id: str) -> str:
         """Return the Afero API metadevice ID used for state queries and updates."""
         try:
@@ -329,6 +367,11 @@ class AferoBridgeV1:
 
     async def close(self) -> None:
         """Close connection and clean up resources."""
+        if self._conclave is not None:
+            try:
+                await self._conclave.stop()
+            finally:
+                self._conclave = None
         for task in self._scheduled_tasks:
             task.cancel()
             await task
@@ -363,6 +406,7 @@ class AferoBridgeV1:
         poll_version: bool = True,
         client_name: str | None = "aioafero",
         temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
+        enable_conclave: bool = False,
     ) -> Self:
         """Create a bridge, initialize it, and wait for the first poll to finish.
 
@@ -385,6 +429,8 @@ class AferoBridgeV1:
             poll_version: Periodically fetch firmware version metadata.
             client_name: User-Agent token.
             temperature_unit: Unit for temperature API responses.
+            enable_conclave: Open the Conclave push socket alongside REST
+                polling once the first discovery poll completes.
 
         Returns:
             Initialized bridge with controllers populated from the first discovery poll.
@@ -408,6 +454,7 @@ class AferoBridgeV1:
             poll_version=poll_version,
             client_name=client_name,
             temperature_unit=temperature_unit,
+            enable_conclave=enable_conclave,
         )
         bridge._close_session = close_session
         try:
@@ -424,8 +471,9 @@ class AferoBridgeV1:
     ) -> Callable:
         """Register a callback for resource changes on all initialized controllers.
 
-        The cloud API is polled on ``polling_interval``; when state changes, controllers
-        merge updates and invoke ``callback(event_type, item)`` in-process. ``item`` is
+        REST polling on ``polling_interval`` and optional Conclave push (when
+        ``enable_conclave=True``) both update the same cache; controllers merge
+        changes and invoke ``callback(event_type, item)`` in-process. ``item`` is
         the controller's resource model (``Fan``, ``Light``, etc.).
 
         Args:
@@ -496,6 +544,24 @@ class AferoBridgeV1:
             self.add_job(asyncio.create_task(self.initialize_cleanup()))
             self.add_job(asyncio.create_task(self.events.initialize()))
             self.add_job(asyncio.create_task(self.events.wait_for_first_poll()))
+            if self._enable_conclave:
+                self.add_job(asyncio.create_task(self._start_conclave_after_poll()))
+
+    async def _start_conclave_after_poll(self) -> None:
+        """Wait for the first REST discovery poll, then start the Conclave client.
+
+        Conclave pushes are keyed by physical ``deviceId`` and resolved through
+        ``description.functions`` semantics; both arrive in the discovery poll,
+        so we never start the socket before that index is populated.
+        """
+        await self.events.wait_for_first_poll()
+        if self._conclave is None:
+            self._conclave = ConclaveClient(self)
+        await self._conclave.start()
+        if not await self._conclave.wait_until_logged_in():
+            self.logger.warning(
+                "Conclave login did not complete within 60s; push updates may be delayed"
+            )
 
     async def fetch_discovery_data(self, version_poll=False) -> list[dict[Any, str]]:
         """Query the API for all device data.

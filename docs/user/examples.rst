@@ -9,7 +9,7 @@ and cleanup: :doc:`bridge`.
 Basic session
 -------------
 
-Replace the sample device ID with one from ``bridge.lights.items()`` (or another
+Replace the sample device ID with one from ``bridge.lights.items`` (or another
 controller).
 
 .. code-block:: python
@@ -39,7 +39,7 @@ controller).
    await bridge.initialize()
    await bridge.async_block_until_done()
 
-   for light in bridge.lights.items():
+   for light in bridge.lights.items:
        log.info("%s %s", light.id, light.device_information.name)
 
    light = bridge.lights.get_device("84338ebe-7ddf-4bfa-9753-3ee8cdcc8da6")
@@ -56,7 +56,8 @@ Subscribe to updates
 
 Use the same login pattern as :ref:`examples-basic-session` if your account requires OTP.
 
-Callbacks run after a poll updates a controller model. ``event_type`` is an
+Callbacks run when a controller model changes — after a REST poll by default, or
+immediately when Conclave push is enabled (:doc:`conclave`). ``event_type`` is an
 :class:`~aioafero.types.EventType`; ``item`` is the updated model.
 
 .. code-block:: python
@@ -126,3 +127,44 @@ Reuse a refresh token
    saved_refresh_token = bridge.refresh_token  # may have rotated
    await bridge.close()
    await session.close()
+
+Conclave push (optional)
+------------------------
+
+For live updates without waiting for the REST poll interval, enable Conclave on
+the bridge. Setup, lifecycle, and the ``conclave_watch`` debug script are in
+:doc:`conclave`. The subscribe pattern above is unchanged — pass
+``enable_conclave=True`` and use the same ``bridge.subscribe`` / controller
+callbacks:
+
+.. code-block:: python
+
+   from aioafero.types import EventType
+
+   bridge = v1.AferoBridgeV1(
+       "user@example.com",
+       token_data.refresh_token,
+       session=session,
+       enable_conclave=True,
+   )
+   await bridge.initialize()
+   await bridge.async_block_until_done()
+   # bridge.conclave is set once the first discovery poll and login complete.
+
+   def on_event(event_type, _data):
+       if event_type in (
+           EventType.CONCLAVE_CONNECTED,
+           EventType.CONCLAVE_DISCONNECTED,
+       ):
+           print(event_type)
+
+   bridge.events.subscribe(
+       on_event,
+       event_filter=(
+           EventType.CONCLAVE_CONNECTING,
+           EventType.CONCLAVE_CONNECTED,
+           EventType.CONCLAVE_DISCONNECTED,
+           EventType.CONCLAVE_RECONNECTED,
+       ),
+   )
+   unsub = bridge.subscribe(on_update)
