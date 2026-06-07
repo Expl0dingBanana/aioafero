@@ -1,6 +1,6 @@
 # AI agent guide — aioafero
 
-Async Python library for the Afero IoT cloud API (**9.0.0**). **Device and protocol logic belongs here**, not in downstream integrations (e.g. [Hubspace-Homeassistant](https://github.com/jdeath/Hubspace-Homeassistant)).
+Async Python library for the Afero IoT cloud API (**9.1.0**). **Device and protocol logic belongs here**, not in downstream integrations (e.g. [Hubspace-Homeassistant](https://github.com/jdeath/Hubspace-Homeassistant)).
 
 ## Commands and quality gate
 
