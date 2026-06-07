@@ -1,0 +1,12 @@
+# Copy to emulator-wireguard.conf and fill keys from mitmweb → WireGuard tab.
+# Set Endpoint to a host-reachable address (10.0.2.2:51820 for emulator on same Windows host).
+
+[Interface]
+PrivateKey = <from mitmweb WireGuard tab>
+Address = 10.0.0.1/32
+DNS = 10.0.0.53
+
+[Peer]
+PublicKey = <from mitmweb WireGuard tab>
+AllowedIPs = 0.0.0.0/0
+Endpoint = 10.0.2.2:51820

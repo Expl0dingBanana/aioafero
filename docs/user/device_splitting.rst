@@ -1,5 +1,5 @@
-Split devices
-=============
+Device splitting
+================
 
 Some physical devices expose multiple controllable endpoints (multi-zone lights,
 security sensors, portable AC power toggles). aioafero **splits** them into separate
@@ -21,13 +21,11 @@ How splitting works
 Implementing a new split type
 -----------------------------
 
-On the **primary controller** (non-split class):
+On the primary controller, register a callback in ``DEVICE_SPLIT_CALLBACKS`` that
+returns :class:`~aioafero.v1.controllers.event.CallbackResponse` with
+``split_devices=[...]`` and ``remove_original=...``.
 
-* Register a callback in ``DEVICE_SPLIT_CALLBACKS`` that returns
-  :class:`~aioafero.v1.controllers.event.CallbackResponse` with
-  ``split_devices=[...]`` and ``remove_original=...``.
-
-On the **split model**:
+On the split model:
 
 * Use a unique synthetic ``_id``, not the parent metadevice ID.
 * Set ``split_identifier`` consistently with the ID format.

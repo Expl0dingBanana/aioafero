@@ -26,12 +26,5 @@ Install the `Hubspace integration <https://github.com/jdeath/Hubspace-Homeassist
 It declares ``aioafero`` as a runtime requirement in its manifest; you do not install
 this package separately inside HA.
 
-Next steps
-----------
-
-* :doc:`auth` — log in and persist refresh tokens
-* :doc:`examples` — minimal interactive session
-* :doc:`overview` — how the bridge and controllers fit together
-
-Contributors: see :doc:`../contributing` for doc layout and how to build the Sphinx site
-locally.
+Next: :doc:`overview`, :doc:`auth`, :doc:`examples`, :doc:`bridge`. Contributors:
+:doc:`../contributing`.

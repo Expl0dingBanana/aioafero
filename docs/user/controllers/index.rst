@@ -1,14 +1,9 @@
 Controllers
 ===========
 
-A **controller** is the public surface for one device type — it parses Afero API
-payloads into typed models, caches them, and exposes async action methods (``turn_on``,
-``set_state``, …). Each attribute on ``AferoBridgeV1`` is an instance of one of the
-controllers listed below; detail pages are generated from source with autodoc.
-
-To find available actions for a device, open the page for that controller (or call
-``dir(bridge.<controller>)`` on a live bridge). All controllers also support
-``get_device(id)``, ``items()``, and ``subscribe(callback, id_filter=...)`` from
+``bridge.lights``, ``bridge.fans``, and so on are controllers — typed models plus action
+methods like ``turn_on`` and ``set_state``. Each page below is autodoc from source.
+All inherit ``get_device``, ``items``, and ``subscribe`` from
 :class:`~aioafero.v1.controllers.base.BaseResourcesController`.
 
 .. list-table::
@@ -44,6 +39,7 @@ To find available actions for a device, open the page for that controller (or ca
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    devices
    exhaust_fans
