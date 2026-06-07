@@ -210,6 +210,12 @@ class AferoAuth:
             return True
         return datetime.datetime.now().timestamp() >= self._token_data.expiration
 
+    async def _needs_token_refresh(self) -> bool:
+        """Return True when the bearer token is missing or past its expiration."""
+        if not self._token_data or not self._token_data.token:
+            return True
+        return await self.is_expired
+
     @property
     def refresh_token(self) -> str | None:
         """Get the current refresh token."""
@@ -308,9 +314,11 @@ class AferoAuth:
         code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
         code_challenge = code_challenge.replace("=", "")
         chal = AuthChallenge(code_challenge, code_verifier)
-        add_secret(code_verifier)
         with LogRedactorMessage():
-            logger.debug("Challenge information: %s", chal)
+            logger.debug(
+                "Challenge information: %s",
+                AuthChallenge(code_challenge, "<redacted>"),
+            )
         return chal
 
     async def generate_code(
@@ -409,7 +417,10 @@ class AferoAuth:
         :return: Token data including refresh and bearer tokens.
         """
         self.logger.debug("Generating refresh token")
+        if code:
+            add_secret(code)
         if challenge:
+            add_secret(challenge.verifier)
             data = {
                 "grant_type": "authorization_code",
                 "code": code,
@@ -501,8 +512,6 @@ class AferoAuth:
             return refresh_token
         finally:
             self._clear_password()
-            if challenge is not None and not self._otp_data:
-                remove_secret(challenge.verifier)
 
     async def login(self) -> TokenData:
         """Perform credential-based login and return token data."""
@@ -566,7 +575,7 @@ class AferoAuth:
         async with self._async_lock:
             if not self._token_data:
                 raise InvalidAuth("No token data available")
-            if await self.is_expired:
+            if await self._needs_token_refresh():
                 self.logger.debug("Token has not been generated or is expired")
                 try:
                     old_data = self._token_data
@@ -582,7 +591,10 @@ class AferoAuth:
                     self.logger.debug("Token has been successfully generated")
         if retry_refresh:
             return await self.token(retry=False)
-        return self._token_data.token
+        bearer = self._token_data.token
+        if not bearer:
+            raise InvalidAuth("No token data available")
+        return bearer
 
 
 async def extract_login_data(page: str, form_login_element: str) -> AuthSessionData:

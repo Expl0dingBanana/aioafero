@@ -622,10 +622,7 @@ async def test_login_clears_password_on_failure(aio_sess, mocker):
     with pytest.raises(auth.InvalidResponse):
         await test_auth.login()
     assert test_auth._password is None
-    remove_secret.assert_has_calls(
-        [mocker.call("password"), mocker.call("verifier")],
-        any_order=True,
-    )
+    remove_secret.assert_called_once_with("password")
 
 
 def test_remove_secrets_not_in_skips_shared_values(mocker):
@@ -691,13 +688,32 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 "Token has not been generated or is expired",
             ],
         ),
-        # Refresh-only token data (no bearer yet)
+        # Refresh-only token data (no bearer yet), expired
         (
             auth.TokenData(
                 None,
                 None,
                 "refresh_token",
                 datetime.datetime.now().timestamp() - 120,
+            ),
+            auth.TokenData(
+                "token",
+                "access_token",
+                "refresh_token",
+                datetime.datetime.now().timestamp() + 120,
+            ),
+            "token",
+            [
+                "Token has not been generated or is expired",
+            ],
+        ),
+        # Missing bearer with future expiration
+        (
+            auth.TokenData(
+                None,
+                None,
+                "refresh_token",
+                datetime.datetime.now().timestamp() + 120,
             ),
             auth.TokenData(
                 "token",
@@ -774,6 +790,31 @@ async def test_token(
             await test_auth.token()
     for message in messages:
         assert message in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_token_raises_when_refresh_returns_no_bearer(mocker, aio_sess):
+    test_auth = auth.AferoAuth(aio_sess, "username", "refresh_token")
+    test_auth._token_data = auth.TokenData(
+        None,
+        None,
+        "refresh_token",
+        datetime.datetime.now().timestamp() + 120,
+    )
+    mocker.patch.object(
+        test_auth,
+        "generate_refresh_token",
+        mocker.AsyncMock(
+            return_value=auth.TokenData(
+                None,
+                None,
+                "refresh_token",
+                datetime.datetime.now().timestamp() + 120,
+            )
+        ),
+    )
+    with pytest.raises(auth.InvalidAuth, match="No token data available"):
+        await test_auth.token()
 
 
 def test_set_token_data(hs_auth):
