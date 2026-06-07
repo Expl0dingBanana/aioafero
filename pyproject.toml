@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "7.0.3"
+version = "8.0.0"
 dependencies = [
-  "aiohttp",
-  "beautifulsoup4",
-  "securelogging>=1.0.1"
+  "aiohttp>=3.14.0",
+  "beautifulsoup4>=4.12.0",
+  "securelogging>=1.0.1",
 ]
 requires-python = ">=3.12"
 authors = [
@@ -46,11 +46,14 @@ test = [
   "pytest-aioresponses",
   "anyio[trio]",
   "tox",
+  "bandit>=1.9.0",
+  "pip-audit>=2.10.0",
 ]
 docs = [
   "sphinx>=9.1.0",
   "furo",
   "sphinx-copybutton",
+  "sphinxcontrib-mermaid",
 ]
 cli = [
   "click",
@@ -64,13 +67,26 @@ Changelog = "https://github.com/Expl0dingBanana/aioafero/blob/main/CHANGELOG.rst
 # pyproject.toml
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "--cov --cov-report=term-missing"
+addopts = "--cov=aioafero --cov-report=term-missing"
 testpaths = [
     "tests"
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+[tool.coverage.run]
+source_pkgs = ["aioafero"]
+omit = ["tests/*"]
+
+[tool.coverage.paths]
+source = [
+    "src/aioafero",
+    "*/site-packages/aioafero",
+    "*/lib/python*/site-packages/aioafero",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
 
 [tool.ruff]
 required-version = ">=0.11.0"

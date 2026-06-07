@@ -1,9 +1,9 @@
 Overview
 ========
 
-aioafero is an async Python client for the **Hubspace / Afero IoT cloud API**. It logs
-into an account, discovers devices, keeps an in-memory copy of their state in sync with
-the cloud, and exposes typed methods to read properties and send commands.
+aioafero is an async Python client for the **Hubspace / Afero IoT cloud API**. It
+authenticates to an account, discovers devices, keeps an in-memory copy of their state in
+sync with the cloud, and exposes typed methods to read properties and send commands.
 
 The library is **library-only** — it does not run inside Home Assistant or any other
 host directly. Integrations such as
@@ -15,7 +15,8 @@ What the library does
 
 For one account, aioafero:
 
-* **Authenticates** with username/password (or a saved refresh token) over HTTPS.
+* **Authenticates** with a refresh token over HTTPS (obtained once via
+  :doc:`auth`, or restored from storage).
 * **Discovers** devices from the cloud API and classifies them by type (light, fan,
   thermostat, …).
 * **Polls** device state on a timer — the API is REST-based; there is no persistent
@@ -30,21 +31,29 @@ For one account, aioafero:
 How it fits together
 --------------------
 
-Everything for an account hangs off a single **bridge** — ``AferoBridgeV1``. The bridge
-owns the HTTP session, auth tokens, and background tasks.
+Account access has two layers:
 
-.. code-block:: text
+* **Authentication** — :class:`~aioafero.v1.AferoAuth` performs credential login
+  (once) and refresh-token exchange at runtime. See :doc:`auth`.
+* **Bridge** — ``AferoBridgeV1`` owns controllers, polling, and an HTTP ``session`` you
+  pass at construction (or that :meth:`~aioafero.v1.AferoBridgeV1.open` creates).
 
-   Your code
-       │
-       ▼
-   AferoBridgeV1  ──►  Controllers (lights, fans, …)
-       │                      │
-       │                      ▼
-       │                 Resource models (cached state)
-       │
-       ▼
-   EventStream  ──►  periodic REST polls  ──►  Afero / Hubspace cloud
+.. mermaid::
+
+   flowchart TD
+       code["Your code"]
+       auth["AferoAuth"]
+       bridge["AferoBridgeV1"]
+       controllers["Controllers (lights, fans, …)"]
+       models["Resource models (cached state)"]
+       events["EventStream"]
+       cloud["Afero / Hubspace cloud"]
+
+       code --> auth
+       auth -->|"login / token refresh"| auth
+       code --> bridge
+       bridge --> controllers --> models
+       bridge --> events -->|"periodic REST polls"| cloud
 
 **EventStream** runs discovery and state polling in the background. When a poll returns
 new data, it queues events; each **controller** merges updates into its models and can
@@ -61,15 +70,16 @@ does not write to the cloud.
 Typical session flow
 --------------------
 
-1. Create ``AferoBridgeV1`` with credentials.
-2. ``await bridge.initialize()`` — start auth, controllers, and background polling.
-3. ``await bridge.async_block_until_done()`` — wait until the first discovery poll has
+1. Log in with ``v1.AferoAuth`` (or reuse a saved refresh token); see :doc:`auth`.
+2. Create ``AferoBridgeV1`` with ``username``, ``refresh_token``, and ``session``.
+3. ``await bridge.initialize()`` — start controllers and background polling.
+4. ``await bridge.async_block_until_done()`` — wait until the first discovery poll has
    populated controllers.
-4. Read with ``bridge.<controller>.get_device(device_id)`` or list with
+5. Read with ``bridge.<controller>.get_device(device_id)`` or list with
    ``bridge.<controller>.items()``.
-5. Write with controller action methods (``turn_on``, ``set_state``, …).
-6. Optionally ``bridge.subscribe(callback)`` to react to poll-driven updates.
-7. ``await bridge.close()`` when finished.
+6. Write with controller action methods (``turn_on``, ``set_state``, …).
+7. Optionally ``bridge.subscribe(callback)`` to react to poll-driven updates.
+8. ``await bridge.close()``, then ``await session.close()`` when you own the session.
 
 Some physical devices are **split** into multiple logical endpoints (multi-zone lights,
 security sensors, portable AC power toggles). The bridge handles that during discovery;
@@ -89,6 +99,7 @@ Next steps
 ----------
 
 * :doc:`installation` — install from PyPI or a local checkout
+* :doc:`auth` — login, tokens, OTP, and persistence
 * :doc:`bridge` — configuration options and lifecycle detail
 * :doc:`examples` — interactive session, subscribe, refresh tokens
 * :doc:`controllers/index` — full controller list and action methods

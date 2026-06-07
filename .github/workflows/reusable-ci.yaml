@@ -46,6 +46,27 @@ jobs:
           pip install tox
           tox -e docs
 
+  audit:
+    # Match CodeQL: dependency audit on main only (push/PR/schedule), not release-branch PRs.
+    if: >-
+      ${{
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+        (github.event_name == 'pull_request' && github.base_ref == github.event.repository.default_branch)
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python ${{ inputs.lint-python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.lint-python-version }}
+      - name: Dependency audit (tox -e audit)
+        run: |
+          pip install tox
+          tox -e audit
+
   run_tests:
     runs-on: ubuntu-latest
     strategy:
@@ -64,14 +85,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install requirements
         run: |
-          pip install .[test]
+          pip install -e .[test]
       - name: Execute Tests
         env:
           COVERAGE_FILE: ${{ steps.coverage.outputs.file }}
         # Same as tox py envs: collect coverage silently; combined report in coverage job.
         run: |
           python -m pytest \
-            -o addopts="--cov --cov-report=" \
+            -o addopts="--cov=aioafero --cov-report=" \
             --junitxml=junit-py${{ matrix.python-version }}.xml \
             -o junit_family=legacy
       - name: Upload coverage data
@@ -114,6 +135,7 @@ jobs:
           path: junit
       - name: Combine coverage and generate report
         run: |
+          pip install -e .
           pip install coverage[toml]
           coverage combine
           coverage report -m

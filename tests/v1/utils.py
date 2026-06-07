@@ -44,28 +44,6 @@ def create_device_from_data(device: dict) -> AferoDevice:
     return AferoDevice(**device)
 
 
-def get_json_call(mocked_controller):
-    mocked_controller._bridge.request.assert_called_once()
-    call = mocked_controller._bridge.request.call_args_list[0][1]
-    assert "json" in call
-    return call["json"]
-
-
-def ensure_states_sent(mocked_controller, expected_states, device_id=None):
-    req = get_json_call(mocked_controller)
-    assert len(req["values"]) == len(expected_states), (
-        f"States Sent: {len(req)}. Expected: {len(expected_states)}. Actual: {req}"
-    )
-    for state in expected_states:
-        assert state in req["values"], (
-            f"Missing {state['functionClass']} / "
-            f"{state['functionInstance']} for "
-            f"{state['value']} in {req}"
-        )
-    if device_id:
-        assert req["metadeviceId"] == device_id
-
-
 def modify_state(device: AferoDevice, new_state):
     for ind, state in enumerate(device.states):
         if state.functionClass != new_state.functionClass:
