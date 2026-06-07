@@ -610,6 +610,11 @@ async def test_login_clears_password_on_failure(aio_sess, mocker):
     test_auth = auth.AferoAuth.for_login(aio_sess, "username", "password")
     remove_secret = mocker.patch("aioafero.v1.auth.remove_secret")
     mocker.patch.object(
+        auth.AferoAuth,
+        "generate_challenge_data",
+        return_value=auth.AuthChallenge("challenge", "verifier"),
+    )
+    mocker.patch.object(
         test_auth,
         "webapp_login",
         side_effect=auth.InvalidResponse("fail"),
@@ -617,7 +622,21 @@ async def test_login_clears_password_on_failure(aio_sess, mocker):
     with pytest.raises(auth.InvalidResponse):
         await test_auth.login()
     assert test_auth._password is None
-    remove_secret.assert_called_once_with("password")
+    remove_secret.assert_has_calls(
+        [mocker.call("password"), mocker.call("verifier")],
+        any_order=True,
+    )
+
+
+def test_remove_secrets_not_in_skips_shared_values(mocker):
+    remove_secret = mocker.patch("aioafero.v1.auth.remove_secret")
+    old = auth.TokenData("old-bearer", "old-access", "shared-refresh", 0)
+    new = auth.TokenData("new-bearer", "new-access", "shared-refresh", 100)
+    auth._remove_secrets_not_in(old, new)
+    remove_secret.assert_has_calls(
+        [mocker.call("old-bearer"), mocker.call("old-access")],
+        any_order=True,
+    )
 
 
 @pytest.mark.asyncio

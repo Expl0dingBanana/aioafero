@@ -41,8 +41,8 @@ class AuthChallenge(NamedTuple):
 class TokenData(NamedTuple):
     """Data related to the current token."""
 
-    token: str
-    access_token: str
+    token: str | None
+    access_token: str | None
     refresh_token: str
     expiration: float
 
@@ -68,6 +68,14 @@ def _token_expiration(resp_json: dict, *, now: float | None = None) -> float:
     if expires_in is not None:
         return timestamp + float(expires_in) - TOKEN_EXPIRY_BUFFER
     return timestamp + DEFAULT_TOKEN_TIMEOUT
+
+
+def _remove_secrets_not_in(old: TokenData, new: TokenData) -> None:
+    """Remove old token secrets that are not reused in the replacement data."""
+    new_secrets = {new.token, new.access_token, new.refresh_token}
+    for secret in (old.token, old.access_token, old.refresh_token):
+        if secret and secret not in new_secrets:
+            remove_secret(secret)
 
 
 class AferoAuth:
@@ -481,6 +489,7 @@ class AferoAuth:
 
         :return: Refresh token for the auth
         """
+        challenge: AuthChallenge | None = None
         try:
             challenge = await AferoAuth.generate_challenge_data()
             code: str = await self.webapp_login(challenge)
@@ -492,6 +501,8 @@ class AferoAuth:
             return refresh_token
         finally:
             self._clear_password()
+            if challenge is not None and not self._otp_data:
+                remove_secret(challenge.verifier)
 
     async def login(self) -> TokenData:
         """Perform credential-based login and return token data."""
@@ -558,14 +569,9 @@ class AferoAuth:
             if await self.is_expired:
                 self.logger.debug("Token has not been generated or is expired")
                 try:
-                    new_data = await self.generate_refresh_token()
                     old_data = self._token_data
-                    if old_data.token:
-                        remove_secret(old_data.token)
-                    if old_data.access_token:
-                        remove_secret(old_data.access_token)
-                    if old_data.refresh_token:
-                        remove_secret(old_data.refresh_token)
+                    new_data = await self.generate_refresh_token()
+                    _remove_secrets_not_in(old_data, new_data)
                     self._token_data = new_data
                 except InvalidAuth:
                     self.logger.debug("Provided refresh token is no longer valid.")
