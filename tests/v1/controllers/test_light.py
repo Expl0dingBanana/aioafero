@@ -1456,10 +1456,10 @@ async def test_set_color_temperature_trim_logs_ignored_kelvin(
 
 
 @pytest.mark.asyncio
-async def test_set_white_trim_already_white_omits_duplicate_color_mode(
+async def test_set_white_trim_already_white_resends_color_mode(
     mocked_controller, mocker
 ):
-    """Brightness-only updates while already in API white need not re-send color-mode."""
+    """Explicit white on a white-only zone must PUT color-mode even if cache is white."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )
@@ -1477,7 +1477,10 @@ async def test_set_white_trim_already_white_omits_duplicate_color_mode(
     await mocked_controller.set_white(trim_light_trim_id, on=None, brightness=40)
     await mocked_controller._bridge.async_block_until_done()
     sent_states = update_afero_api.call_args[0][1]
-    assert "color-mode" not in {s["functionClass"] for s in sent_states}
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["functionInstance"] == "trim"
+    assert by_class["color-mode"]["value"] == "white"
+    assert by_class["brightness"]["value"] == 40
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,10 @@
 Changelog
 =========
 
+Version 7.0.4
+=============
+ * Correctly identify white-only zones for split lights
+
 Version 7.0.3
 =============
  * Fix an issue where lastUpdateTime was not being set correctly
