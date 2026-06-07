@@ -114,6 +114,8 @@ class AferoAuth:
         """
         if session is None:
             raise ValueError("session is required")
+        if not refresh_token:
+            raise ValueError("refresh_token is required")
         self._init_state(
             session,
             username,
@@ -229,8 +231,20 @@ class AferoAuth:
         return f"https://{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_OPENID_HOST']}/auth/realms/{v1_const.AFERO_CLIENTS[self._afero_client]['AUTH_REALM']}/{endpoint}"
 
     def set_token_data(self, data: TokenData) -> None:
-        """Set the current token data."""
+        """Set the current token data.
+
+        When ``hide_secrets`` is True (default), updates the securelogging registry:
+        removes old token values not reused in ``data``, then registers new ones.
+        When ``hide_secrets`` is False, only ``_token_data`` is replaced (no registry
+        changes); DEBUG logs may expose secrets.
+        """
+        if self._hide_secrets and self._token_data is not None:
+            _remove_secrets_not_in(self._token_data, data)
         self._token_data = data
+        if self._hide_secrets:
+            for secret in (data.token, data.access_token, data.refresh_token):
+                if secret:
+                    add_secret(secret)
 
     async def _auth_request(
         self, method: str, url: str, **kwargs
@@ -478,6 +492,8 @@ class AferoAuth:
                 id_token = resp_json["id_token"]
             except KeyError as err:
                 raise InvalidResponse("Unable to extract refresh token") from err
+            if not refresh_token or not access_token or not id_token:
+                raise InvalidResponse("Unable to extract refresh token")
             add_secret(refresh_token)
             add_secret(access_token)
             add_secret(id_token)

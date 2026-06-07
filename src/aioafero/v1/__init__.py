@@ -277,6 +277,10 @@ class AferoBridgeV1:
     @property
     def account_id(self) -> str:
         """Get the account ID for the Afero IoT account."""
+        if self._account_id is None:
+            raise AferoError(
+                "Account ID not available; await get_account_id() or initialize() first"
+            )
         return self._account_id
 
     @property
@@ -298,6 +302,9 @@ class AferoBridgeV1:
 
     def set_token_data(self, data: TokenData) -> None:
         """Set TokenData used for querying the API.
+
+        Delegates to :meth:`~aioafero.v1.AferoAuth.set_token_data` (including secret
+        registry updates when ``hide_secrets`` is enabled on the bridge).
 
         :param data: The `TokenData` object to set.
         """
@@ -444,33 +451,36 @@ class AferoBridgeV1:
         :return: The account ID.
         :raises AferoError: If no account ID is found in the API response.
         """
-        if not self._account_id:
-            self.logger.debug("Querying API for account id")
-            headers = {"host": v1_const.AFERO_CLIENTS[self._afero_client]["API_HOST"]}
-            url = self.generate_api_url(v1_const.AFERO_GENERICS["ACCOUNT_ID_ENDPOINT"])
-            with self.secret_logger():
-                self.logger.debug(
-                    "GETURL: %s, Headers: %s",
-                    url,
-                    headers,
-                )
-            res = await self.request(
-                "GET",
+        if self._account_id:
+            return self._account_id
+        self.logger.debug("Querying API for account id")
+        headers = {"host": v1_const.AFERO_CLIENTS[self._afero_client]["API_HOST"]}
+        url = self.generate_api_url(v1_const.AFERO_GENERICS["ACCOUNT_ID_ENDPOINT"])
+        with self.secret_logger():
+            self.logger.debug(
+                "GETURL: %s, Headers: %s",
                 url,
-                headers=headers,
+                headers,
             )
-            res.raise_for_status()
-            json_data = await res.json()
-            account_access = json_data.get("accountAccess") or []
-            if not account_access:
-                raise AferoError("No account ID found")
-            account = (account_access[0] or {}).get("account") or {}
-            account_id = account.get("accountId")
-            if not account_id:
-                raise AferoError("No account ID found")
-            add_secret(account_id)
-            self._account_id = account_id
-        return self._account_id
+        res = await self.request(
+            "GET",
+            url,
+            headers=headers,
+        )
+        res.raise_for_status()
+        json_data = await res.json()
+        if not isinstance(json_data, dict):
+            raise AferoError("No account ID found")
+        account_access = json_data.get("accountAccess") or []
+        if not account_access:
+            raise AferoError("No account ID found")
+        account = (account_access[0] or {}).get("account") or {}
+        account_id = account.get("accountId")
+        if not account_id:
+            raise AferoError("No account ID found")
+        add_secret(account_id)
+        self._account_id = account_id
+        return account_id
 
     async def initialize(self) -> None:
         """Initialize the bridge for communication with Afero API.
@@ -527,6 +537,8 @@ class AferoBridgeV1:
                 if dev.get("typeId") != "metadevice.device":
                     continue
                 dev_id = dev.get("deviceId")
+                if not dev_id:
+                    continue
                 if dev_id in devs:
                     dev["version_data"] = devs[dev_id]
                     continue
@@ -607,7 +619,10 @@ class AferoBridgeV1:
                 states.append(AferoState(**state))
             except TypeError:
                 continue
-        return data["metadeviceId"], states
+        metadevice_id = data.get("metadeviceId")
+        if not metadevice_id:
+            raise AferoError("No metadeviceId in device state response")
+        return metadevice_id, states
 
     async def get_device_version(self, device_id: str) -> dict:
         """Query the API for device version information.

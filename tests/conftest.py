@@ -146,11 +146,13 @@ def mocked_bridge_req(mocker, aio_sess):
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     bridge._close_session = False
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
-    bridge._auth._token_data = TokenData(
-        "mock-token",
-        None,
-        "mock-refresh-token",
-        expiration=datetime.datetime.now().timestamp() + 200,
+    bridge.set_token_data(
+        TokenData(
+            "mock-token",
+            None,
+            "mock-refresh-token",
+            expiration=datetime.datetime.now().timestamp() + 200,
+        )
     )
     # Force initialization so test elements are not overwritten
     for controller in bridge._controllers.values():
@@ -175,11 +177,13 @@ async def bridge(mocker, aio_sess):
 @pytest_asyncio.fixture
 async def bridge_with_acct(mocker, aio_sess):
     bridge = AferoBridgeV1("user", "mock-refresh-token", aio_sess)
-    bridge._auth._token_data = TokenData(
-        "mock-token",
-        None,
-        "mock-refresh-token",
-        expiration=datetime.datetime.now().timestamp() + 200,
+    bridge.set_token_data(
+        TokenData(
+            "mock-token",
+            None,
+            "mock-refresh-token",
+            expiration=datetime.datetime.now().timestamp() + 200,
+        )
     )
     yield bridge
     await bridge.close()
@@ -191,11 +195,13 @@ async def bridge_with_acct_req(mocker, aio_sess):
     mocker.patch.object(bridge, "_account_id", "mocked-account-id")
     mocker.patch.object(bridge, "request", side_effect=bridge.request)
     mocker.patch.object(bridge.events, "_first_poll_completed", True)
-    bridge._auth._token_data = TokenData(
-        "mock-token",
-        None,
-        "mock-refresh-token",
-        expiration=datetime.datetime.now().timestamp() + 200,
+    bridge.set_token_data(
+        TokenData(
+            "mock-token",
+            None,
+            "mock-refresh-token",
+            expiration=datetime.datetime.now().timestamp() + 200,
+        )
     )
     await bridge.initialize()
     await bridge.async_block_until_done()

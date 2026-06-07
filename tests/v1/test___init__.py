@@ -285,6 +285,27 @@ async def test_fetch_discovery_data_with_version(mocked_bridge_req, mocker):
 
 
 @pytest.mark.asyncio
+async def test_fetch_discovery_data_skips_missing_device_id(mocked_bridge_req, mocker):
+    get_device_version = mocker.patch.object(
+        mocked_bridge_req,
+        "get_device_version",
+        return_value={"version": "1.0.0"},
+    )
+    mocked_response = [
+        {"typeId": "metadevice.device"},
+        {"typeId": "metadevice.device", "deviceId": "valid_id"},
+    ]
+    expected = mocker.Mock()
+    mocker.patch.object(
+        expected, "json", side_effect=mocker.AsyncMock(return_value=mocked_response)
+    )
+    mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
+    resp = await mocked_bridge_req.fetch_discovery_data(version_poll=True)
+    get_device_version.assert_called_once_with("valid_id")
+    assert resp[1]["version_data"] == {"version": "1.0.0"}
+
+
+@pytest.mark.asyncio
 async def test_get_device_versions(mocked_bridge, mocker):
     req = mocker.patch.object(mocked_bridge, "request")
     await mocked_bridge.get_device_version("test_device_id")
@@ -387,6 +408,13 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
         (
             None,
             {"status": 200, "payload": {}},
+            None,
+            AferoError,
+        ),
+        # Uninitialized, non-object JSON response
+        (
+            None,
+            {"status": 200, "payload": []},
             None,
             AferoError,
         ),
@@ -572,6 +600,22 @@ def test_fetch_device_states(mocked_bridge, mocker):
     mocker.patch.object(mocked_bridge, "request", return_value=resp)
     states = asyncio.run(mocked_bridge.fetch_device_states(dummy_dev.id))
     assert states == dummy_dev.states
+
+
+def test_fetch_device_states_missing_metadevice_id(mocked_bridge, mocker):
+    json_resp = mocker.AsyncMock(return_value={"values": []})
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    resp.raise_for_status = mocker.Mock()
+    mocker.patch.object(mocked_bridge, "request", return_value=resp)
+    with pytest.raises(AferoError, match="No metadeviceId"):
+        asyncio.run(mocked_bridge.fetch_device_states("device-id"))
+
+
+def test_account_id_before_initialize(bridge_with_acct):
+    with pytest.raises(AferoError, match="Account ID not available"):
+        _ = bridge_with_acct.account_id
 
 
 def test_get_device_controller(mocked_bridge):

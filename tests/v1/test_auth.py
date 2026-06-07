@@ -438,6 +438,24 @@ async def test_generate_refresh_token_clears_login_secrets_on_failure(
             None,
             auth.InvalidResponse,
         ),
+        # empty token strings in OAuth response
+        (
+            True,
+            "code",
+            {
+                "status": 200,
+                "body": json.dumps(
+                    {
+                        "id_token": "id",
+                        "refresh_token": "",
+                        "access_token": "access",
+                    }
+                ),
+            },
+            None,
+            None,
+            auth.InvalidResponse,
+        ),
         # valid response
         (
             True,
@@ -589,6 +607,11 @@ async def test_for_login_requires_session():
 async def test_refresh_token_requires_session():
     with pytest.raises(ValueError, match="session is required"):
         auth.AferoAuth(None, "username", "refresh_token")
+
+
+def test_refresh_token_empty(aio_sess):
+    with pytest.raises(ValueError, match="refresh_token is required"):
+        auth.AferoAuth(aio_sess, "username", "")
 
 
 @pytest.mark.asyncio
@@ -826,6 +849,36 @@ def test_set_token_data(hs_auth):
     )
     hs_auth.set_token_data(data)
     assert hs_auth._token_data == data
+
+
+def test_set_token_data_updates_secret_registry(hs_auth, mocker):
+    add_secret = mocker.patch("aioafero.v1.auth.add_secret")
+    remove_secret = mocker.patch("aioafero.v1.auth.remove_secret")
+    hs_auth._token_data = auth.TokenData(
+        "old-bearer",
+        "old-access",
+        "old-refresh",
+        datetime.datetime.now().timestamp() + 120,
+    )
+    new_data = auth.TokenData(
+        "new-bearer",
+        "new-access",
+        "old-refresh",
+        datetime.datetime.now().timestamp() + 3600,
+    )
+    hs_auth.set_token_data(new_data)
+    remove_secret.assert_has_calls(
+        [mocker.call("old-bearer"), mocker.call("old-access")],
+        any_order=True,
+    )
+    add_secret.assert_has_calls(
+        [
+            mocker.call("new-bearer"),
+            mocker.call("new-access"),
+            mocker.call("old-refresh"),
+        ],
+        any_order=True,
+    )
 
 
 def test_property_refresh_token(aio_sess):
