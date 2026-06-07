@@ -1386,7 +1386,7 @@ async def test_set_white_trim_sends_color_mode_not_cct(mocked_controller, mocker
 
 @pytest.mark.asyncio
 async def test_set_color_temperature_trim_routes_to_white(mocked_controller, mocker):
-    """set_color_temperature on a white-only zone must not emit color-temperature."""
+    """set_color_temperature on a no-CCT zone must not emit color-temperature."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )
@@ -1439,7 +1439,7 @@ async def test_set_color_temperature_no_cct_no_white(mocked_controller, mocker):
 async def test_set_color_temperature_trim_logs_ignored_kelvin(
     mocked_controller, mocker, caplog
 ):
-    """White-only zones log that the requested Kelvin value is ignored."""
+    """No-CCT zones log that the requested Kelvin value is ignored."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )
@@ -1459,7 +1459,7 @@ async def test_set_color_temperature_trim_logs_ignored_kelvin(
 async def test_set_white_trim_already_white_resends_color_mode(
     mocked_controller, mocker
 ):
-    """Explicit white on a white-only zone must PUT color-mode even if cache is white."""
+    """Explicit white on a no-CCT trim zone must PUT color-mode even if cache is white."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )
@@ -1487,7 +1487,7 @@ async def test_set_white_trim_already_white_resends_color_mode(
 async def test_set_state_temperature_respects_explicit_color_mode(
     mocked_controller, mocker
 ):
-    """Explicit color_mode must not be overridden when routing temperature on white-only."""
+    """Explicit color_mode must not be overridden when routing temperature on no-CCT zones."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )
@@ -1551,7 +1551,7 @@ async def test_update_elem_ignores_trim_zone_color_temperature_without_feature(
 async def test_set_state_temperature_routes_to_white_without_cct(
     mocked_controller, mocker
 ):
-    """set_state with temperature on white-only zones uses color-mode, not CCT."""
+    """set_state with temperature on no-CCT zones uses color-mode, not CCT."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )

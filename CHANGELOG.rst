@@ -4,7 +4,7 @@ Changelog
 
 Version 7.0.4
 =============
- * Correctly identify white-only zones for split lights
+ * Re-send ``color-mode: white`` when setting white on no-CCT split-light zones, even if the cached mode is already white
 
 Version 7.0.3
 =============

@@ -547,9 +547,9 @@ class LightController(BaseResourcesController[Light]):
                 )
             if color_mode is not None and cur_item.color_mode is not None:
                 update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
-                # White-only zones (e.g. accent trim) must always PUT color-mode white
-                # when requested. Skipping unchanged fields leaves the device in RGB when
-                # cache is stale or the user re-selects white in HA.
+                # No-CCT zones that support white (e.g. accent trim with RGB) must always
+                # PUT color-mode white when requested. Skipping unchanged fields leaves the
+                # device in RGB when cache is stale or the user re-selects white in HA.
                 if (
                     color_mode == "white"
                     and cur_item.color_temperature is None
