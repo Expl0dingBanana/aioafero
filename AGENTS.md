@@ -16,6 +16,24 @@ uv run tox -e docs          # when public API or docs/ changed
 
 All of the above must pass before a PR: **lint**, **audit**, **tests** (3.12–3.14), **100% coverage** ([Codecov](https://app.codecov.io/gh/Expl0dingBanana/aioafero) fails below 100%), **docs** when applicable. Coverage targets `aioafero` (`--cov=aioafero`); verify with `uv run tox -e report`. Details: [docs/testing.rst](docs/testing.rst), [SECURITY.md](SECURITY.md).
 
+## Pre-push review (reduce Copilot ping-pong)
+
+Before pushing, run the quality gate above, then review the diff:
+
+```bash
+git diff api-break/8.0.0...HEAD -- src/ tests/
+```
+
+In Cursor, ask: _Review this diff like Copilot would — secrets/redaction, None paths, API JSON validation, typing vs runtime, 8.0 auth/session rules._
+
+GitHub Copilot PR review reads [.github/copilot-instructions.md](.github/copilot-instructions.md) (≤4k chars). Re-request after push:
+
+```bash
+gh pr edit <number> --add-reviewer Copilot
+```
+
+The GraphQL “Projects (classic)” warning from `gh pr edit` is harmless.
+
 ## Linting
 
 Rules live in `pyproject.toml` and `.pre-commit-config.yaml` — fix what `tox -e lint` reports. Match surrounding code. Library is **fully async** (`async def`, no blocking I/O; use `asyncio.timeout`, not `async_timeout`). Public code needs docstrings; tests are exempt. **`TC001`–`TC003` ignored in tests** — do not use `TYPE_CHECKING` imports in tests (breaks `pytest.patch()`).

@@ -461,11 +461,13 @@ class AferoBridgeV1:
             )
             res.raise_for_status()
             json_data = await res.json()
-            if len(json_data) == 0 or len(json_data.get("accountAccess", [])) == 0:
+            account_access = json_data.get("accountAccess") or []
+            if not account_access:
                 raise AferoError("No account ID found")
-            account_id = (
-                json_data.get("accountAccess")[0].get("account").get("accountId")
-            )
+            account = (account_access[0] or {}).get("account") or {}
+            account_id = account.get("accountId")
+            if not account_id:
+                raise AferoError("No account ID found")
             add_secret(account_id)
             self._account_id = account_id
         return self._account_id

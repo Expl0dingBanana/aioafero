@@ -390,6 +390,26 @@ def test_AferoBridgeV1_hide_secrets(hide_secrets, caplog):
             None,
             AferoError,
         ),
+        # Uninitialized, accountAccess present but accountId missing
+        (
+            None,
+            {
+                "status": 200,
+                "payload": {"accountAccess": [{"account": {}}]},
+            },
+            None,
+            AferoError,
+        ),
+        # Uninitialized, accountAccess present but account missing
+        (
+            None,
+            {
+                "status": 200,
+                "payload": {"accountAccess": [{}]},
+            },
+            None,
+            AferoError,
+        ),
         # Initialized, dont do anything
         (
             "mocked-account-id",
