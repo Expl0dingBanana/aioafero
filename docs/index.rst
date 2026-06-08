@@ -13,6 +13,7 @@ Async Python library for the Hubspace / Afero cloud API.
    user/auth
    user/examples
    user/bridge
+   user/conclave
    user/controllers/index
    user/device_splitting
    user/troubleshooting

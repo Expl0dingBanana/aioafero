@@ -58,3 +58,6 @@ uv.lock
 
 # MITM test bed — WireGuard client config contains a private key
 docker/mitmweb/emulator-wireguard.conf
+
+# Local OAuth session cache (scripts/conclave_watch.py)
+.aioafero-session.json
