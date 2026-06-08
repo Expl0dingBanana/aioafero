@@ -11,6 +11,7 @@ import time
 from typing import TYPE_CHECKING
 
 from aiohttp.client_exceptions import ClientError
+from securelogging import remove_secret
 
 from aioafero.errors import AferoError, InvalidAuth
 from aioafero.types import EventType
@@ -324,6 +325,7 @@ class ConclaveClient:
     async def _connect_and_serve(self) -> None:
         self._set_status(ConclaveStatus.CONNECTING)
         connection: ConclaveConnection | None = None
+        access: ConclaveAccess | None = None
         try:
             access = await request_conclave_access(self._bridge)
             self._logger.debug(
@@ -370,6 +372,8 @@ class ConclaveClient:
                 await connection.close()
             if connection is not None and self._connection is connection:
                 self._connection = None
+            if access is not None:
+                remove_secret(access.token)
 
     async def _reconcile_rest_state(self) -> None:
         """Run one REST state poll after a failed Conclave session."""
@@ -433,11 +437,13 @@ class ConclaveClient:
 async def _default_connect(
     access: ConclaveAccess,
 ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
-    """Open a TLS connection to the Conclave server."""
-    ctx = ssl.create_default_context()
-    return await asyncio.open_connection(
-        access.host,
-        access.port,
-        ssl=ctx,
-        server_hostname=access.host,
-    )
+    """Open a connection to the Conclave server."""
+    if access.ssl:
+        ctx = ssl.create_default_context()
+        return await asyncio.open_connection(
+            access.host,
+            access.port,
+            ssl=ctx,
+            server_hostname=access.host,
+        )
+    return await asyncio.open_connection(access.host, access.port)

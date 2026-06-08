@@ -116,7 +116,6 @@ def _parse_conclave_access(data: dict) -> ConclaveAccess:
         "conclaveAccess account token is missing token/channelId",
     )
     add_secret(token)
-    add_secret(channel_id)
     return ConclaveAccess(
         host=host,
         port=port,

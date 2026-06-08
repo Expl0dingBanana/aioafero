@@ -32,9 +32,19 @@ def test_try_parse_zlib_prefix_incomplete_without_json():
     assert result.frame is None
 
 
-def test_try_parse_zlib_prefix_abandons_when_json_follows():
-    chunk = b"\x78\x01" + b"\xaa" * 10 + b'{"hello":{}}'
+def test_try_parse_zlib_prefix_waits_when_incomplete_even_if_brace_present():
+    chunk = b"\x78\x01" + bytes([0x7B]) + b"\xaa" * 9
     result = try_parse_zlib_prefix(chunk)
+    assert result.decided is False
+    assert result.frame is None
+    assert result.consumed == 0
+
+
+def test_try_parse_zlib_prefix_abandons_truncated_prefix_with_plain_json_suffix():
+    prefix = b"\x78\x01" + b"\xaa" * 76
+    suffix = b'\n{"hello":{"version":"2.7.3"}}\n'
+    assert try_parse_zlib_prefix(prefix).decided is False
+    result = try_parse_zlib_prefix(prefix + suffix)
     assert result.decided is True
     assert result.frame is None
     assert result.consumed == 0

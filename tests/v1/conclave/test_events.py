@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from aioafero.device import AferoDevice
+from aioafero.device import AferoDevice, AferoState
 from aioafero.v1.conclave import events
 
 
@@ -194,6 +194,40 @@ def test_private_event_handlers_cover_supported_events():
     assert set(events.PRIVATE_EVENT_HANDLERS) == {"attr_change", "status_change"}
 
 
+def test_refresh_split_clone_states_noop_without_split_marker(conclave_bridge):
+    _, parent, _ = conclave_bridge
+    clone = AferoDevice(
+        id="orphan-id",
+        device_id=parent.device_id,
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="n",
+        split_identifier="light",
+        states=[AferoState(functionClass="power", functionInstance=None, value="on")],
+    )
+    events.refresh_split_clone_states(parent, clone)
+    assert clone.states[0].value == "on"
+
+
+def test_refresh_split_clone_states_noop_for_unknown_split_type(conclave_bridge):
+    _, parent, _ = conclave_bridge
+    clone = AferoDevice(
+        id=f"{parent.id}-custom-zone",
+        device_id=parent.device_id,
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="n",
+        split_identifier="custom",
+        states=[],
+    )
+    events.refresh_split_clone_states(parent, clone)
+    assert clone.states == []
+
+
 def test_split_instance_from_device():
     device = AferoDevice(
         id="uuid-light-trim",
@@ -214,12 +248,16 @@ def test_split_instance_from_device():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_refreshes_split_clone_states_before_emit(
+async def test_dispatch_refreshes_light_split_clone_from_parent(
     conclave_bridge, mocker
 ):
     """Split-light clones must be refreshed from the parent before events fire."""
     bridge, parent, generate = conclave_bridge
     parent.id = "8866648e-ef12-47b1-a7af-16c86214933e"
+    parent.states = [
+        AferoState(functionClass="power", functionInstance="trim", value="on"),
+        AferoState(functionClass="power", functionInstance="other", value="off"),
+    ]
     clone = AferoDevice(
         id=f"{parent.id}-light-trim",
         device_id=parent.device_id,
@@ -233,12 +271,67 @@ async def test_dispatch_refreshes_split_clone_states_before_emit(
         split_identifier="light",
     )
     bridge.events.split_devices = AsyncMock(return_value=[parent, clone, clone])
-    refreshed = mocker.patch(
-        "aioafero.v1.conclave.events.get_valid_states",
-        return_value=[],
-    )
     add_dev = mocker.patch.object(bridge, "add_afero_dev")
     await events._dispatch_conclave_device_update(bridge, parent)
     assert generate.await_count == 2
-    refreshed.assert_called_once_with(parent, "trim")
+    assert len(clone.states) == 1
+    assert clone.states[0].functionInstance == "trim"
     add_dev.assert_called_once_with(clone, clone.id)
+
+
+@pytest.mark.asyncio
+async def test_dispatch_refreshes_security_sensor_split_clone_from_parent(
+    conclave_bridge, mocker
+):
+    """Security sensor splits use security_system state filtering, not light rules."""
+    bridge, parent, generate = conclave_bridge
+    parent.id = "7f4e4c01-e799-45c5-9b1a-385433a78edc"
+    parent.states = [
+        AferoState(
+            functionClass="sensor-state",
+            functionInstance="sensor-12",
+            value={
+                "cfg-12": {
+                    "batteryLevel": 90,
+                    "tampered": 0,
+                    "triggered": 1,
+                    "missing": 0,
+                    "deviceType": 2,
+                }
+            },
+        ),
+        AferoState(
+            functionClass="sensor-state",
+            functionInstance="sensor-18",
+            value={
+                "cfg-18": {
+                    "batteryLevel": 80,
+                    "tampered": 0,
+                    "triggered": 0,
+                    "missing": 0,
+                    "deviceType": 1,
+                }
+            },
+        ),
+    ]
+    clone = AferoDevice(
+        id=f"{parent.id}-sensor-12",
+        device_id=f"{parent.id}-sensor-12",
+        model="m",
+        device_class="security-system-sensor",
+        default_name="n",
+        default_image="i",
+        friendly_name="Sensor 12",
+        functions=[],
+        states=[],
+        split_identifier="sensor",
+    )
+    bridge.events.split_devices = AsyncMock(return_value=[parent, clone])
+    await events._dispatch_conclave_device_update(bridge, parent)
+    assert generate.await_count == 2
+    triggered = next(
+        (state for state in clone.states if state.functionClass == "triggered"),
+        None,
+    )
+    assert triggered is not None
+    assert triggered.value == "On"

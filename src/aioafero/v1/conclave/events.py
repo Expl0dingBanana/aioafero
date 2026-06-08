@@ -8,7 +8,22 @@ from typing import TYPE_CHECKING, Any
 
 from aioafero.device import AferoDevice, AferoState, merge_afero_states
 from aioafero.util import normalize_afero_last_update_time_ms
-from aioafero.v1.controllers.light import get_valid_states
+from aioafero.v1.controllers.exhaust_fan import (
+    SPLIT_IDENTIFIER as EXHAUST_FAN_SPLIT,
+    get_valid_states as exhaust_fan_valid_states,
+)
+from aioafero.v1.controllers.light import (
+    SPLIT_IDENTIFIER as LIGHT_SPLIT,
+    get_valid_states as light_valid_states,
+)
+from aioafero.v1.controllers.portable_ac import (
+    SPLIT_IDENTIFIER as PORTABLE_AC_SPLIT,
+    get_valid_states as portable_ac_valid_states,
+)
+from aioafero.v1.controllers.security_system import (
+    SENSOR_SPLIT_IDENTIFIER,
+    get_valid_states as security_sensor_valid_states,
+)
 
 from .protocol import PrivateEventHandler
 from .semantics import build_attribute_index, coerce_rest_state_value, resolve_binding
@@ -20,6 +35,33 @@ logger = logging.getLogger(__name__)
 
 
 STATUS_FIELDS: tuple[str, ...] = ("available", "visible", "direct")
+
+SplitStateRefresher = Callable[[AferoDevice, str], list[AferoState]]
+
+
+def _refresh_security_sensor_states(
+    parent: AferoDevice, instance: str
+) -> list[AferoState]:
+    return security_sensor_valid_states(parent.states, int(instance))
+
+
+SPLIT_STATE_REFRESHERS: dict[str, SplitStateRefresher] = {
+    LIGHT_SPLIT: light_valid_states,
+    SENSOR_SPLIT_IDENTIFIER: _refresh_security_sensor_states,
+    EXHAUST_FAN_SPLIT: exhaust_fan_valid_states,
+    PORTABLE_AC_SPLIT: lambda parent, _instance: portable_ac_valid_states(parent),
+}
+
+
+def refresh_split_clone_states(parent: AferoDevice, clone: AferoDevice) -> None:
+    """Copy filtered parent states onto a split clone before emitting events."""
+    instance = split_instance_from_device(clone)
+    if instance is None or not clone.split_identifier:
+        return
+    refresher = SPLIT_STATE_REFRESHERS.get(clone.split_identifier)
+    if refresher is None:
+        return
+    clone.states = refresher(parent, instance)
 
 
 def split_instance_from_device(device: AferoDevice) -> str | None:
@@ -171,9 +213,8 @@ async def _dispatch_conclave_device_update(
     """Route a patched metadevice through split clones and the event queue."""
     clones = await bridge.events.split_devices([parent])
     for clone in _unique_devices(clones):
-        instance = split_instance_from_device(clone)
-        if instance is not None:
-            clone.states = get_valid_states(parent, instance)
+        if clone.split_identifier:
+            refresh_split_clone_states(parent, clone)
             bridge.add_afero_dev(clone, clone.id)
         await bridge.events.generate_events_from_update(clone)
 

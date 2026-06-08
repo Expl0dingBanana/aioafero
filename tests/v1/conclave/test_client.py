@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 from unittest.mock import AsyncMock
 
 import pytest
@@ -716,7 +717,7 @@ async def test_stop_without_start_emits_no_status_events(conclave_bridge, mocker
 
 
 @pytest.mark.asyncio
-async def test_default_connect_uses_asyncio_open_connection(mocker):
+async def test_default_connect_uses_tls_when_ssl_enabled(mocker):
     fake = mocker.patch(
         "asyncio.open_connection", AsyncMock(return_value=("reader", "writer"))
     )
@@ -726,5 +727,39 @@ async def test_default_connect_uses_asyncio_open_connection(mocker):
     assert host == ACCESS.host
     assert port == ACCESS.port
     assert fake.await_args.kwargs["server_hostname"] == ACCESS.host
-    assert fake.await_args.kwargs["ssl"] is not True
+    assert isinstance(fake.await_args.kwargs["ssl"], ssl.SSLContext)
     assert result == ("reader", "writer")
+
+
+@pytest.mark.asyncio
+async def test_default_connect_skips_tls_when_ssl_disabled(mocker):
+    fake = mocker.patch(
+        "asyncio.open_connection", AsyncMock(return_value=("reader", "writer"))
+    )
+    access = ConclaveAccess(
+        host=ACCESS.host,
+        port=ACCESS.port,
+        ssl=False,
+        compression=False,
+        token="t",
+        channel_id="c",
+    )
+    result = await client_module._default_connect(access)
+    fake.assert_awaited_once_with(access.host, access.port)
+    assert "ssl" not in fake.await_args.kwargs
+    assert result == ("reader", "writer")
+
+
+@pytest.mark.asyncio
+async def test_connect_and_serve_removes_conclave_token_secret(conclave_bridge, mocker):
+    bridge, _, _ = conclave_bridge
+    remove = mocker.patch("aioafero.v1.conclave.client.remove_secret")
+
+    async def fake_connect(_access):
+        raise OSError("connection refused")
+
+    client_module.request_conclave_access = AsyncMock(return_value=ACCESS)
+    conclave = client_module.ConclaveClient(bridge, connect=fake_connect)
+    with pytest.raises(OSError):
+        await conclave._connect_and_serve()
+    remove.assert_called_once_with(ACCESS.token)

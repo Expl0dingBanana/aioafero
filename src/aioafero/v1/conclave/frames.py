@@ -53,8 +53,6 @@ def try_parse_zlib_prefix(data: bytes) -> ZlibPrefixResult:
     except zlib.error:
         return ZlibPrefixResult(None, 0, True)
     if not decompressor.eof:
-        if index_json_object_start(data) is not None:
-            return ZlibPrefixResult(None, 0, True)
         return ZlibPrefixResult(None, 0, False)
     consumed = len(data) - len(decompressor.unused_data)
     try:
