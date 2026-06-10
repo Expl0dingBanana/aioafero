@@ -314,3 +314,25 @@ async def test_set_state_rain_delay(mocked_controller):
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[valve.id]
     assert dev.rain_delay.active is True
+
+
+@pytest.mark.asyncio
+async def test_set_and_clear_rain_delay(mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+
+    await mocked_controller.set_rain_delay(valve.id, 1000, 2000)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[valve.id]
+    assert dev.rain_delay.active is True
+    assert dev.rain_delay.pauses == [
+        {"version": 1, "flags": 0, "startTime": 1000, "endTime": 2000}
+    ]
+
+    await mocked_controller.clear_rain_delay(valve.id)
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[valve.id]
+    assert dev.rain_delay.active is False
+    assert dev.rain_delay.pauses == []

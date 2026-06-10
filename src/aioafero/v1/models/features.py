@@ -264,21 +264,55 @@ class RainDelayFeature:
       * `schedule-pause` @ `rain-delay` (object) -- the configured pause windows,
         wrapped as ``{"schedule-pause-time-array": {"schedulePauseTimeArray": [...]}}``.
 
-    ``api_value`` only emits the `active` toggle; the pause-window array is created
-    and managed in the Hubspace app and is surfaced here read-only.
+    ``active`` and ``pauses`` are read from the device (``active`` is a
+    device-computed status: whether now falls inside a window). To WRITE a timed
+    pause (rain delay), set ``pause_windows`` to a list of window entries built
+    with :meth:`pause_window`; ``api_value`` then emits both the window array and
+    the ``active`` mirror. ``pause_windows=[]`` clears the rain delay.
     """
 
     active: bool
     pauses: list[Any] = field(default_factory=list)
+    # Windows to WRITE (None = emit only the active toggle; [] = clear).
+    pause_windows: list[dict] | None = None
+
+    @staticmethod
+    def pause_window(start_epoch: int, end_epoch: int, *, flags: int = 0, version: int = 1) -> dict:
+        """Build one pause-window entry (times in epoch SECONDS)."""
+        return {
+            "version": version,
+            "flags": flags,
+            "startTime": int(start_epoch),
+            "endTime": int(end_epoch),
+        }
 
     @property
     def api_value(self):
-        """Value to send to Afero API to toggle the rain delay on/off."""
-        return {
-            "functionClass": "schedule-pause",
-            "functionInstance": "active",
-            "value": "on" if self.active else "off",
-        }
+        """Value(s) to send to Afero API."""
+        if self.pause_windows is None:
+            # Plain active toggle (legacy behavior).
+            return {
+                "functionClass": "schedule-pause",
+                "functionInstance": "active",
+                "value": "on" if self.active else "off",
+            }
+        # Write the window array plus the active mirror (empty list = clear).
+        return [
+            {
+                "functionClass": "schedule-pause",
+                "functionInstance": "active",
+                "value": "on" if self.pause_windows else "off",
+            },
+            {
+                "functionClass": "schedule-pause",
+                "functionInstance": "rain-delay",
+                "value": {
+                    "schedule-pause-time-array": {
+                        "schedulePauseTimeArray": list(self.pause_windows)
+                    }
+                },
+            },
+        ]
 
 
 @dataclass

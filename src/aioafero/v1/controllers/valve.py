@@ -205,6 +205,7 @@ class ValveController(BaseResourcesController[Valve]):
         instance: str | None = None,
         numbers: dict[tuple[str, str | None], float] | None = None,
         rain_delay: bool | None = None,
+        rain_delay_windows: list[dict] | None = None,
     ) -> None:
         """Set supported feature(s) on the valve resource."""
         update_obj = ValvePut()
@@ -234,6 +235,21 @@ class ValveController(BaseResourcesController[Valve]):
                     name=cur_item.numbers[key].name,
                     unit=cur_item.numbers[key].unit,
                 )
-        if rain_delay is not None:
+        if rain_delay_windows is not None:
+            update_obj.rain_delay = features.RainDelayFeature(
+                active=bool(rain_delay_windows), pause_windows=rain_delay_windows
+            )
+        elif rain_delay is not None:
             update_obj.rain_delay = features.RainDelayFeature(active=rain_delay)
         await self.update(device_id, obj_in=update_obj)
+
+    async def set_rain_delay(
+        self, device_id: str, start_epoch: int, end_epoch: int
+    ) -> None:
+        """Pause the device's schedule for a window (epoch seconds) -- a rain delay."""
+        window = features.RainDelayFeature.pause_window(start_epoch, end_epoch)
+        await self.set_state(device_id, rain_delay_windows=[window])
+
+    async def clear_rain_delay(self, device_id: str) -> None:
+        """Clear any rain delay on the device."""
+        await self.set_state(device_id, rain_delay_windows=[])

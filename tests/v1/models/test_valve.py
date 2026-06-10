@@ -61,3 +61,25 @@ def test_rain_delay_feature_api_value():
     }
     feat.active = False
     assert feat.api_value["value"] == "off"
+
+
+def test_rain_delay_pause_window_builder():
+    w = features.RainDelayFeature.pause_window(1000, 2000)
+    assert w == {"version": 1, "flags": 0, "startTime": 1000, "endTime": 2000}
+
+
+def test_rain_delay_write_api_value():
+    feat = features.RainDelayFeature(
+        active=False,
+        pause_windows=[{"version": 1, "flags": 0, "startTime": 10, "endTime": 20}],
+    )
+    val = feat.api_value
+    assert isinstance(val, list) and len(val) == 2
+    active, arr = val
+    assert active == {"functionClass": "schedule-pause", "functionInstance": "active", "value": "on"}
+    assert arr["functionInstance"] == "rain-delay"
+    assert arr["value"]["schedule-pause-time-array"]["schedulePauseTimeArray"][0]["startTime"] == 10
+    # empty windows -> clear (active off, empty array)
+    clear = features.RainDelayFeature(active=True, pause_windows=[]).api_value
+    assert clear[0]["value"] == "off"
+    assert clear[1]["value"]["schedule-pause-time-array"]["schedulePauseTimeArray"] == []
