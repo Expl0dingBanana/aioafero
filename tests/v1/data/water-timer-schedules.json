@@ -1,0 +1,67 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "tag": "{\"version\":2,\"outlet\":null,\"weekly\":null,\"index\":null}",
+    "deviceAttributeId": 49002,
+    "deviceAttributeData": "03FF042D0134001E0043020000EA07051C01000133003C00",
+    "events": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "enabled": true,
+        "timeType": "PERIODIC",
+        "daysOfWeek": [],
+        "startDateLocal": {
+          "year": 2026,
+          "month": 5,
+          "day": 28,
+          "hour": 1,
+          "minute": 0
+        },
+        "utc": false,
+        "intervalDays": 2,
+        "hour": 0,
+        "minute": 0,
+        "semanticValues": [
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "createdTimestampMs": 1700000000000,
+            "updatedTimestampMs": 1700000000000,
+            "functionClass": "timer",
+            "functionInstance": "spigot-1",
+            "value": 60
+          }
+        ],
+        "tag": "{\"version\":1,\"id\":\"00000000-0000-4000-8000-000000000004\"}"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "enabled": true,
+        "timeType": "ABSOLUTE",
+        "daysOfWeek": [
+          "MONDAY",
+          "TUESDAY",
+          "WEDNESDAY",
+          "THURSDAY",
+          "FRIDAY",
+          "SATURDAY",
+          "SUNDAY"
+        ],
+        "utc": false,
+        "intervalDays": 0,
+        "hour": 4,
+        "minute": 45,
+        "semanticValues": [
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "createdTimestampMs": 1700000000000,
+            "updatedTimestampMs": 1700000000000,
+            "functionClass": "timer",
+            "functionInstance": "spigot-2",
+            "value": 30
+          }
+        ],
+        "tag": "{\"version\":1,\"id\":\"00000000-0000-4000-8000-000000000007\"}"
+      }
+    ]
+  }
+]

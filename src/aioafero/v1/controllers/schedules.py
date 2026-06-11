@@ -14,7 +14,11 @@ schedule object with multiple events).
 from typing import TYPE_CHECKING
 
 from aioafero.v1 import v1_const
-from aioafero.v1.models.schedules import DeviceSchedule, ScheduleEvent
+from aioafero.v1.models.schedules import (
+    DEFAULT_SCHEDULE_TAG,
+    DeviceSchedule,
+    ScheduleEvent,
+)
 
 if TYPE_CHECKING:
     from aioafero.v1 import AferoBridgeV1
@@ -42,7 +46,7 @@ class SchedulesController:
     def _headers(self) -> dict[str, str]:
         # Device resources are served by the data host, addressed via Host header.
         return {
-            "host": v1_const.AFERO_CLIENTS[self._bridge._afero_client]["API_DATA_HOST"]
+            "host": v1_const.AFERO_CLIENTS[self._bridge.afero_client]["API_DATA_HOST"]
         }
 
     async def get_schedules(self, device_id: str) -> list[DeviceSchedule]:
@@ -83,7 +87,13 @@ class SchedulesController:
         existing = await self.get_schedules(device_id)
         events: list[ScheduleEvent] = [e for sched in existing for e in sched.events]
         events.append(event)
+        # Carry the existing schedule's opaque tag through the rebuild rather than
+        # resetting it to the default; the backend treats it as app-managed
+        # metadata and dropping it may change device-specific behaviour.
+        tag = existing[0].tag if existing else DEFAULT_SCHEDULE_TAG
         for sched in existing:
             if sched.schedule_id:
                 await self.delete_schedule(device_id, sched.schedule_id)
-        return await self.create_schedule(device_id, DeviceSchedule(events=events))
+        return await self.create_schedule(
+            device_id, DeviceSchedule(events=events, tag=tag)
+        )

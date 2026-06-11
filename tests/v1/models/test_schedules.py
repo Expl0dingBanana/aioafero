@@ -1,5 +1,8 @@
 """Tests for the per-device schedule data models."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from aioafero.v1.models.schedules import (
@@ -7,6 +10,8 @@ from aioafero.v1.models.schedules import (
     ScheduleEvent,
     normalize_days,
 )
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 def test_normalize_days():
@@ -96,3 +101,42 @@ def test_device_schedule_round_trip():
     assert "scheduleId" not in create_payload
     assert "deviceAttributeData" not in create_payload
     assert create_payload["events"][0]["semanticValues"][0]["value"] == 20
+
+
+def test_from_afero_requires_semantic_values():
+    with pytest.raises(ValueError, match="missing semanticValues"):
+        ScheduleEvent.from_afero({"hour": 6, "minute": 0, "semanticValues": []})
+
+
+def test_real_water_timer_schedule_dump_parses():
+    """Parse a captured GET /schedules response from a live water timer.
+
+    Confirms the model handles the real wire shape: one schedule object holding
+    a mix of PERIODIC (every N days from a start date) and ABSOLUTE (weekly)
+    events, and that re-creating it drops the server-derived fields.
+    """
+    raw = json.loads((DATA_DIR / "water-timer-schedules.json").read_text())
+    schedules = [DeviceSchedule.from_afero(s) for s in raw]
+
+    assert len(schedules) == 1
+    sched = schedules[0]
+    assert sched.schedule_id == "00000000-0000-4000-8000-000000000001"
+    assert sched.device_attribute_id == 49002
+    assert {e.time_type for e in sched.events} == {"PERIODIC", "ABSOLUTE"}
+
+    periodic = next(e for e in sched.events if e.time_type == "PERIODIC")
+    assert periodic.interval_days == 2
+    assert periodic.start_date_local["hour"] == 1
+    assert periodic.function_instance == "spigot-1"
+    assert periodic.value == 60
+
+    absolute = next(e for e in sched.events if e.time_type == "ABSOLUTE")
+    assert absolute.hour == 4 and absolute.minute == 45
+    assert len(absolute.days_of_week) == 7
+    assert absolute.function_instance == "spigot-2"
+
+    payload = DeviceSchedule(events=sched.events, tag=sched.tag).to_afero()
+    assert "scheduleId" not in payload
+    assert "deviceAttributeData" not in payload
+    assert len(payload["events"]) == 2
+    assert payload["events"][0]["startDateLocal"]["day"] == 28

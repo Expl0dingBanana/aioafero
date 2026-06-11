@@ -16,8 +16,8 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 NUMBER_CLASSES = {"timer", "max-on-time"}
 # Display units for the per-spigot numbers. Both are 0/1-360 on the known
 # fixtures and represent durations in minutes. ``max-on-time`` is documented as
-# 1-360 minutes; ``timer``'s unit is inferred from its shared range and should
-# be confirmed against live hardware (see k3s-q9l7 sub-task 5 traffic capture).
+# 1-360 minutes; ``timer``'s unit is inferred from its shared range and is worth
+# confirming against live hardware.
 NUMBER_UNITS = {"timer": "minutes", "max-on-time": "minutes"}
 
 
@@ -240,7 +240,13 @@ class ValveController(BaseResourcesController[Valve]):
                 active=bool(rain_delay_windows), pause_windows=rain_delay_windows
             )
         elif rain_delay is not None:
-            update_obj.rain_delay = features.RainDelayFeature(active=rain_delay)
+            # Carry over the device's existing pause windows so toggling only
+            # ``active`` compares equal to current state when it is a no-op (and
+            # can be skipped). pause_windows stays None, so nothing is rewritten.
+            existing_pauses = cur_item.rain_delay.pauses if cur_item.rain_delay else []
+            update_obj.rain_delay = features.RainDelayFeature(
+                active=rain_delay, pauses=existing_pauses
+            )
         await self.update(device_id, obj_in=update_obj)
 
     async def set_rain_delay(

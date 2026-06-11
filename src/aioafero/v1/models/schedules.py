@@ -86,8 +86,16 @@ class ScheduleEvent:
 
     @classmethod
     def from_afero(cls, data: dict) -> ScheduleEvent:
-        """Build from an Afero API event object."""
-        sv = (data.get("semanticValues") or [{}])[0]
+        """Build from an Afero API event object.
+
+        Raises ValueError when the event carries no ``semanticValues``: without
+        one there is no function instance to act on, and defaulting it silently
+        would later emit an invalid ``functionInstance: null`` payload.
+        """
+        sv_list = data.get("semanticValues") or []
+        if not sv_list:
+            raise ValueError("schedule event is missing semanticValues")
+        sv = sv_list[0]
         return cls(
             function_instance=sv.get("functionInstance"),
             value=sv.get("value"),
@@ -142,15 +150,17 @@ class DeviceSchedule:
     device_attribute_data: str | None = None
 
     def to_afero(self) -> dict[str, Any]:
-        """Value to send to the Afero API. ``scheduleId`` is omitted on create;
-        ``deviceAttributeData`` is derived by the backend from ``events``."""
-        payload: dict[str, Any] = {
+        """Value to POST when creating a schedule -- only ``tag`` + ``events``.
+
+        ``scheduleId`` is server-assigned and ``deviceAttributeData`` is derived
+        by the backend from ``events``, so neither is sent. Create is the only
+        POST path (there is no id-round-tripping update), so a fetched schedule
+        re-posted here will not leak its id back to the backend.
+        """
+        return {
             "tag": self.tag,
             "events": [e.to_afero() for e in self.events],
         }
-        if self.schedule_id is not None:
-            payload["scheduleId"] = self.schedule_id
-        return payload
 
     @classmethod
     def from_afero(cls, data: dict) -> DeviceSchedule:
