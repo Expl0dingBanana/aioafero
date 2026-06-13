@@ -76,7 +76,7 @@ jobs:
             -o junit_family=legacy
       - name: Upload coverage data
         if: inputs.run-codecov
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-py${{ matrix.python-version }}
           path: ${{ steps.coverage.outputs.file }}
@@ -84,7 +84,7 @@ jobs:
           if-no-files-found: error
       - name: Upload test results
         if: inputs.run-codecov
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: junit-py${{ matrix.python-version }}
           path: junit-py${{ matrix.python-version }}.xml
