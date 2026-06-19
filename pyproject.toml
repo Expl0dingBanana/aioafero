@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "7.0.4"
+version = "7.0.5"
 dependencies = [
   "aiohttp",
   "beautifulsoup4",

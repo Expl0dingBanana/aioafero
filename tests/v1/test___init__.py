@@ -29,6 +29,19 @@ from aioafero.v1.controllers.valve import ValveController
 from . import utils
 
 
+def _cached_device(device_id: str) -> AferoDevice:
+    """Minimal AferoDevice for bridge cache tests."""
+    return AferoDevice(
+        id=device_id,
+        device_id=device_id,
+        model="test",
+        device_class="light",
+        default_name="Test",
+        default_image="icon",
+        friendly_name="Test",
+    )
+
+
 async def build_url(base_url: str, qs: dict[str, str]) -> str:
     return f"{base_url}?{urlencode(qs)}"
 
@@ -582,10 +595,8 @@ async def test_adjust_temperature_unit(
 
 @pytest.mark.asyncio
 async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
-    dev1 = mocker.Mock(spec=AferoDevice)
-    dev1.id = "dev1"
-    dev2 = mocker.Mock(spec=AferoDevice)
-    dev2.id = "dev2"
+    dev1 = _cached_device("dev1")
+    dev2 = _cached_device("dev2")
     mocked_bridge._known_devs = {
         "dev1": mocker.Mock(),
         "dev2": mocker.Mock(),
@@ -621,14 +632,10 @@ async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
 @pytest.mark.asyncio
 async def test_fetch_all_device_states_dedupes_split_ids(mocked_bridge, mocker):
     parent_id = "parent-light-id"
-    parent_dev = mocker.Mock(spec=AferoDevice)
-    parent_dev.id = parent_id
-    parent_dev.split_identifier = None
-    trim_dev = mocker.Mock(spec=AferoDevice)
-    trim_dev.id = f"{parent_id}-light-trim"
+    parent_dev = _cached_device(parent_id)
+    trim_dev = _cached_device(f"{parent_id}-light-trim")
     trim_dev.split_identifier = "light"
-    main_dev = mocker.Mock(spec=AferoDevice)
-    main_dev.id = f"{parent_id}-light-main"
+    main_dev = _cached_device(f"{parent_id}-light-main")
     main_dev.split_identifier = "light"
     mocked_bridge._known_devs = {
         f"{parent_id}-light-main": mocker.Mock(),

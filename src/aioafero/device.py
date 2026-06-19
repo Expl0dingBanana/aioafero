@@ -67,9 +67,9 @@ class AferoDevice:
     default_image: str
     friendly_name: str
     capabilities: list[AferoCapability] = field(default_factory=list)
-    functions: list[dict] = field(default=list)
-    states: list[AferoState] = field(default=list)
-    children: list[str] = field(default=list)
+    functions: list[dict] = field(default_factory=list)
+    states: list[AferoState] = field(default_factory=list)
+    children: list[str] = field(default_factory=list)
     manufacturerName: str | None = field(default=None)  # noqa: N815
     split_identifier: str | None = field(default=None, repr=False)
     version_data: dict[str, str] | None = field(default=None)

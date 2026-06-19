@@ -25,6 +25,9 @@ class Light(StandardMixin):
     dimming: features.DimmingFeature | None = None
     effect: features.EffectFeature | None = None
     supports_white: bool = False
+    dual_channel: bool = False
+    color_brightness: int | None = None
+    white_brightness: int | None = None
 
     def __post_init__(self):
         """Determine if white only is supported."""
@@ -76,6 +79,19 @@ class Light(StandardMixin):
         if self.dimming is not None:
             return self.dimming.brightness
         return 100.0 if self.is_on else 0.0
+
+    @property
+    def is_dual_channel(self) -> bool:
+        """Return True when color and white brightness are independently controllable."""
+        return self.dual_channel
+
+    def channel_brightness(self, channel: str) -> float | None:
+        """Return cached brightness percentage for a dual-channel zone."""
+        if channel == "color":
+            return self.color_brightness
+        if channel == "white":
+            return self.white_brightness
+        return None
 
 
 @dataclass

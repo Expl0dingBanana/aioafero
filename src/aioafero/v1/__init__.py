@@ -31,7 +31,7 @@ import aiohttp
 from aiohttp import web_exceptions
 from securelogging import LogRedactorMessage, add_secret
 
-from aioafero.device import AferoDevice, AferoResource, AferoState
+from aioafero.device import AferoDevice, AferoResource, AferoState, merge_afero_states
 from aioafero.errors import (
     AferoError,
     DeviceNotFound,
@@ -493,7 +493,7 @@ class AferoBridgeV1:
             except DeviceNotFound:
                 self.logger.warning("Device %s not found in cache", device_id)
                 continue
-            device.states = states
+            device.states = merge_afero_states(device.states, states)
             updated_devices.append(device)
         return updated_devices
 

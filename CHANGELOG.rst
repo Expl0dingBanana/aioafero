@@ -2,6 +2,17 @@
 Changelog
 =========
 
+Version 7.0.5
+=============
+ * Do not split dual-channel RGB+WW fixtures (``color`` / ``white`` brightness zones); keep RGBCW strips, flushmounts, and similar devices as one light with shared color controls
+ * Prefer ``primary`` brightness for dual-channel lights and send dimming PUTs via ``DimmingFeature.func_instance``
+ * Route RGB/white/CCT brightness PUTs to the ``color`` or ``white`` channel on dual-channel fixtures; track per-channel levels on the light model for integrations (`Hubspace-Homeassistant #160 <https://github.com/jdeath/Hubspace-Homeassistant/issues/160>`__)
+ * Detect dual-channel fixtures from function/capability definitions, not only live state values
+ * Merge polled device states into cache so partial poll responses do not drop dual-channel metadata
+ * Add ``Light.is_dual_channel`` and ``Light.channel_brightness()`` for downstream integrations
+ * Remove ``LCN3002LM-01 WH``-specific split routing; main/trim and other true multi-zone lights still split normally
+ * Fix ``AferoDevice`` list fields to use ``default_factory=list`` instead of ``default=list``
+
 Version 7.0.4
 =============
  * Re-send ``color-mode: white`` when setting white on no-CCT split-light zones, even if the cached mode is already white
