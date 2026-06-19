@@ -6,7 +6,7 @@ Version 7.0.5
 =============
  * Do not split dual-channel RGB+WW fixtures (``color`` / ``white`` brightness zones); keep RGBCW strips, flushmounts, and similar devices as one light with shared color controls
  * Prefer ``primary`` brightness for dual-channel lights and send dimming PUTs via ``DimmingFeature.func_instance``
- * Route RGB/white/CCT brightness PUTs to the ``color`` or ``white`` channel on dual-channel fixtures; track per-channel levels on the light model for integrations ([#160](https://github.com/jdeath/Hubspace-Homeassistant/issues/160))
+ * Route RGB/white/CCT brightness PUTs to the ``color`` or ``white`` channel on dual-channel fixtures; track per-channel levels on the light model for integrations (`Hubspace-Homeassistant #160 <https://github.com/jdeath/Hubspace-Homeassistant/issues/160>`__)
  * Detect dual-channel fixtures from function/capability definitions, not only live state values
  * Merge polled device states into cache so partial poll responses do not drop dual-channel metadata
  * Add ``Light.is_dual_channel`` and ``Light.channel_brightness()`` for downstream integrations

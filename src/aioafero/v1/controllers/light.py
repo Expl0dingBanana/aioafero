@@ -199,6 +199,37 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
     ]
 
 
+def apply_brightness_state_update(
+    afero_device: AferoDevice,
+    cur_item: Light,
+    state: AferoState,
+    updated_keys: set[str],
+) -> None:
+    """Apply inbound brightness state to a light model."""
+    if cur_item.dual_channel and state.functionInstance == "color":
+        new_val = int(state.value)
+        if cur_item.color_brightness != new_val:
+            cur_item.color_brightness = new_val
+            updated_keys.add("color_brightness")
+    elif cur_item.dual_channel and state.functionInstance == "white":
+        new_val = int(state.value)
+        if cur_item.white_brightness != new_val:
+            cur_item.white_brightness = new_val
+            updated_keys.add("white_brightness")
+    if not should_use_brightness_state(afero_device, state):
+        return
+    new_val = int(state.value)
+    dimming_changed = False
+    if cur_item.dimming.brightness != new_val:
+        cur_item.dimming.brightness = new_val
+        dimming_changed = True
+    if cur_item.dimming.func_instance != state.functionInstance:
+        cur_item.dimming.func_instance = state.functionInstance
+        dimming_changed = True
+    if dimming_changed:
+        updated_keys.add("dimming")
+
+
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:
     """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
@@ -506,24 +537,9 @@ class LightController(BaseResourcesController[Light]):
                     cur_item.color_temperature.temperature = new_val
                     updated_keys.add("color_temperature")
             elif state.functionClass == "brightness":
-                if cur_item.dual_channel and state.functionInstance == "color":
-                    new_val = int(state.value)
-                    if cur_item.color_brightness != new_val:
-                        cur_item.color_brightness = new_val
-                        updated_keys.add("color_brightness")
-                elif cur_item.dual_channel and state.functionInstance == "white":
-                    new_val = int(state.value)
-                    if cur_item.white_brightness != new_val:
-                        cur_item.white_brightness = new_val
-                        updated_keys.add("white_brightness")
-                if not should_use_brightness_state(afero_device, state):
-                    continue
-                new_val = int(state.value)
-                if cur_item.dimming.brightness != new_val:
-                    cur_item.dimming.brightness = int(state.value)
-                    if cur_item.dimming.func_instance != state.functionInstance:
-                        cur_item.dimming.func_instance = state.functionInstance
-                    updated_keys.add("dimming")
+                apply_brightness_state_update(
+                    afero_device, cur_item, state, updated_keys
+                )
             elif state.functionClass == "color-sequence":
                 color_seq_states[state.functionInstance] = state
             elif state.functionClass == "color-rgb":
