@@ -53,9 +53,13 @@ in-process** to any callbacks you register.
 Polling loop (simplified):
 
 1. Every ``polling_interval`` seconds, ``fetch_all_device_states()`` runs.
-2. Changed devices are queued on ``bridge.events``.
-3. Each controller merges API data into its models (``update_elem``).
-4. If something changed, registered callbacks run with ``(event_type, item)``.
+2. For each parent metadevice, returned states are **merged** into the cached
+   ``AferoDevice`` (matched by ``functionClass`` and ``functionInstance``) rather than
+   replacing the full ``states`` list. Partial poll payloads therefore do not drop
+   other zones or dual-channel brightness rows.
+3. Changed devices are queued on ``bridge.events``.
+4. Each controller merges API data into its models (``update_elem``).
+5. If something changed, registered callbacks run with ``(event_type, item)``.
 
 ``item`` is the controller's typed model (``Fan``, ``Light``, etc.) after the merge.
 Callbacks may be sync or ``async def``; async handlers are scheduled as tasks on the
@@ -74,7 +78,8 @@ Advanced callers can use:
 
 * ``await bridge.fetch_discovery_data()`` — full discovery payload
 * ``await bridge.fetch_device_states(device_id)``
-* ``await bridge.fetch_all_device_states()``
+* ``await bridge.fetch_all_device_states()`` — poll and merge states into the device
+  cache (see polling loop above)
 * ``await bridge.send_service_request(device_id, states)`` — low-level state write
 
 See :doc:`../reference/index` for ``AferoBridgeV1`` autodoc.
