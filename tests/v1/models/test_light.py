@@ -104,3 +104,21 @@ def test_empty_light(empty_light):
 
 def test_get_instance(populated_light):
     assert populated_light.get_instance("preset") == "preset-1"
+
+
+def test_dual_channel_helpers():
+    """Dual-channel fixtures cache per-zone brightness on the light model."""
+    dual = Light(
+        _id="dual",
+        available=True,
+        dual_channel=True,
+        color_brightness=10,
+        white_brightness=90,
+    )
+    assert dual.is_dual_channel
+    assert dual.channel_brightness("color") == 10
+    assert dual.channel_brightness("white") == 90
+    assert dual.channel_brightness("primary") is None
+
+    single = Light(_id="single", available=True)
+    assert not single.is_dual_channel
