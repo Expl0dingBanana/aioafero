@@ -336,3 +336,22 @@ async def test_set_and_clear_rain_delay(mocked_controller):
     dev = mocked_controller[valve.id]
     assert dev.rain_delay.active is False
     assert dev.rain_delay.pauses == []
+
+
+@pytest.mark.asyncio
+async def test_update_elem_adds_unknown_spigot(mocked_controller):
+    """A toggle for a spigot not seen at init must be added, not KeyError."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev_update = utils.create_devices_from_data("water-timer.json")[0]
+    dev_update.states.append(
+        AferoState(
+            functionClass="toggle", value="on", lastUpdateTime=0, functionInstance="spigot-3"
+        )
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    dev = mocked_controller[valve.id]
+    assert dev.open["spigot-3"].open is True
+    assert "open" in updates

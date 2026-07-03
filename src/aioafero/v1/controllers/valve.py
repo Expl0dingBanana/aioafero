@@ -178,9 +178,20 @@ class ValveController(BaseResourcesController[Valve]):
         for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 new_state = state.value == "on"
-                if cur_item.open[state.functionInstance].open != new_state:
+                existing = cur_item.open.get(state.functionInstance)
+                if existing is None:
+                    # A spigot/power instance can appear in an update that wasn't
+                    # in the initial states -- add it rather than KeyError.
+                    cur_item.open[state.functionInstance] = features.OpenFeature(
+                        open=new_state,
+                        func_class=state.functionClass,
+                        func_instance=state.functionInstance,
+                    )
                     updated_keys.add("open")
-                cur_item.open[state.functionInstance].open = new_state
+                else:
+                    if existing.open != new_state:
+                        updated_keys.add("open")
+                    existing.open = new_state
             elif state.functionClass in NUMBER_CLASSES:
                 key = (state.functionClass, state.functionInstance)
                 if key in cur_item.numbers and cur_item.numbers[key].value != state.value:
