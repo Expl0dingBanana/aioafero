@@ -28,7 +28,7 @@ class SwitchController(BaseResourcesController[Switch]):
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {}
 
-    async def turn_on(self, device_id: str, instance: str | None = None) -> None:
+    async def turn_on(self, device_id: str, *, instance: str | None = None) -> None:
         """Turn on the switch.
 
         Args:
@@ -38,7 +38,7 @@ class SwitchController(BaseResourcesController[Switch]):
         """
         await self.set_state(device_id, on=True, instance=instance)
 
-    async def turn_off(self, device_id: str, instance: str | None = None) -> None:
+    async def turn_off(self, device_id: str, *, instance: str | None = None) -> None:
         """Turn off the switch.
 
         Args:
@@ -122,6 +122,7 @@ class SwitchController(BaseResourcesController[Switch]):
     async def set_state(
         self,
         device_id: str,
+        *,
         on: bool | None = None,
         instance: str | None = None,
     ) -> None:

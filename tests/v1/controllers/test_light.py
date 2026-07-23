@@ -2,16 +2,17 @@
 
 import pytest
 
-from aioafero.device import AferoDevice, AferoState, merge_afero_states
+from aioafero.device import AferoCapability, AferoDevice, AferoState, merge_afero_states
 from aioafero.v1.controllers import event, light
 from aioafero.v1.controllers.base import get_afero_instance_for_state
 from aioafero.v1.controllers.light import (
     features,
     process_color_temps,
+    process_effects,
     state_matches_instance,
 )
 from aioafero.v1.models.features import ColorFeature, EffectFeature
-from aioafero.v1.models.light import Light
+from aioafero.v1.models.light import Light, LightChannel
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 from tests.v1 import utils
 
@@ -20,17 +21,33 @@ zandra_light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
 dimmer_light = utils.create_devices_from_data("dimmer-HPDA1110NWBP.json")[0]
 speed_light = utils.create_devices_from_data("light-with-speed.json")[2]
 flushmount_light = utils.create_devices_from_data("light-flushmount.json")[0]
-flushmount_light_color_id = f"{flushmount_light.id}-light-color"
-flushmount_light_white_id = f"{flushmount_light.id}-light-white"
 
 speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
 speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
 
-penrose_light = utils.create_devices_from_data("light-penrose.json")[0]
-
 trim_light = utils.create_devices_from_data("light-with-trim.json")[0]
 trim_light_primary_id = f"{trim_light.id}-light-main"
 trim_light_trim_id = f"{trim_light.id}-light-trim"
+
+rgbcw_strip_light = utils.create_devices_from_data("rgbcw-led-strip.json")[0]
+penrose_light = utils.create_devices_from_data("light-penrose.json")[0]
+
+
+def _dual_channel_light(**kwargs) -> Light:
+    """Minimal dual-channel light model for helper-level unit tests."""
+    defaults = {
+        "_id": flushmount_light.id,
+        "available": True,
+        "channels": {
+            "color": LightChannel(brightness=1, on=True),
+            "white": LightChannel(brightness=100, on=False),
+        },
+        "dimming": features.DimmingFeature(
+            brightness=50, supported=[1, 100], func_instance="primary"
+        ),
+    }
+    defaults.update(kwargs)
+    return Light(**defaults)
 
 
 def _trim_update_with_states(
@@ -117,13 +134,14 @@ def test_generate_split_name():
 @pytest.mark.parametrize(
     ("device", "expected"),
     [
-        # Flushmount splits
+        # Dual-channel: no Switch clones for color/white (state on Light.channels)
         (
             flushmount_light,
-            [
-                ("color", ResourceTypes.LIGHT),
-                ("white", ResourceTypes.LIGHT),
-            ],
+            [],
+        ),
+        (
+            rgbcw_strip_light,
+            [],
         ),
         # trim split
         (
@@ -146,169 +164,6 @@ def test_get_split_instances(device, expected):
 @pytest.mark.parametrize(
     ("device", "instance", "expected"),
     [
-        # Flushmount white
-        (
-            flushmount_light,
-            "white",
-            [
-                AferoState(
-                    functionClass="toggle",
-                    value="off",
-                    lastUpdateTime=0,
-                    functionInstance="white",
-                ),
-                AferoState(
-                    functionClass="brightness",
-                    value=100,
-                    lastUpdateTime=0,
-                    functionInstance="white",
-                ),
-                AferoState(
-                    functionClass="available",
-                    value=True,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-            ],
-        ),
-        # Flushmount color
-        (
-            flushmount_light,
-            "color",
-            [
-                AferoState(
-                    functionClass="brightness",
-                    value=1,
-                    lastUpdateTime=0,
-                    functionInstance="color",
-                ),
-                AferoState(
-                    functionClass="restore-values",
-                    value="partial-restore",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="color-sequence",
-                    value="sleep",
-                    lastUpdateTime=0,
-                    functionInstance="custom",
-                ),
-                AferoState(
-                    functionClass="toggle",
-                    value="on",
-                    lastUpdateTime=0,
-                    functionInstance="color",
-                ),
-                AferoState(
-                    functionClass="color-mode",
-                    value="color",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="color-rgb",
-                    value={
-                        "color-rgb": {
-                            "b": 204,
-                            "g": 242,
-                            "r": 255,
-                        },
-                    },
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="speed",
-                    value=0,
-                    lastUpdateTime=0,
-                    functionInstance="color-sequence",
-                ),
-                AferoState(
-                    functionClass="color-sequence",
-                    value="custom",
-                    lastUpdateTime=0,
-                    functionInstance="preset",
-                ),
-                AferoState(
-                    functionClass="color-temperature",
-                    value=3000,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="wifi-ssid",
-                    value="c87d78a4-3f6e-4468-a034-4bef7b7cd4b3",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="wifi-rssi",
-                    value=-37,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="wifi-steady-state",
-                    value="connected",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="wifi-setup-state",
-                    value="connected",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="wifi-mac-address",
-                    value="0ddc8684-2404-4e10-8495-fd5c82dda3e6",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="geo-coordinates",
-                    value={
-                        "geo-coordinates": {
-                            "latitude": "0",
-                            "longitude": "0",
-                        },
-                    },
-                    lastUpdateTime=0,
-                    functionInstance="system-device-location",
-                ),
-                AferoState(
-                    functionClass="scheduler-flags",
-                    value=1,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="available",
-                    value=True,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="visible",
-                    value=True,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="direct",
-                    value=True,
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-                AferoState(
-                    functionClass="ble-mac-address",
-                    value="444a8248-56ef-4735-a5a6-9dc486a16f85",
-                    lastUpdateTime=0,
-                    functionInstance=None,
-                ),
-            ],
-        ),
         # Pull out speaker power
         (
             speaker_power_light,
@@ -414,20 +269,452 @@ def test_get_valid_states(device, instance, expected):
     assert light.get_valid_states(device, instance) == expected
 
 
-def test_light_callback():
+def test_is_dual_channel_rgb_fixture():
+    """RGBCW strips and flushmounts expose color/white channels on one fixture."""
+    assert light.is_dual_channel_rgb_fixture(flushmount_light)
+    assert light.is_dual_channel_rgb_fixture(rgbcw_strip_light)
+    assert not light.is_dual_channel_rgb_fixture(trim_light)
+    assert not light.is_dual_channel_rgb_fixture(a21_light)
+
+
+def test_is_dual_channel_rgb_fixture_from_functions_without_states():
+    """Dual-channel detection must not depend on runtime state values."""
+    dev = AferoDevice(
+        id="strip",
+        device_id="strip-dev",
+        model="AL-TP-RGBCW-60",
+        device_class="light",
+        default_name="Strip",
+        default_image="icon",
+        friendly_name="Strip",
+        functions=rgbcw_strip_light.functions,
+        states=[],
+    )
+    assert light.is_dual_channel_rgb_fixture(dev)
+    assert light.get_split_instances(dev) == []
+
+
+def test_preferred_brightness_instance_dual_channel():
+    """Dual-channel lights use primary brightness when present."""
+    assert light.preferred_brightness_instance(rgbcw_strip_light) == "primary"
+    assert light.preferred_brightness_instance(flushmount_light) == "primary"
+
+
+def test_preferred_brightness_instance_fallbacks():
+    """Without primary, prefer null instance then the last brightness zone."""
+    none_instance_dev = AferoDevice(
+        id="strip-none",
+        device_id="strip-dev",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        states=[
+            AferoState(functionClass="brightness", value=50, functionInstance="color"),
+            AferoState(functionClass="brightness", value=50, functionInstance=None),
+        ],
+    )
+    assert light.preferred_brightness_instance(none_instance_dev) is None
+
+    last_zone_dev = AferoDevice(
+        id="strip-last",
+        device_id="strip-dev",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        states=[
+            AferoState(functionClass="brightness", value=50, functionInstance="color"),
+            AferoState(functionClass="brightness", value=50, functionInstance="white"),
+        ],
+    )
+    assert light.preferred_brightness_instance(last_zone_dev) == "white"
+
+
+def test_should_use_brightness_state_non_brightness():
+    """Non-brightness rows are always eligible for model updates."""
+    assert (
+        light.should_use_brightness_state(
+            flushmount_light,
+            AferoState(functionClass="power", value="on"),
+        )
+        is True
+    )
+
+
+def test_should_use_brightness_state_dual_channel_only_primary():
+    """Dual-channel fixtures only apply primary brightness to the dimming cache."""
+    color_state = AferoState(
+        functionClass="brightness", value=99, functionInstance="color"
+    )
+    primary_state = AferoState(
+        functionClass="brightness", value=40, functionInstance="primary"
+    )
+    assert not light.should_use_brightness_state(flushmount_light, color_state)
+    assert light.should_use_brightness_state(flushmount_light, primary_state)
+
+
+def test_apply_brightness_state_update_dual_channel_channels():
+    """Inbound color, white, and primary brightness update the light model."""
+    cur_item = _dual_channel_light(
+        dimming=features.DimmingFeature(
+            brightness=50, supported=[1, 100], func_instance="color"
+        )
+    )
+    updated: set[str] = set()
+    light.apply_brightness_state_update(
+        flushmount_light,
+        cur_item,
+        AferoState(functionClass="brightness", value=25, functionInstance="color"),
+        updated,
+    )
+    light.apply_brightness_state_update(
+        flushmount_light,
+        cur_item,
+        AferoState(functionClass="brightness", value=75, functionInstance="white"),
+        updated,
+    )
+    light.apply_brightness_state_update(
+        flushmount_light,
+        cur_item,
+        AferoState(functionClass="brightness", value=40, functionInstance="primary"),
+        updated,
+    )
+    assert cur_item.channels["color"].brightness == 25
+    assert cur_item.channels["white"].brightness == 75
+    assert cur_item.dimming.brightness == 40
+    assert cur_item.dimming.func_instance == "primary"
+    assert updated == {"channels", "dimming"}
+
+
+def test_apply_brightness_state_update_syncs_func_instance_without_brightness_change():
+    """Primary brightness instance must update even when the level is unchanged."""
+    cur_item = _dual_channel_light(
+        dimming=features.DimmingFeature(
+            brightness=40, supported=[1, 100], func_instance="color"
+        )
+    )
+    updated: set[str] = set()
+    light.apply_brightness_state_update(
+        flushmount_light,
+        cur_item,
+        AferoState(functionClass="brightness", value=40, functionInstance="primary"),
+        updated,
+    )
+    assert cur_item.dimming.brightness == 40
+    assert cur_item.dimming.func_instance == "primary"
+    assert updated == {"dimming"}
+
+
+def test_apply_brightness_state_update_skips_non_preferred_dimming():
+    """Color-channel brightness must not overwrite cached primary dimming."""
+    cur_item = _dual_channel_light()
+    updated: set[str] = set()
+    light.apply_brightness_state_update(
+        flushmount_light,
+        cur_item,
+        AferoState(functionClass="brightness", value=99, functionInstance="color"),
+        updated,
+    )
+    assert cur_item.channels["color"].brightness == 99
+    assert updated == {"channels"}
+    assert cur_item.dimming.brightness == 50
+    assert cur_item.dimming.func_instance == "primary"
+
+
+def test_get_split_instances_skips_toggle_matching_light_zone():
+    """Do not expose a switch when the zone is already a split light."""
+    multi_zone = AferoDevice(
+        id="multi",
+        device_id="d",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        states=[
+            AferoState(functionClass="brightness", value=50, functionInstance="main"),
+            AferoState(functionClass="brightness", value=50, functionInstance="trim"),
+            AferoState(functionClass="toggle", value="on", functionInstance="main"),
+            AferoState(functionClass="toggle", value="on", functionInstance="speaker"),
+        ],
+    )
+    splits = light.get_split_instances(multi_zone)
+    assert splits == [
+        ("main", ResourceTypes.LIGHT),
+        ("speaker", ResourceTypes.SWITCH),
+        ("trim", ResourceTypes.LIGHT),
+    ]
+
+
+def test_get_color_modes_for_device_fallback_without_instance_match():
+    """Use the first color-mode function when the zone instance does not match."""
+    split_dev = AferoDevice(
+        id=trim_light_primary_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name="main",
+        split_identifier="light",
+        states=[],
+        functions=[
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "other",
+                "values": [{"name": "white"}, {"name": "color"}],
+            }
+        ],
+    )
+    assert light.get_color_modes_for_device(split_dev) == ["white", "color"]
+
+
+@pytest.mark.parametrize(
+    ("color_mode", "color", "temperature", "effect", "expected"),
+    [
+        (None, None, None, None, "primary"),
+        ("color", None, None, None, "color"),
+        ("white", None, None, None, "white"),
+        ("sequence", None, None, None, "color"),
+        (None, (1, 2, 3), None, None, "color"),
+        (None, None, 3000, None, "white"),
+        (None, None, None, "sleep", "color"),
+    ],
+)
+def test_resolve_brightness_instance_dual_channel(
+    color_mode, color, temperature, effect, expected
+):
+    """Dual-channel PUTs target the active color or white channel when appropriate."""
+    cur_item = Light(
+        _id=flushmount_light.id,
+        available=True,
+        channels={
+            "color": LightChannel(brightness=1),
+            "white": LightChannel(brightness=100),
+        },
+        dimming=features.DimmingFeature(
+            brightness=50, supported=[1, 100], func_instance="primary"
+        ),
+    )
+    assert (
+        light.resolve_brightness_instance(
+            cur_item,
+            color_mode=color_mode,
+            color=color,
+            temperature=temperature,
+            effect=effect,
+        )
+        == expected
+    )
+
+
+def test_resolve_brightness_instance_from_cached_white_mode():
+    """Brightness-only PUTs follow cached white mode when no explicit mode is passed."""
+    cur_item = Light(
+        _id=flushmount_light.id,
+        available=True,
+        channels={
+            "color": LightChannel(),
+            "white": LightChannel(),
+        },
+        color_mode=features.ColorModeFeature("white"),
+        dimming=features.DimmingFeature(
+            brightness=50, supported=[1, 100], func_instance="primary"
+        ),
+    )
+    assert light.resolve_brightness_instance(cur_item) == "white"
+
+
+def test_resolve_brightness_instance_from_cached_color_mode():
+    """Brightness-only PUTs follow cached color mode when no explicit mode is passed."""
+    cur_item = _dual_channel_light(color_mode=features.ColorModeFeature("color"))
+    assert light.resolve_brightness_instance(cur_item) == "color"
+
+
+def test_resolve_brightness_instance_from_cached_sequence_mode():
+    """Cached sequence mode routes brightness to the color channel."""
+    cur_item = _dual_channel_light(color_mode=features.ColorModeFeature("sequence"))
+    assert light.resolve_brightness_instance(cur_item) == "color"
+
+
+def test_resolve_brightness_instance_non_dual_channel():
+    """Non-dual-channel lights keep their configured dimming instance."""
+    cur_item = Light(
+        _id=a21_light.id,
+        available=True,
+        dimming=features.DimmingFeature(
+            brightness=50, supported=[1, 100], func_instance="main"
+        ),
+    )
+    assert light.resolve_brightness_instance(cur_item) == "main"
+    assert (
+        light.resolve_brightness_instance(Light(_id=a21_light.id, available=True))
+        is None
+    )
+
+
+def test_should_use_brightness_state_split_zone():
+    """Split zones accept every brightness row for their clone model."""
+    split_dev = AferoDevice(
+        id=trim_light_primary_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name="main",
+        split_identifier="light",
+    )
+    main_brightness = AferoState(
+        functionClass="brightness", value=50, functionInstance="main"
+    )
+    assert light.should_use_brightness_state(split_dev, main_brightness)
+
+
+def test_state_matches_instance_non_split():
+    """Unsplit lights accept shared null-instance color states."""
+    rgb_state = AferoState(
+        functionClass="color-rgb",
+        value={"color-rgb": {"r": 10, "g": 20, "b": 30}},
+        functionInstance=None,
+    )
+    assert state_matches_instance(flushmount_light, rgb_state) is True
+
+
+def test_state_belongs_to_light_instance():
+    """Zone filtering keeps availability global and rejects shared controls."""
+    zone_dev = AferoDevice(
+        id="x",
+        device_id="d",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+    )
+    available = AferoState(functionClass="available", value=True, functionInstance=None)
+    primary = AferoState(
+        functionClass="brightness", value=50, functionInstance="primary"
+    )
+    main = AferoState(functionClass="power", value="on", functionInstance="main")
+    assert light.state_belongs_to_light_instance(zone_dev, available, "main")
+    assert not light.state_belongs_to_light_instance(zone_dev, primary, "main")
+    assert light.state_belongs_to_light_instance(zone_dev, main, "main")
+
+
+def test_resolve_function_instance_split_zone():
+    """Split resources derive their function instance from the synthetic id."""
+    split_dev = AferoDevice(
+        id=trim_light_trim_id,
+        device_id=trim_light.device_id,
+        model=trim_light.model,
+        device_class="light",
+        default_name=trim_light.default_name,
+        default_image=trim_light.default_image,
+        friendly_name="trim",
+        split_identifier="light",
+    )
+    assert light.resolve_function_instance(split_dev) == "trim"
+
+
+def test_resolve_function_instance_from_color_mode_state():
+    """Single lights use the color-mode state's function instance when present."""
+    assert light.resolve_function_instance(flushmount_light) is None
+
+
+def test_resolve_function_instance_without_color_mode():
+    """Return None when no color-mode state exists on an unsplit device."""
+    bare_dev = AferoDevice(
+        id="bare",
+        device_id="d",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        states=[],
+    )
+    assert light.resolve_function_instance(bare_dev) is None
+
+
+def test_get_color_modes_for_device_empty():
+    """Return an empty list when the device exposes no color-mode functions."""
+    bare_dev = AferoDevice(
+        id="bare",
+        device_id="d",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        functions=[],
+    )
+    assert light.get_color_modes_for_device(bare_dev) == []
+
+
+def test_is_dual_channel_rgb_fixture_from_capabilities():
+    """Dual-channel detection includes brightness capabilities without live states."""
+    dev = AferoDevice(
+        id="cap-strip",
+        device_id="d",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        capabilities=[
+            AferoCapability(
+                functionClass="brightness",
+                type="numeric",
+                schedulable=True,
+                functionInstance="color",
+            ),
+            AferoCapability(
+                functionClass="brightness",
+                type="numeric",
+                schedulable=True,
+                functionInstance="white",
+            ),
+        ],
+    )
+    assert light.is_dual_channel_rgb_fixture(dev)
+
+
+def test_process_effects():
+    """Build per-instance effect sets and drop the preset-only custom placeholder."""
+    functions = [
+        {
+            "functionClass": "color-sequence",
+            "functionInstance": "preset",
+            "values": [{"name": "fade"}, {"name": "custom"}],
+        },
+        {
+            "functionClass": "color-sequence",
+            "functionInstance": "custom",
+            "values": [{"name": "rainbow"}],
+        },
+    ]
+    assert process_effects(functions) == {
+        "preset": {"fade"},
+        "custom": {"rainbow"},
+    }
+
+
+def test_rgbcw_fixture_is_not_split_into_lights():
+    """RGBCW strips remain a single light with no Switch clones for channels."""
+    multi_devs, remove_dev = light.light_callback(rgbcw_strip_light)
+    assert remove_dev is False
+    assert multi_devs == []
+
+
+def test_light_callback_flushmount_combined():
+    """Flushmount stays one light with no Switch clones for channels."""
     multi_devs, remove_dev = light.light_callback(flushmount_light)
-    assert remove_dev is True
-    assert len(multi_devs) == 3
-    assert len(multi_devs[0].states) == 20
-    assert multi_devs[0].id == flushmount_light_color_id
-    assert multi_devs[0].device_class == ResourceTypes.LIGHT.value
-    assert len(multi_devs[1].states) == 3
-    assert multi_devs[1].id == flushmount_light_white_id
-    assert multi_devs[1].friendly_name == f"{flushmount_light.friendly_name} - white"
-    assert multi_devs[1].device_class == ResourceTypes.LIGHT.value
-    assert multi_devs[2].id == flushmount_light.id
-    assert len(multi_devs[2].states) == 7
-    assert multi_devs[2].device_class == "parent-device"
+    assert remove_dev is False
+    assert multi_devs == []
 
 
 def test_light_speaker():
@@ -516,144 +803,6 @@ def test_state_matches_instance_trim_zone(state, expected):
         split_identifier="light",
     )
     assert state_matches_instance(trim_device, state) is expected
-
-
-@pytest.mark.parametrize(
-    ("state", "expected"),
-    [
-        (
-            AferoState(
-                functionClass="color-rgb",
-                value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
-                lastUpdateTime=0,
-                functionInstance=None,
-            ),
-            True,
-        ),
-        (
-            AferoState(
-                functionClass="color-mode",
-                value="color",
-                lastUpdateTime=0,
-                functionInstance=None,
-            ),
-            True,
-        ),
-        (
-            AferoState(
-                functionClass="toggle",
-                value="on",
-                lastUpdateTime=0,
-                functionInstance="color",
-            ),
-            True,
-        ),
-        (
-            AferoState(
-                functionClass="toggle",
-                value="off",
-                lastUpdateTime=0,
-                functionInstance="white",
-            ),
-            False,
-        ),
-        (
-            AferoState(
-                functionClass="brightness",
-                value=50,
-                lastUpdateTime=0,
-                functionInstance="primary",
-            ),
-            False,
-        ),
-    ],
-)
-def test_state_matches_instance_flushmount_color_zone(state, expected):
-    """LCN3002LM color zone uses null-instance color states."""
-    color_device = AferoDevice(
-        id=flushmount_light_color_id,
-        device_id=flushmount_light.device_id,
-        model=flushmount_light.model,
-        device_class="light",
-        default_name=flushmount_light.default_name,
-        default_image=flushmount_light.default_image,
-        friendly_name="color",
-        split_identifier="light",
-    )
-    assert state_matches_instance(color_device, state) is expected
-
-
-@pytest.mark.parametrize(
-    ("state", "expected"),
-    [
-        (
-            AferoState(
-                functionClass="color-rgb",
-                value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
-                lastUpdateTime=0,
-                functionInstance=None,
-            ),
-            False,
-        ),
-        (
-            AferoState(
-                functionClass="toggle",
-                value="on",
-                lastUpdateTime=0,
-                functionInstance="white",
-            ),
-            True,
-        ),
-    ],
-)
-def test_state_matches_instance_flushmount_white_zone(state, expected):
-    """LCN3002LM white zone must not inherit null-instance color states."""
-    white_device = AferoDevice(
-        id=flushmount_light_white_id,
-        device_id=flushmount_light.device_id,
-        model=flushmount_light.model,
-        device_class="light",
-        default_name=flushmount_light.default_name,
-        default_image=flushmount_light.default_image,
-        friendly_name="white",
-        split_identifier="light",
-    )
-    assert state_matches_instance(white_device, state) is expected
-
-
-@pytest.mark.asyncio
-async def test_update_elem_flushmount_color_applies_null_instance_rgb(
-    mocked_controller,
-):
-    """Inbound null-instance color-rgb must update the flushmount color split."""
-    await mocked_controller._bridge.events.generate_events_from_data(
-        utils.create_hs_raw_from_dump("light-flushmount.json")
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    color_dev = mocked_controller[flushmount_light_color_id]
-    color_update = AferoDevice(
-        id=flushmount_light_color_id,
-        device_id=flushmount_light.device_id,
-        model=flushmount_light.model,
-        device_class="light",
-        default_name=flushmount_light.default_name,
-        default_image=flushmount_light.default_image,
-        friendly_name=color_dev.device_information.name,
-        split_identifier="light",
-        states=[
-            AferoState(
-                functionClass="color-rgb",
-                value={"color-rgb": {"r": 10, "g": 20, "b": 30}},
-                lastUpdateTime=0,
-                functionInstance=None,
-            )
-        ],
-    )
-    updates = await mocked_controller.update_elem(color_update)
-    assert color_dev.color.red == 10
-    assert color_dev.color.green == 20
-    assert color_dev.color.blue == 30
-    assert "color" in updates
 
 
 @pytest.mark.asyncio
@@ -1051,7 +1200,7 @@ async def test_initialize_with_speed(mocked_controller):
     assert dev.id == "a2d36de5-8b91-411a-907a-ecb665422d00"
     assert dev.numbers == {
         ("speed", "color-sequence"): features.NumbersFeature(
-            value=-10, min=-10, max=10, step=1, unit="speed", name="speed"
+            value=-10, min=-10, max=10, step=1, unit="speed", name="Effect Speed"
         )
     }
 
@@ -1165,47 +1314,129 @@ async def test_set_brightness(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_brightness_split(mocked_controller, mocker):
+async def test_initialize_dual_channel_tracks_channel_brightness(mocked_controller):
+    """Combined dual-channel lights cache per-channel brightness on Light.channels."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[rgbcw_strip_light.id]
+    assert dev.is_dual_channel
+    assert "color" in dev.channels
+    assert "white" in dev.channels
+    assert ("brightness", "color") not in dev.numbers
+    assert ("brightness", "white") not in dev.numbers
+    assert (
+        f"{rgbcw_strip_light.id}-light-color" not in mocked_controller._bridge.switches
+    )
+    assert (
+        f"{rgbcw_strip_light.id}-light-white" not in mocked_controller._bridge.switches
+    )
+
+
+@pytest.mark.asyncio
+async def test_initialize_flushmount_combined(mocked_controller):
+    """Flushmount stays one light with channels (no Switch clones)."""
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-flushmount.json")
     )
     await mocked_controller._bridge.async_block_until_done()
-    assert len(mocked_controller._bridge.lights._items) == 2
-    dev = mocked_controller[flushmount_light_white_id]
-    assert dev.on.on is False
-    # A split device update requires the full response (to mimic the behavior)
-    dev_update = utils.create_devices_from_data("light-flushmount.json")[0]
-    new_states = [
-        AferoState(
-            functionClass="toggle",
-            value="on",
-            lastUpdateTime=0,
-            functionInstance="white",
-        ),
-        AferoState(
-            functionClass="brightness",
-            value=20,
-            lastUpdateTime=0,
-            functionInstance="white",
-        ),
-    ]
-    for state in new_states:
-        utils.modify_state(dev_update, state)
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {
-        "metadeviceId": flushmount_light.id,
-        "values": utils.convert_states(dev_update.states),
-    }
-    resp = mocker.AsyncMock()
-    resp.json = json_resp
-    resp.status = 200
-    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
-    # Run the test
-    await mocked_controller.set_brightness(flushmount_light_white_id, 20)
+    assert flushmount_light.id in mocked_controller._items
+    assert f"{flushmount_light.id}-light-color" not in mocked_controller._items
+    assert f"{flushmount_light.id}-light-white" not in mocked_controller._items
+    dev = mocked_controller[flushmount_light.id]
+    assert dev.is_dual_channel
+    assert dev.supports_color
+    assert dev.supports_color_temperature
+    assert ("brightness", "color") not in dev.numbers
+    assert ("brightness", "white") not in dev.numbers
+    assert dev.channel_on("color") is not None
+    assert (
+        f"{flushmount_light.id}-light-color" not in mocked_controller._bridge.switches
+    )
+    assert (
+        f"{flushmount_light.id}-light-white" not in mocked_controller._bridge.switches
+    )
+
+
+def test_resolve_color_mode_when_other_channel_on():
+    """Exclusive color/white becomes mixed when the other channel is on."""
+    cur_item = _dual_channel_light(
+        color_modes=["color", "white", "mixed", "sequence"],
+        channels={
+            "color": LightChannel(brightness=1, on=True),
+            "white": LightChannel(brightness=100, on=True),
+        },
+    )
+    assert light.resolve_color_mode(cur_item, "color") == "mixed"
+    assert light.resolve_color_mode(cur_item, "white") == "mixed"
+    assert light.resolve_color_mode(cur_item, "sequence") == "sequence"
+
+
+def test_resolve_color_mode_keeps_exclusive_when_other_off():
+    """Exclusive modes stay exclusive when the other channel is off."""
+    color_only = _dual_channel_light(
+        color_modes=["color", "white", "mixed"],
+        channels={
+            "color": LightChannel(brightness=1, on=True),
+            "white": LightChannel(brightness=100, on=False),
+        },
+    )
+    assert light.resolve_color_mode(color_only, "color") == "color"
+    white_only = _dual_channel_light(
+        color_modes=["color", "white", "mixed"],
+        channels={
+            "color": LightChannel(brightness=1, on=False),
+            "white": LightChannel(brightness=100, on=True),
+        },
+    )
+    assert light.resolve_color_mode(white_only, "white") == "white"
+
+
+def test_resolve_color_mode_ignores_unknown_other_channel():
+    """None channel-on does not force mixed (unknown is not treated as on)."""
+    cur_item = _dual_channel_light(
+        color_modes=["color", "white", "mixed"],
+        channels={
+            "color": LightChannel(brightness=1, on=True),
+            "white": LightChannel(brightness=100, on=None),
+        },
+    )
+    assert light.resolve_color_mode(cur_item, "color") == "color"
+
+
+@pytest.mark.asyncio
+async def test_set_color_mode_keeps_exclusive_when_other_channel_off(
+    mocked_controller, mocker
+):
+    """Combined flushmount stays exclusive when the white channel is off."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
     await mocked_controller._bridge.async_block_until_done()
-    dev = mocked_controller[flushmount_light_white_id]
-    assert dev.is_on
-    assert dev.dimming.brightness == 20
+    dev = mocked_controller[flushmount_light.id]
+    if "white" in dev.channels:
+        dev.channels["white"].on = False
+    dev.color_mode.mode = "white"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        flushmount_light.id,
+        on=True,
+        color=(10, 20, 30),
+        color_mode="color",
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["value"] == "color"
+    assert by_class["color-rgb"]["functionInstance"] is None
 
 
 @pytest.mark.asyncio
@@ -1263,6 +1494,367 @@ async def test_set_rgb_trim(mocked_controller, mocker):
     assert instances["power"] == "trim"
     assert instances["color-rgb"] == "trim"
     assert instances["color-mode"] == "trim"
+
+
+@pytest.mark.asyncio
+async def test_initialize_rgbcw_single_light_supports_rgb(mocked_controller):
+    """RGBCW strips stay one light with shared color functions."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert len(mocked_controller._bridge.lights._items) == 1
+    dev = mocked_controller[rgbcw_strip_light.id]
+    assert dev.supports_color
+    assert dev.supports_color_temperature
+    assert dev.color_mode is not None
+    assert dev.dimming.func_instance == "primary"
+
+
+@pytest.mark.asyncio
+async def test_set_rgb_rgbcw_single_light(mocked_controller, mocker):
+    """RGBCW strip color updates use shared null-instance color functions."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[rgbcw_strip_light.id]
+    dev.on.on = False
+    dev.color_mode.mode = "white"
+    if "white" in dev.channels:
+        dev.channels["white"].on = False
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": rgbcw_strip_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_rgb(rgbcw_strip_light.id, 12, 34, 56)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    assert update_afero_api.call_args[0][0] == rgbcw_strip_light.id
+    sent_states = update_afero_api.call_args[0][1]
+    instances = {
+        state["functionClass"]: state["functionInstance"] for state in sent_states
+    }
+    assert instances["power"] == "primary"
+    assert instances["color-rgb"] is None
+    assert instances["color-mode"] is None
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["value"] == "color"
+
+
+@pytest.mark.asyncio
+async def test_set_rgb_uses_mixed_when_white_channel_on(mocked_controller, mocker):
+    """Flushmount RGB updates use mixed when the white channel is already on."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[flushmount_light.id]
+    if "white" in dev.channels:
+        dev.channels["white"].on = True
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        flushmount_light.id,
+        on=True,
+        color=(10, 20, 30),
+        color_mode="color",
+        brightness=40,
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["color-mode"]["value"] == "mixed"
+    assert by_class["brightness"]["functionInstance"] == "color"
+    assert by_class["color-rgb"]["functionInstance"] is None
+
+
+@pytest.mark.asyncio
+async def test_set_state_channel_toggle_and_brightness(mocked_controller, mocker):
+    """channel= toggles the channel and routes brightness to that instance."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    # Color starts off so the toggle PUT is not duplicate-suppressed; white already
+    # on so exclusive color-mode upgrades to mixed and is PUTted.
+    mocked_controller[flushmount_light.id].channels["color"].on = False
+    mocked_controller[flushmount_light.id].channels["white"].on = True
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        flushmount_light.id,
+        on=True,
+        brightness=40,
+        channel="color",
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["toggle"]["functionInstance"] == "color"
+    assert by_class["toggle"]["value"] == "on"
+    assert by_class["brightness"]["functionInstance"] == "color"
+    assert by_class["brightness"]["value"] == 40
+    assert by_class["color-mode"]["value"] == "mixed"
+
+
+@pytest.mark.asyncio
+async def test_set_state_channel_off_moves_color_mode_to_remaining(
+    mocked_controller, mocker
+):
+    """Turning a channel off PUTs exclusive mode for the channel that remains on."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[rgbcw_strip_light.id]
+    dev.channels["color"].on = True
+    dev.channels["white"].on = True
+    dev.color_mode.mode = "mixed"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": rgbcw_strip_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        rgbcw_strip_light.id,
+        on=False,
+        channel="color",
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    by_class = {state["functionClass"]: state for state in sent_states}
+    assert by_class["toggle"]["functionInstance"] == "color"
+    assert by_class["toggle"]["value"] == "off"
+    assert by_class["color-mode"]["value"] == "white"
+
+
+@pytest.mark.asyncio
+async def test_set_state_channel_off_leaves_mode_when_nothing_remains(
+    mocked_controller, mocker
+):
+    """Turning off the last active channel does not force a color-mode PUT."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[rgbcw_strip_light.id]
+    dev.channels["color"].on = True
+    dev.channels["white"].on = False
+    dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": rgbcw_strip_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        rgbcw_strip_light.id,
+        on=False,
+        channel="color",
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    classes = {state["functionClass"] for state in sent_states}
+    assert "toggle" in classes
+    assert "color-mode" not in classes
+
+
+def test_color_mode_after_channel_off():
+    """Helper picks exclusive remaining mode without treating the off channel as on."""
+    both_on = _dual_channel_light(
+        color_modes=["color", "white", "mixed"],
+        channels={
+            "color": LightChannel(brightness=100, on=True),
+            "white": LightChannel(brightness=50, on=True),
+        },
+    )
+    assert light.color_mode_after_channel_off(both_on, "color") == "white"
+    assert light.color_mode_after_channel_off(both_on, "white") == "color"
+    color_only = _dual_channel_light(
+        color_modes=["color", "white", "mixed"],
+        channels={
+            "color": LightChannel(brightness=100, on=True),
+            "white": LightChannel(brightness=50, on=False),
+        },
+    )
+    assert light.color_mode_after_channel_off(color_only, "color") is None
+    # More than one channel still on → mixed when supported.
+    multi_on = _dual_channel_light(
+        color_modes=["color", "white", "mixed"],
+        channels={
+            "color": LightChannel(brightness=100, on=True),
+            "white": LightChannel(brightness=50, on=True),
+            "accent": LightChannel(brightness=25, on=True),
+        },
+    )
+    assert light.color_mode_after_channel_off(multi_on, "accent") == "mixed"
+    no_mixed = _dual_channel_light(
+        color_modes=["color", "white"],
+        channels={
+            "color": LightChannel(brightness=100, on=True),
+            "white": LightChannel(brightness=50, on=True),
+            "accent": LightChannel(brightness=25, on=True),
+        },
+    )
+    assert light.color_mode_after_channel_off(no_mixed, "accent") is None
+
+
+@pytest.mark.asyncio
+async def test_set_state_unknown_channel_does_not_toggle_primary(
+    mocked_controller, mocker
+):
+    """Unknown channel is ignored instead of falling through to primary power."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": flushmount_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        flushmount_light.id,
+        on=False,
+        channel="not-a-channel",
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    # No API write when the only requested change was an invalid channel on=.
+    assert update_afero_api.call_count == 0 or not update_afero_api.call_args[0][1]
+
+
+@pytest.mark.asyncio
+async def test_set_state_skips_unchanged_channel_toggle(
+    mocked_controller, mocker, caplog
+):
+    """Channel on= matching channels cache is suppressed by dataclass_to_afero."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[rgbcw_strip_light.id]
+    dev.channels["color"].on = True
+    dev.channels["white"].on = False
+    dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": rgbcw_strip_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    with caplog.at_level("DEBUG"):
+        await mocked_controller.set_state(
+            rgbcw_strip_light.id,
+            on=True,
+            channel="color",
+        )
+        await mocked_controller._bridge.async_block_until_done()
+    assert update_afero_api.call_count == 0
+    assert "No states to send. Skipping" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_set_state_skips_unchanged_channel_brightness(
+    mocked_controller, mocker, caplog
+):
+    """Channel brightness matching channels cache is suppressed."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[rgbcw_strip_light.id]
+    dev.channels["color"].on = True
+    dev.channels["color"].brightness = 40
+    dev.channels["white"].on = False
+    dev.color_mode.mode = "color"
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": rgbcw_strip_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    with caplog.at_level("DEBUG"):
+        await mocked_controller.set_state(
+            rgbcw_strip_light.id,
+            brightness=40,
+            channel="color",
+        )
+        await mocked_controller._bridge.async_block_until_done()
+    assert update_afero_api.call_count == 0
+    assert "No states to send. Skipping" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_update_elem_channel_toggle(mocked_controller):
+    """Inbound color/white toggles update Light.channels.on."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-flushmount.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[flushmount_light.id]
+    update = utils.create_devices_from_data("light-flushmount.json")[0]
+    utils.modify_state(
+        update,
+        AferoState(functionClass="toggle", functionInstance="white", value="on"),
+    )
+    await mocked_controller.update_elem(update)
+    assert dev.channels["white"].on is True
+
+
+@pytest.mark.asyncio
+async def test_set_channel_brightness_via_channel_kwarg(mocked_controller, mocker):
+    """Brightness with channel= targets that channel's brightness instance."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("rgbcw-led-strip.json")
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {"metadeviceId": rgbcw_strip_light.id, "values": []}
+    resp.json = json_resp
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.set_state(
+        rgbcw_strip_light.id,
+        brightness=55,
+        channel="white",
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    sent_states = update_afero_api.call_args[0][1]
+    brightness = next(s for s in sent_states if s["functionClass"] == "brightness")
+    assert brightness["functionInstance"] == "white"
+    assert brightness["value"] == 55
 
 
 @pytest.mark.asyncio
@@ -1969,49 +2561,23 @@ def test_process_color_temps():
 
 @pytest.mark.asyncio
 async def test_emitting(bridge):
-    # Simulate the discovery process
+    # Simulate the discovery process for a combined dual-channel fixture
     await bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("light-flushmount.json")
     )
     await bridge.async_block_until_done()
-    assert len(bridge.lights._items) == 2
-    assert bridge.lights[flushmount_light_color_id].on.on
-    assert bridge.lights[flushmount_light_color_id].brightness == 1
-    assert not bridge.lights[flushmount_light_white_id].on.on
-    assert bridge.lights[flushmount_light_white_id].brightness == 100
+    assert len(bridge.lights._items) == 1
+    dev = bridge.lights[flushmount_light.id]
+    assert dev.on.on
+    assert "color" in dev.channels
     assert bridge.devices[flushmount_light.id].available is True
     dev_update = utils.create_devices_from_data("light-flushmount.json")[0]
-    # Simulate an update
-    utils.modify_state(
-        dev_update,
-        AferoState(
-            functionClass="toggle",
-            functionInstance="white",
-            value="on",
-        ),
-    )
     utils.modify_state(
         dev_update,
         AferoState(
             functionClass="brightness",
-            functionInstance="white",
+            functionInstance="color",
             value=50,
-        ),
-    )
-    utils.modify_state(
-        dev_update,
-        AferoState(
-            functionClass="toggle",
-            functionInstance="color",
-            value="off",
-        ),
-    )
-    utils.modify_state(
-        dev_update,
-        AferoState(
-            functionClass="brightness",
-            functionInstance="color",
-            value=55,
         ),
     )
     utils.modify_state(
@@ -2026,10 +2592,8 @@ async def test_emitting(bridge):
         [utils.create_hs_raw_from_device(dev_update)]
     )
     await bridge.async_block_until_done()
-    assert bridge.lights[flushmount_light_color_id].brightness == 55
-    assert not bridge.lights[flushmount_light_color_id].on.on
-    assert bridge.lights[flushmount_light_white_id].brightness == 50
-    assert bridge.lights[flushmount_light_white_id].on.on
+    assert bridge.lights[flushmount_light.id].channels["color"].brightness == 50
+    assert bridge.lights[flushmount_light.id].dimming.brightness == 1
     assert bridge.devices[flushmount_light.id].available is False
 
 

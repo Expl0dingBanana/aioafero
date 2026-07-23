@@ -71,7 +71,7 @@ jobs:
         # Same as tox py envs: collect coverage silently; combined report in coverage job.
         run: |
           python -m pytest \
-            -o addopts="--cov --cov-report=" \
+            -o addopts="--cov=aioafero --cov-report=" \
             --junitxml=junit-py${{ matrix.python-version }}.xml \
             -o junit_family=legacy
       - name: Upload coverage data

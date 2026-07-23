@@ -104,6 +104,7 @@ class DimmingFeature:
 
     brightness: int
     supported: list[int]
+    func_instance: str | None = field(default=None)
 
     @property
     def api_value(self):

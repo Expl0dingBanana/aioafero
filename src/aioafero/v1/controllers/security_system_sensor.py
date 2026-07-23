@@ -108,6 +108,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
     async def set_state(
         self,
         device_id: str,
+        *,
         selects: dict[tuple[str, int | None], str] | None = None,
     ) -> None:
         """Update security sensor selects in the cloud.

@@ -2,8 +2,8 @@ Lights
 ======
 
 ``bridge.lights`` owns ``Light`` models for on/off, dimming, color, color temperature,
-and effects. Split main/trim zones appear as separate ``Light`` resources; dual-channel
-RGB+WW fixtures stay as one light (see :doc:`../device_splitting`).
+and effects. Split main/trim zones appear as separate ``Light`` resources (see
+:doc:`../device_splitting`).
 
 Night-light color-mode
 ----------------------
@@ -19,32 +19,44 @@ value with the ``no-brightness`` category hint. That is distinct from any nightl
   color-mode change with turn-off. Leave night-light with a separate
   ``set_state(..., color_mode=...)`` while on, or ``set_state(on=False)``.
 
-Dual-channel fixtures
----------------------
+
+Dual-channel RGB+WW fixtures
+----------------------------
 
 Fixtures with separate ``color`` and ``white`` brightness channels (RGBCW strips,
-flushmounts, and similar) expose:
+flushmounts, and similar) always stay one combined ``Light``. Capability is detected
+from the device; aioafero does not split color/white into separate light resources.
+Integrations that want dual entities create them themselves.
 
-* ``Light.is_dual_channel`` — ``True`` when both channels are present
-* ``Light.color_brightness`` / ``Light.white_brightness`` — last known per-channel levels
-* ``Light.channel_brightness("color")`` / ``channel_brightness("white")`` — accessors for
-  integrations
-* ``Light.dimming`` — overall brightness; ``dimming.func_instance`` is usually
-  ``"primary"`` and tracks which instance last updated the cached level
+Combined fixtures expose:
 
-**Reading:** Subscribe to ``bridge.lights`` as usual. Use ``color_mode.mode`` together
-with the per-channel brightness fields to reflect the active API mode (``color``,
-``white``, ``mixed``, etc.).
+* ``Light.channels`` — map of instance name → ``LightChannel`` (brightness + on)
+* ``Light.is_dual_channel``
+* ``Light.channel_brightness(name)`` / ``Light.channel_on(name)``
+* ``Light.dimming`` — overall brightness (usually ``primary``)
 
-**Writing:** ``LightController.set_state`` and ``set_brightness`` route dimming PUTs by
-command context:
+Color/white toggles are tracked on ``Light.channels`` only — they are not cloned
+into Switch resources.
 
-* RGB, effects, or ``color_mode="color"`` / ``"sequence"`` → ``color`` brightness
-* CCT, ``color_mode="white"``, or white-only zones → ``white`` brightness
-* Brightness-only updates follow the cached ``color_mode`` when no explicit mode is
-  passed; ``mixed`` mode uses ``primary`` overall brightness
+See ``is_dual_channel_rgb_fixture``. True multi-zone fixtures (main/trim) still
+split into separate lights; see ``get_split_instances``.
 
-The outbound ``DimmingFeature.func_instance`` on the PUT selects the API brightness row.
+**Color modes:** Hubspace exposes ``color-mode`` values such as ``color``,
+``white``, ``sequence``, and (on these fixtures) ``mixed``.
+``mixed`` is a single color-mode controller that keeps both the RGB and white
+drivers active together — not a separate HA entity, and not the same idea as
+``is_dual_channel`` (which describes the hardware: independent color/white
+brightness and toggles).
+
+**Writing:** ``set_state`` routes dimming by command context on combined fixtures
+(RGB → ``color``, CCT → ``white``). Pass ``channel="color"|"white"`` to toggle that
+channel (instead of primary power) and to route brightness to that channel when
+``color_mode`` is omitted. Turning a channel **off** moves ``color-mode`` to the
+remaining channel when one is still on (so leaving ``mixed`` becomes exclusive
+``color`` or ``white``). Exclusive ``color`` / ``white`` color-mode requests
+resolve to ``mixed`` when another channel is already on (``LightChannel.on is True``),
+so the PUT does not shut off the other driver. Unknown ``channel`` values are ignored
+(with a log) rather than falling through to primary power.
 
 Controller
 ----------
@@ -57,6 +69,10 @@ Controller
 
 Model
 -----
+
+.. autoclass:: aioafero.v1.models.light.LightChannel
+   :members:
+   :no-index:
 
 .. autoclass:: aioafero.v1.models.light.Light
    :members:

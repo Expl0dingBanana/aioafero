@@ -2,6 +2,42 @@
 Changelog
 =========
 
+
+Version 8.0.0
+=============
+**Breaking**
+
+ * Remove ``Light.dual_channel``, ``Light.color_brightness``, and
+   ``Light.white_brightness``. Use ``Light.channels`` (``LightChannel``),
+   ``Light.is_dual_channel``, ``channel_brightness()``, and ``channel_on()`` instead
+   (`Hubspace-Homeassistant #160 <https://github.com/jdeath/Hubspace-Homeassistant/issues/160>`__)
+ * Resource update events for per-channel brightness use the ``channels`` key (not
+   ``color_brightness`` / ``white_brightness``)
+ * ``channel_brightness()`` returns ``float | None`` (was effectively ``int | None``)
+ * Dual-channel fixtures no longer expose per-channel brightness as ``Light.numbers``
+   entries; use ``channels`` / ``set_state`` instead. Effect sequence speed remains
+   ``numbers[("speed", "color-sequence")]`` (display name ``Effect Speed``)
+ * Controller ``set_state`` optional fields are keyword-only after ``device_id``
+   (fan, light, switch, valve, exhaust fan, security system / keypad / sensor;
+   thermostat already was). ``switch`` / ``valve`` ``turn_on`` / ``turn_off``
+   take ``instance`` as keyword-only as well
+
+**Added / behavior**
+
+ * Dual-channel RGB+WW fixtures stay one combined light; color/white toggles stay on
+   ``Light.channels`` (not Switch clones). True multi-zone (main/trim) lights still
+   split normally
+ * ``LightController.set_state(..., channel=)`` toggles or dims a dual-channel instance
+   (``color`` / ``white``) for integrations that present two light entities or channel
+   switches. Turning a channel off moves ``color-mode`` to the remaining channel when
+   one is still on
+ * Resolve ``color-mode`` to ``mixed`` when setting RGB or white while another channel
+   is already on
+ * ``dataclass_to_afero`` resolves Put features against the matching cached
+   instance (dict-backed fields and dual-channel light ``channels``) so
+   unchanged channel toggles/dimming are not re-sent
+   (``aioafero.v1.models.update_comparison``)
+
 7.0.10
 ==========
  * MITM capture test bed for Hubspace client traffic: ``docker/mitmweb/`` compose,

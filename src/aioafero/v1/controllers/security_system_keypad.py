@@ -84,6 +84,7 @@ class SecuritySystemKeypadController(BaseResourcesController[SecuritySystemKeypa
     async def set_state(
         self,
         device_id: str,
+        *,
         selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
         """Update security keypad selects in the cloud.

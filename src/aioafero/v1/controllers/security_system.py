@@ -423,6 +423,7 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
     async def set_state(
         self,
         device_id: str,
+        *,
         disarm_pin: int | None = None,
         command: int | None = None,
         numbers: dict[tuple[str, str | None], float] | None = None,

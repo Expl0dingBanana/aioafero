@@ -11,6 +11,14 @@ from .standard_mixin import StandardMixin
 rgbw_name_search = re.compile(r"RGB\w*W")
 
 
+@dataclass
+class LightChannel:
+    """Per-channel brightness/on for a dual-channel light."""
+
+    brightness: int | None = None
+    on: bool | None = None
+
+
 @dataclass(kw_only=True)
 class Light(StandardMixin):
     """Representation of an Afero Light."""
@@ -26,6 +34,7 @@ class Light(StandardMixin):
     dimming: features.DimmingFeature | None = None
     effect: features.EffectFeature | None = None
     supports_white: bool = False
+    channels: dict[str, LightChannel] = field(default_factory=dict)
 
     def __post_init__(self):
         """Determine if white only is supported."""
@@ -83,6 +92,58 @@ class Light(StandardMixin):
         if self.dimming is not None:
             return self.dimming.brightness
         return 100.0 if self.is_on else 0.0
+
+    @property
+    def is_dual_channel(self) -> bool:
+        """Return True when color and white channels are both present."""
+        return {"color", "white"}.issubset(self.channels)
+
+    def channel_brightness(self, channel: str) -> float | None:
+        """Return brightness for a channel, if known."""
+        entry = self.channels.get(channel)
+        if entry is None or entry.brightness is None:
+            return None
+        return float(entry.brightness)
+
+    def channel_on(self, channel: str) -> bool | None:
+        """Return on/off for a channel toggle, if known."""
+        entry = self.channels.get(channel)
+        if entry is None:
+            return None
+        return entry.on
+
+    def feature_for_update_comparison(
+        self, field_name: str, put_feature: object | None
+    ) -> object | None:
+        """Compare channel toggles/dimming against ``channels``, not primary."""
+        instance = getattr(put_feature, "func_instance", None) if put_feature else None
+        # Primary power/dimming often use func_instance=None; never treat that as a channel.
+        if not instance or instance not in self.channels:
+            return super().feature_for_update_comparison(field_name, put_feature)
+        channel = self.channels[instance]
+        if field_name == "on":
+            # Dual-channel power uses toggle/<color|white>, not primary power.
+            if getattr(put_feature, "func_class", None) != "toggle":
+                return super().feature_for_update_comparison(field_name, put_feature)
+            if channel.on is None:
+                # Unknown channel state: do not suppress (caller may still PUT).
+                return None
+            return features.OnFeature(
+                on=channel.on,
+                func_class="toggle",
+                func_instance=instance,
+            )
+        if field_name == "dimming":
+            if channel.brightness is None or self.dimming is None:
+                # Unknown channel brightness: do not suppress.
+                return None
+            return features.DimmingFeature(
+                brightness=channel.brightness,
+                # Required by the dataclass; features_equivalent_for_update ignores it.
+                supported=self.dimming.supported,
+                func_instance=instance,
+            )
+        return super().feature_for_update_comparison(field_name, put_feature)
 
 
 @dataclass

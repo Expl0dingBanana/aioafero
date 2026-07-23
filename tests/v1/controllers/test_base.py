@@ -1507,6 +1507,35 @@ async def callback_test(elem, update_vals: dataclass):
             False,
             [],
         ),
+        # Scalar Put against dict-backed cache: unchanged instance is suppressed
+        (
+            replace(test_res),
+            StubResourcePut(
+                on=None,
+                beans=StubFeatureInstance(on=False, func_instance="bean2"),
+            ),
+            {},
+            False,
+            [],
+        ),
+        # Scalar Put against dict-backed cache: changed instance is sent
+        (
+            replace(test_res),
+            StubResourcePut(
+                on=None,
+                beans=StubFeatureInstance(on=True, func_instance="bean2"),
+            ),
+            {},
+            False,
+            [
+                {
+                    "value": "on",
+                    "functionClass": "mapped_beans",
+                    "functionInstance": "bean2",
+                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
+                },
+            ],
+        ),
         # Test duplicates
         (
             replace(test_res_default_dict),

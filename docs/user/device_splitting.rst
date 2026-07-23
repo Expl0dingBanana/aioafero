@@ -31,17 +31,20 @@ uses distinct brightness ``functionInstance`` values — typically ``color``, ``
 and ``primary`` — while color controls (``color-rgb``, ``color-mode``,
 ``color-temperature``) often share a ``null`` instance across the whole fixture.
 
-These fixtures are **not** split into ``{parent}-light-color`` / ``{parent}-light-white``
-clones. Splitting would drop the shared null-instance color states and break RGB/CCT
-control.
+These fixtures are **not** split into ``{parent}-light-color`` /
+``{parent}-light-white`` light clones. Splitting would drop the shared
+null-instance color states and break RGB/CCT control. Channel independence is
+exposed on the combined ``Light`` as:
 
-Detection is generic: a light is treated as dual-channel when it exposes both ``color``
-and ``white`` brightness zones (from live states, function definitions, or capabilities).
-True multi-zone lights such as main/trim recessed fixtures still split normally because
-their zone names are not the ``color``/``white`` pair.
+* ``Light.channels`` — per-channel brightness and on/off (color/white toggles are
+  **not** cloned into Switch resources)
+* ``LightController.set_state(..., channel=)`` — toggle or dim a single channel
 
-Integrations should expose **one** light entity and use the ``Light`` model helpers
-described in :doc:`controllers/lights` for per-channel brightness and mode-aware writes.
+Detection: both ``color`` and ``white`` brightness zones (from states, functions, or
+capabilities). True multi-zone lights such as main/trim still split normally.
+
+Integrations may expose one light entity or two (color + white) using the helpers in
+:doc:`controllers/lights`.
 
 Implementing a new split type
 -----------------------------

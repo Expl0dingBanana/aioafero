@@ -8,7 +8,7 @@ from aioafero import device, errors
 from aioafero.device import AferoDevice, AferoState
 from aioafero.util import process_range
 from aioafero.v1.models import features
-from aioafero.v1.models.light import Light, LightPut
+from aioafero.v1.models.light import Light, LightChannel, LightPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
@@ -32,11 +32,164 @@ def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
     return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
 
 
-def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes]]:
+def _channel_brightness_instances(afero_dev: AferoDevice) -> set[str]:
+    """Collect non-primary brightness instances from states, functions, and capabilities."""
+    instances: set[str] = set()
+    for state in afero_dev.states:
+        if state.functionClass == "brightness" and state.functionInstance not in (
+            None,
+            "global",
+            "primary",
+        ):
+            instances.add(state.functionInstance)
+    for func in afero_dev.functions or []:
+        instance = func.get("functionInstance")
+        if func.get("functionClass") == "brightness" and instance not in (
+            None,
+            "global",
+            "primary",
+        ):
+            instances.add(instance)
+    for cap in getattr(afero_dev, "capabilities", None) or []:
+        if cap.functionClass == "brightness" and cap.functionInstance not in (
+            None,
+            "global",
+            "primary",
+        ):
+            instances.add(cap.functionInstance)
+    return instances
+
+
+def is_dual_channel_rgb_fixture(afero_dev: AferoDevice) -> bool:
+    """Return True for RGB+WW fixtures with color and white brightness channels."""
+    instances = _channel_brightness_instances(afero_dev)
+    return "color" in instances and "white" in instances
+
+
+def preferred_brightness_instance(afero_dev: AferoDevice) -> str | None:
+    """Return the overall brightness instance for dual-channel lights."""
+    instances = [
+        state.functionInstance
+        for state in afero_dev.states
+        if state.functionClass == "brightness"
+    ]
+    if "primary" in instances:
+        return "primary"
+    if None in instances:
+        return None
+    return instances[-1] if instances else None
+
+
+def should_use_brightness_state(afero_dev: AferoDevice, state: AferoState) -> bool:
+    """Return whether a brightness state should populate Light.dimming."""
+    if state.functionClass != "brightness":
+        return True
+    if afero_dev.split_identifier:
+        return True
+    if not is_dual_channel_rgb_fixture(afero_dev):
+        return True
+    return state.functionInstance == preferred_brightness_instance(afero_dev)
+
+
+def resolve_brightness_instance(
+    cur_item: Light,
+    *,
+    color_mode: str | None = None,
+    color: tuple[int, int, int] | None = None,
+    temperature: int | None = None,
+    effect: str | None = None,
+    channel: str | None = None,
+) -> str | None:
+    """Return the brightness functionInstance to PUT for dual-channel fixtures."""
+    if not cur_item.is_dual_channel:
+        return cur_item.dimming.func_instance if cur_item.dimming else None
+    if channel in cur_item.channels:
+        return channel
+    if color is not None or effect is not None or color_mode in ("color", "sequence"):
+        return "color" if "color" in cur_item.channels else None
+    if temperature is not None or color_mode == "white":
+        return "white" if "white" in cur_item.channels else None
+    active_mode = color_mode
+    if active_mode is None and cur_item.color_mode is not None:
+        active_mode = cur_item.color_mode.mode
+    if active_mode in ("color", "sequence") and "color" in cur_item.channels:
+        return "color"
+    if active_mode == "white" and "white" in cur_item.channels:
+        return "white"
+    return cur_item.dimming.func_instance if cur_item.dimming else "primary"
+
+
+def resolve_color_mode(cur_item: Light, color_mode: str | None) -> str | None:
+    """Return the color-mode to PUT for dual-channel fixtures.
+
+    Exclusive ``color`` / ``white`` becomes ``mixed`` when another channel is
+    already on, so the write does not shut off the other driver.
+    """
+    if (
+        color_mode not in ("color", "white")
+        or not cur_item.is_dual_channel
+        or "mixed" not in (cur_item.color_modes or [])
+    ):
+        return color_mode
+    if any(
+        name != color_mode and ch.on is True for name, ch in cur_item.channels.items()
+    ):
+        return "mixed"
+    return color_mode
+
+
+def color_mode_after_channel_off(cur_item: Light, channel: str) -> str | None:
+    """Return color-mode after turning ``channel`` off.
+
+    When another channel remains on, switch to that exclusive mode (or
+    ``mixed`` if more than one remains). When nothing remains on, return
+    ``None`` so color-mode is left unchanged.
+    """
+    remaining = [
+        name
+        for name, ch in cur_item.channels.items()
+        if name != channel and ch.on is True
+    ]
+    if len(remaining) == 1 and remaining[0] in ("color", "white"):
+        return remaining[0]
+    if len(remaining) > 1 and "mixed" in (cur_item.color_modes or []):
+        return "mixed"
+    return None
+
+
+def apply_brightness_state_update(
+    afero_device: AferoDevice,
+    cur_item: Light,
+    state: AferoState,
+    updated_keys: set[str],
+) -> None:
+    """Apply an inbound brightness state to channels and/or overall dimming."""
+    instance = state.functionInstance
+    if cur_item.is_dual_channel and instance in cur_item.channels:
+        new_val = int(state.value)
+        channel = cur_item.channels[instance]
+        if channel.brightness != new_val:
+            channel.brightness = new_val
+            updated_keys.add("channels")
+    if not should_use_brightness_state(afero_device, state):
+        return
+    new_val = int(state.value)
+    if cur_item.dimming.brightness != new_val:
+        cur_item.dimming.brightness = new_val
+        updated_keys.add("dimming")
+    if cur_item.dimming.func_instance != instance:
+        cur_item.dimming.func_instance = instance
+        updated_keys.add("dimming")
+
+
+def get_split_instances(
+    afero_dev: AferoDevice,
+) -> list[tuple[str, ResourceTypes]]:
     """Determine available instances from the states."""
     instances = set()
     lights = []
     toggles = []
+    dual_channel = is_dual_channel_rgb_fixture(afero_dev)
     for state in afero_dev.states:
         # We do not want to add something that controls everything, but individual only
         # We should skip None as its typically a single instance
@@ -46,29 +199,28 @@ def get_split_instances(afero_dev: AferoDevice) -> list[tuple[str, ResourceTypes
             lights.append(state.functionInstance)
         elif state.functionClass == "toggle":
             toggles.append(state.functionInstance)
-    # If there is only one instance, treat it as a light only with no splits
-    if len(lights) > 1:
+    # Dual-channel: stay one light; color/white toggles stay on Light.channels
+    # (not Switch clones). True multi-zone (main/trim): split into lights.
+    if len(lights) > 1 and not dual_channel:
         for light_instance in lights:
             instances.add((light_instance, ResourceTypes.LIGHT))
     for toggle_instance in toggles:
         if toggle_instance in [x[0] for x in instances]:
+            continue
+        if dual_channel and toggle_instance in ("color", "white"):
             continue
         instances.add((toggle_instance, ResourceTypes.SWITCH))
     return sorted(instances)
 
 
 def state_belongs_to_light_instance(
-    afero_dev: AferoDevice, state: AferoState, instance: str
+    afero_dev: AferoDevice,
+    state: AferoState,
+    instance: str,
 ) -> bool:
     """Return whether a state belongs to a light zone instance."""
     if state.functionClass == "available":
         return True
-    if afero_dev.model == "LCN3002LM-01 WH":
-        if state.functionInstance == "primary":
-            return False
-        return (instance == "white" and state.functionInstance == instance) or (
-            instance != "white" and state.functionInstance != "white"
-        )
     if state.functionInstance in (None, "global", "primary"):
         return False
     return state.functionInstance == instance
@@ -120,7 +272,10 @@ def get_color_mode_hints_for_device(afero_device: AferoDevice) -> dict[str, list
     }
 
 
-def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
+def get_valid_states(
+    afero_dev: AferoDevice,
+    instance: str,
+) -> list:
     """Find states associated with the specific instance."""
     return [
         state
@@ -132,7 +287,6 @@ def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
 def light_callback(afero_device: AferoDevice) -> CallbackResponse:
     """Convert an AferoDevice into multiple devices."""
     multi_devs: list[AferoDevice] = []
-    instances: list[tuple[str, ResourceTypes]] = []
     remove_parent: bool = False
     instances = get_split_instances(afero_device)
     logger.debug("Light instances found: %s", instances)
@@ -191,11 +345,12 @@ class LightController(BaseResourcesController[Light]):
         "effect": "color-sequence",
     }
     ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
-        ("speed", "color-sequence"): NumbersName(unit="speed"),
+        ("speed", "color-sequence"): NumbersName(
+            unit="speed", display_name="Effect Speed"
+        ),
     }
-    # Split Lights from the primary payload
     DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
-        ResourceTypes.LIGHT.value: light_callback
+        ResourceTypes.LIGHT.value: light_callback,
     }
 
     async def turn_on(self, device_id: str) -> None:
@@ -315,6 +470,11 @@ class LightController(BaseResourcesController[Light]):
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         numbers: dict[tuple[str, str], features.NumbersFeature] = {}
+        dual_channel = is_dual_channel_rgb_fixture(afero_device)
+        channels: dict[str, LightChannel] = {}
+        if dual_channel:
+            for name in _channel_brightness_instances(afero_device):
+                channels[name] = LightChannel()
         for state in afero_device.states:
             func_def = device.get_function_from_device(
                 afero_device.functions, state.functionClass, state.functionInstance
@@ -340,10 +500,16 @@ class LightController(BaseResourcesController[Light]):
                     temperature=int(current_temp), supported=avail_temps, prefix=prefix
                 )
             elif state.functionClass == "brightness":
-                temp_bright = process_range(func_def["values"][0])
-                dimming = features.DimmingFeature(
-                    brightness=int(state.value), supported=temp_bright
-                )
+                instance = state.functionInstance
+                if dual_channel and instance in channels:
+                    channels[instance].brightness = int(state.value)
+                if should_use_brightness_state(afero_device, state):
+                    temp_bright = process_range(func_def["values"][0])
+                    dimming = features.DimmingFeature(
+                        brightness=int(state.value),
+                        supported=temp_bright,
+                        func_instance=state.functionInstance,
+                    )
             elif state.functionClass == "color-sequence":
                 current_effect = state.value
                 effects = process_effects(afero_device.functions)
@@ -358,9 +524,12 @@ class LightController(BaseResourcesController[Light]):
                 color_mode = features.ColorModeFeature(state.value)
             elif state.functionClass == "available":
                 available = state.value
+            elif dual_channel and state.functionClass == "toggle":
+                instance = state.functionInstance
+                if instance in channels:
+                    channels[instance].on = state.value == "on"
             if number := await self.initialize_number(func_def, state):
                 numbers[number[0]] = number[1]
-
         supported_color_modes = get_color_modes_for_device(afero_device)
         color_mode_hints = get_color_mode_hints_for_device(afero_device)
 
@@ -368,6 +537,7 @@ class LightController(BaseResourcesController[Light]):
             _id=afero_device.id,
             available=available,
             split_identifier=afero_device.split_identifier,
+            channels=channels,
             sensors=sensors,
             binary_sensors=binary_sensors,
             device_information=DeviceInformation(
@@ -425,10 +595,9 @@ class LightController(BaseResourcesController[Light]):
                     cur_item.color_temperature.temperature = new_val
                     updated_keys.add("color_temperature")
             elif state.functionClass == "brightness":
-                new_val = int(state.value)
-                if cur_item.dimming.brightness != new_val:
-                    cur_item.dimming.brightness = int(state.value)
-                    updated_keys.add("dimming")
+                apply_brightness_state_update(
+                    afero_device, cur_item, state, updated_keys
+                )
             elif state.functionClass == "color-sequence":
                 color_seq_states[state.functionInstance] = state
             elif state.functionClass == "color-rgb":
@@ -448,6 +617,13 @@ class LightController(BaseResourcesController[Light]):
                 if cur_item.color_mode.mode != state.value:
                     cur_item.color_mode.mode = state.value
                     updated_keys.add("color_mode")
+            elif state.functionClass == "toggle":
+                instance = state.functionInstance
+                if instance in cur_item.channels:
+                    new_val = state.value == "on"
+                    if cur_item.channels[instance].on != new_val:
+                        cur_item.channels[instance].on = new_val
+                        updated_keys.add("channels")
             elif state.functionClass == "available":
                 if cur_item.available != state.value:
                     cur_item.available = state.value
@@ -492,6 +668,7 @@ class LightController(BaseResourcesController[Light]):
         effect: str | None = None,
         force_white_mode: int | None = None,
         numbers: dict[tuple[str, str], float] | None = None,
+        channel: str | None = None,
     ) -> None:
         """Update light state in the cloud.
 
@@ -506,6 +683,12 @@ class LightController(BaseResourcesController[Light]):
             effect: Named color sequence effect.
             force_white_mode: Brightness to apply after forcing white mode.
             numbers: Number features keyed by ``(functionClass, functionInstance)``.
+            channel: When set, target that dual-channel instance (``color`` /
+                ``white``): ``on`` uses the channel toggle, and brightness is
+                routed to that channel when ``color_mode`` is omitted. Turning
+                a channel off also moves ``color-mode`` to the remaining
+                channel when one is still on. Unknown channel names are
+                ignored (logged) and do not fall through to primary power.
 
         ``no-brightness`` modes omit brightness and, when turning on from off,
         select the mode before power (aborting if that PUT fails). Turn-off
@@ -518,6 +701,15 @@ class LightController(BaseResourcesController[Light]):
         except errors.DeviceNotFound:
             self._logger.info("Unable to find device %s", device_id)
             return
+        channel_requested = channel is not None
+        channel_valid = bool(channel and channel in cur_item.channels)
+        if channel_requested and not channel_valid:
+            self._logger.warning(
+                "Ignoring unknown light channel %r for device %s",
+                channel,
+                device_id,
+            )
+            channel = None
         if on is False and (color_mode is not None or force_white_mode is not None):
             self._logger.warning(
                 "Ignoring color-mode changes while turning off %s "
@@ -553,72 +745,139 @@ class LightController(BaseResourcesController[Light]):
                 )
                 return
         if on is not None:
-            update_obj.on = features.OnFeature(
-                on=on,
-                func_class=cur_item.on.func_class,
-                func_instance=cur_item.on.func_instance,
-            )
-        send_duplicate_states = False
+            if channel_valid:
+                update_obj.on = features.OnFeature(
+                    on=on,
+                    func_class="toggle",
+                    func_instance=channel,
+                )
+            elif not channel_requested:
+                # Only touch primary power when the caller did not intend a
+                # channel toggle (unknown channel= must not fall through).
+                update_obj.on = features.OnFeature(
+                    on=on,
+                    func_class=cur_item.on.func_class,
+                    func_instance=cur_item.on.func_instance,
+                )
         if force_white_mode is not None:
-            send_duplicate_states = True
             update_obj.color_mode = features.ColorModeFeature(mode="white")
             update_obj.dimming = features.DimmingFeature(
-                brightness=force_white_mode, supported=cur_item.dimming.supported
+                brightness=force_white_mode,
+                supported=cur_item.dimming.supported,
+                func_instance=cur_item.dimming.func_instance,
             )
+            send_duplicate_states = True
         else:
-            if numbers:
-                for key, val in numbers.items():
-                    if key not in cur_item.numbers:
-                        continue
-                    update_obj.numbers[key] = features.NumbersFeature(
-                        value=val,
-                        min=cur_item.numbers[key].min,
-                        max=cur_item.numbers[key].max,
-                        step=cur_item.numbers[key].step,
-                        name=cur_item.numbers[key].name,
-                        unit=cur_item.numbers[key].unit,
-                    )
-            if temperature is not None and cur_item.color_temperature is not None:
-                adjusted_temp = min(
-                    cur_item.color_temperature.supported,
-                    key=lambda x: abs(x - temperature),
-                )
-                update_obj.color_temperature = features.ColorTemperatureFeature(
-                    temperature=adjusted_temp,
-                    supported=cur_item.color_temperature.supported,
-                    prefix=cur_item.color_temperature.prefix,
-                )
-                if color_mode is None:
-                    color_mode = "white"
-            elif temperature is not None and cur_item.supports_color_white:
-                if color_mode is None:
-                    color_mode = "white"
-            if brightness is not None and cur_item.dimming is not None:
-                update_obj.dimming = features.DimmingFeature(
-                    brightness=brightness, supported=cur_item.dimming.supported
-                )
-            if color is not None and cur_item.color is not None:
-                update_obj.color = features.ColorFeature(
-                    red=color[0], green=color[1], blue=color[2]
-                )
-            if color_mode is not None and cur_item.color_mode is not None:
-                update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
-                # No-CCT zones that support white (e.g. accent trim with RGB) must always
-                # PUT color-mode white when requested. Skipping unchanged fields leaves the
-                # device in RGB when cache is stale or the user re-selects white in HA.
-                if (
-                    color_mode == "white"
-                    and cur_item.color_temperature is None
-                    and cur_item.supports_color_white
-                ):
-                    send_duplicate_states = True
-            if effect is not None and cur_item.effect is not None:
-                update_obj.effect = features.EffectFeature(
-                    effect=effect, effects=cur_item.effect.effects
-                )
+            send_duplicate_states = _populate_light_put(
+                update_obj,
+                cur_item,
+                on=on,
+                temperature=temperature,
+                brightness=brightness,
+                color_mode=color_mode,
+                color=color,
+                effect=effect,
+                numbers=numbers,
+                channel=channel,
+                channel_valid=channel_valid,
+            )
         await self.update(
             device_id, obj_in=update_obj, send_duplicate_states=send_duplicate_states
         )
+
+
+def _populate_light_put(
+    update_obj: LightPut,
+    cur_item: Light,
+    *,
+    on: bool | None,
+    temperature: int | None,
+    brightness: int | None,
+    color_mode: str | None,
+    color: tuple[int, int, int] | None,
+    effect: str | None,
+    numbers: dict[tuple[str, str], float] | None,
+    channel: str | None,
+    channel_valid: bool,
+) -> bool:
+    """Apply non-force-white fields to ``update_obj``.
+
+    Returns:
+        Whether duplicate states must be sent for this update.
+
+    """
+    send_duplicate_states = False
+    if numbers:
+        for key, val in numbers.items():
+            if key not in cur_item.numbers:
+                continue
+            update_obj.numbers[key] = features.NumbersFeature(
+                value=val,
+                min=cur_item.numbers[key].min,
+                max=cur_item.numbers[key].max,
+                step=cur_item.numbers[key].step,
+                name=cur_item.numbers[key].name,
+                unit=cur_item.numbers[key].unit,
+            )
+    if temperature is not None and cur_item.color_temperature is not None:
+        adjusted_temp = min(
+            cur_item.color_temperature.supported,
+            key=lambda x: abs(x - temperature),
+        )
+        update_obj.color_temperature = features.ColorTemperatureFeature(
+            temperature=adjusted_temp,
+            supported=cur_item.color_temperature.supported,
+            prefix=cur_item.color_temperature.prefix,
+        )
+        if color_mode is None:
+            color_mode = "white"
+    elif temperature is not None and cur_item.supports_color_white:
+        if color_mode is None:
+            color_mode = "white"
+    channel_turning_off = channel_valid and on is False
+    if channel_valid and color_mode is None:
+        if channel_turning_off:
+            color_mode = color_mode_after_channel_off(cur_item, channel)
+        else:
+            color_mode = "color" if channel == "color" else "white"
+    # Route brightness using the intended exclusive mode before upgrading to
+    # mixed (so RGB still dims the color channel while both channels stay on).
+    brightness_color_mode = color_mode
+    if color_mode is not None and not channel_turning_off:
+        color_mode = resolve_color_mode(cur_item, color_mode)
+    if brightness is not None and cur_item.dimming is not None:
+        update_obj.dimming = features.DimmingFeature(
+            brightness=brightness,
+            supported=cur_item.dimming.supported,
+            func_instance=resolve_brightness_instance(
+                cur_item,
+                color_mode=brightness_color_mode,
+                color=color,
+                temperature=temperature,
+                effect=effect,
+                channel=channel if channel_valid else None,
+            ),
+        )
+    if color is not None and cur_item.color is not None:
+        update_obj.color = features.ColorFeature(
+            red=color[0], green=color[1], blue=color[2]
+        )
+    if color_mode is not None and cur_item.color_mode is not None:
+        update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
+        # No-CCT zones that support white (e.g. accent trim with RGB) must always
+        # PUT color-mode white when requested. Skipping unchanged fields leaves the
+        # device in RGB when cache is stale or the user re-selects white in HA.
+        if (
+            color_mode == "white"
+            and cur_item.color_temperature is None
+            and cur_item.supports_color_white
+        ):
+            send_duplicate_states = True
+    if effect is not None and cur_item.effect is not None:
+        update_obj.effect = features.EffectFeature(
+            effect=effect, effects=cur_item.effect.effects
+        )
+    return send_duplicate_states
 
 
 def process_color_temps(color_temps: dict) -> list[int]:
