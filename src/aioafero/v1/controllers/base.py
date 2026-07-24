@@ -517,7 +517,20 @@ class BaseResourcesController[AferoResource]:
         # @TODO - Implement bluetooth logic for update
         if res := await self.update_afero_api(update_id, device_states):
             resp_json = await res.json()
-            states = [convert_state(val) for val in resp_json.get("values", [])]
+            # Only apply fields we sent. Cloud responses sometimes echo unrelated
+            # states (e.g. power:on on a mode-only PUT), which would flicker HA.
+            # Key by (functionClass, functionInstance) like the rest of this
+            # controller — class alone would still apply other instances.
+            sent_keys = {
+                (state["functionClass"], state.get("functionInstance"))
+                for state in (device_states or [])
+                if state.get("functionClass")
+            }
+            states = [
+                convert_state(val)
+                for val in resp_json.get("values", [])
+                if (val.get("functionClass"), val.get("functionInstance")) in sent_keys
+            ]
             # Always merge into the parent metadevice cache (update_id). Split clones
             # are cached separately; response metadeviceId may match update_id on API
             # responses but tests may echo the resource id instead.

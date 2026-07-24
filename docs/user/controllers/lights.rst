@@ -5,6 +5,20 @@ Lights
 and effects. Split main/trim zones appear as separate ``Light`` resources; dual-channel
 RGB+WW fixtures stay as one light (see :doc:`../device_splitting`).
 
+Night-light color-mode
+----------------------
+
+Some fixtures (e.g. Hampton Bay Penrose) expose ``night-light`` as a ``color-mode``
+value with the ``no-brightness`` category hint. That is distinct from any nightlight
+*sequence* effect.
+
+* ``"night-light" in Light.color_modes`` — capability check
+* ``Light.color_mode_hints`` / ``color_mode_has_hint()`` — API category hints
+* ``set_state(..., color_mode="night-light")`` — omit brightness; select mode before
+  power when turning on from off (aborting if that PUT fails); never send a
+  color-mode change with turn-off. Leave night-light with a separate
+  ``set_state(..., color_mode=...)`` while on, or ``set_state(on=False)``.
+
 Dual-channel fixtures
 ---------------------
 

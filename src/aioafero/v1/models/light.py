@@ -21,6 +21,7 @@ class Light(StandardMixin):
     color: features.ColorFeature | None = None
     color_mode: features.ColorModeFeature | None = None
     color_modes: list[str] | None = None
+    color_mode_hints: dict[str, list[str]] | None = None
     color_temperature: features.ColorTemperatureFeature | None = None
     dimming: features.DimmingFeature | None = None
     effect: features.EffectFeature | None = None
@@ -47,6 +48,12 @@ class Light(StandardMixin):
     def supports_color_white(self) -> bool:
         """Return if this light supports setting white."""
         return self.color_modes is not None and "white" in self.color_modes
+
+    def color_mode_has_hint(self, mode: str, hint: str) -> bool:
+        """Return True when ``mode`` carries the given API category hint."""
+        if not self.color_mode_hints:
+            return False
+        return hint in self.color_mode_hints.get(mode, [])
 
     @property
     def supports_dimming(self) -> bool:
