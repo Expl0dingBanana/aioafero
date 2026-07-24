@@ -37,12 +37,7 @@ test = [
   "pytest-mock",
   "pytest-cov",
   "pytest-asyncio",
-  # aioresponses 0.7.8 is incompatible with aiohttp 3.14+ (ClientResponse requires
-  # stream_writer). Runtime aiohttp stays unpinned so HA can use its bundled version;
-  # tests/conftest.py patches mocked responses until aioresponses ships the fix
-  # (https://github.com/pnuckowski/aioresponses/pull/288). Bump aioresponses and
-  # remove that shim once a release includes 3.14 support.
-  "aioresponses",
+  "aioresponses>=0.7.9",
   "pytest-aioresponses",
   "anyio[trio]",
   "tox",

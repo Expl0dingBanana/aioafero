@@ -508,9 +508,9 @@ def test_fetch_device_states(
     request = mocker.patch.object(mocked_bridge, "request", return_value=resp)
     states = asyncio.run(mocked_bridge.fetch_device_states(dummy_dev.id))
     assert states == dummy_dev.states
-    params = request.call_args[1]["params"]
+    params = request.call_args.kwargs.get("params", {})
     if expect_units_param:
-        assert params["units"] == TemperatureUnit.FAHRENHEIT.value
+        assert params.get("units") == TemperatureUnit.FAHRENHEIT.value
     else:
         assert "units" not in params
 
