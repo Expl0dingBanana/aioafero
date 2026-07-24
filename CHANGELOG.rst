@@ -2,6 +2,14 @@
 Changelog
 =========
 
+Version 7.0.7
+=============
+ * Revert dual-channel single-light handling introduced in 7.0.5 (flushmount / RGBCW
+   color+white split routing restored). That release was not consumed by the Hubspace
+   Home Assistant integration.
+ * Retain the 7.0.6 device-state poll ``units`` fix for Fahrenheit
+   (`Hubspace-Homeassistant #231 <https://github.com/jdeath/Hubspace-Homeassistant/issues/231>`__)
+
 Version 7.0.6
 =============
  * Pass ``units`` on device-state polls so Fahrenheit temperatures do not revert to Celsius after the first discovery (`Hubspace-Homeassistant #231 <https://github.com/jdeath/Hubspace-Homeassistant/issues/231>`__)
