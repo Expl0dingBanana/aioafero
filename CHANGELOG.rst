@@ -2,6 +2,17 @@
 Changelog
 =========
 
+Version 7.0.8
+=============
+ * Preserve color-mode category hints (e.g. ``no-brightness`` on ``night-light``)
+ * Add ``Light.color_mode_has_hint``
+ * When enabling ``no-brightness`` modes while off, select the mode before powering
+   on and abort turn-on if that PUT fails; omit brightness for those modes; never
+   attach a color-mode change (including ``force_white_mode``) to turn-off
+   (`Hubspace-Homeassistant #232 <https://github.com/jdeath/Hubspace-Homeassistant/issues/232>`__)
+ * Ignore unsolicited fields on device-state PUT responses (e.g. ``power`` echoed on a
+   mode-only update) so cached/HA state does not flicker
+
 Version 7.0.7
 =============
  * Revert dual-channel single-light handling introduced in 7.0.5 (flushmount / RGBCW

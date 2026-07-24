@@ -12,7 +12,8 @@ def populated_light():
         on=features.OnFeature(on=True),
         color=features.ColorFeature(red=10, green=20, blue=40),
         color_mode=features.ColorModeFeature(mode="white"),
-        color_modes=["white", "color"],
+        color_modes=["white", "color", "night-light"],
+        color_mode_hints={"night-light": ["no-brightness"]},
         color_temperature=features.ColorTemperatureFeature(
             temperature=3000, supported=list(range(2700, 5000, 100)), prefix="K"
         ),
@@ -76,6 +77,8 @@ def test_init(populated_light):
     assert populated_light.supports_color
     assert populated_light.supports_color_temperature
     assert populated_light.supports_color_white
+    assert populated_light.color_mode_has_hint("night-light", "no-brightness")
+    assert not populated_light.color_mode_has_hint("white", "no-brightness")
     assert populated_light.supports_dimming
     assert populated_light.supports_effects
     assert populated_light.is_on is True
@@ -95,6 +98,7 @@ def test_empty_light(empty_light):
     assert not empty_light.supports_color
     assert not empty_light.supports_color_temperature
     assert not empty_light.supports_color_white
+    assert not empty_light.color_mode_has_hint("night-light", "no-brightness")
     assert not empty_light.supports_dimming
     assert not empty_light.supports_effects
     assert not empty_light.is_on

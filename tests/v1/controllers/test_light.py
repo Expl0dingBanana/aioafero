@@ -26,6 +26,8 @@ flushmount_light_white_id = f"{flushmount_light.id}-light-white"
 speaker_power_light = utils.create_devices_from_data("light-with-speaker.json")[0]
 speaker_power_light_speaker_id = f"{speaker_power_light.id}-light-speaker-power"
 
+penrose_light = utils.create_devices_from_data("light-penrose.json")[0]
+
 trim_light = utils.create_devices_from_data("light-with-trim.json")[0]
 trim_light_primary_id = f"{trim_light.id}-light-main"
 trim_light_trim_id = f"{trim_light.id}-light-trim"
@@ -755,6 +757,14 @@ def test_get_color_modes_for_device_trim_vs_main():
     assert trim_modes == ["sequence", "white", "color"]
     assert main_modes == ["circadian-rhythm", "sequence", "white", "color"]
     assert "circadian-rhythm" not in trim_modes
+
+
+def test_get_color_mode_hints_for_device_penrose():
+    """Penrose exposes night-light with the no-brightness category hint."""
+    modes = light.get_color_modes_for_device(penrose_light)
+    hints = light.get_color_mode_hints_for_device(penrose_light)
+    assert "night-light" in modes
+    assert hints == {"night-light": ["no-brightness"]}
 
 
 @pytest.mark.asyncio
@@ -2055,3 +2065,108 @@ async def test_set_state_speed(mocked_controller):
         mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value
         == 5
     )
+
+
+def _mock_update_api(mocked_controller, mocker, device_id: str, return_value=None):
+    """Patch update_afero_api with a successful (or custom) response."""
+    if return_value is None:
+        resp = mocker.AsyncMock()
+        resp.status = 200
+        json_resp = mocker.AsyncMock()
+        json_resp.return_value = {"metadeviceId": device_id, "values": []}
+        resp.json = json_resp
+        return_value = resp
+    return mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=return_value
+    )
+
+
+@pytest.mark.asyncio
+async def test_set_state_night_light_mode_before_power(mocked_controller, mocker):
+    """Enabling a no-brightness mode from off must PUT color-mode before power."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(penrose_light)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[penrose_light.id]
+    dev.on.on = False
+    dev.color_mode.mode = "white"
+    update_afero_api = _mock_update_api(mocked_controller, mocker, penrose_light.id)
+    await mocked_controller.set_state(
+        penrose_light.id, on=True, color_mode="night-light"
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    assert update_afero_api.call_count == 2
+    first_states = update_afero_api.call_args_list[0].args[1]
+    second_by_class = {
+        s["functionClass"]: s for s in update_afero_api.call_args_list[1].args[1]
+    }
+    assert {s["functionClass"] for s in first_states} == {"color-mode"}
+    assert first_states[0]["value"] == "night-light"
+    assert second_by_class["power"]["value"] == "on"
+    assert second_by_class["color-mode"]["value"] == "night-light"
+
+
+@pytest.mark.asyncio
+async def test_set_state_night_light_omits_brightness(mocked_controller, mocker):
+    """no-brightness modes must not send brightness even when requested."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(penrose_light)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[penrose_light.id]
+    dev.on.on = True
+    dev.color_mode.mode = "white"
+    update_afero_api = _mock_update_api(mocked_controller, mocker, penrose_light.id)
+    await mocked_controller.set_state(
+        penrose_light.id, on=True, color_mode="night-light", brightness=50
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    by_class = {s["functionClass"]: s for s in update_afero_api.call_args.args[1]}
+    assert by_class["color-mode"]["value"] == "night-light"
+    assert "brightness" not in by_class
+
+
+@pytest.mark.asyncio
+async def test_set_state_turn_off_drops_color_mode(mocked_controller, mocker, caplog):
+    """Turning off must never PUT a color-mode change alongside power."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(penrose_light)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = _mock_update_api(mocked_controller, mocker, penrose_light.id)
+    with caplog.at_level("WARNING"):
+        await mocked_controller.set_state(
+            penrose_light.id, on=False, color_mode="white", force_white_mode=75
+        )
+    await mocked_controller._bridge.async_block_until_done()
+    by_class = {s["functionClass"]: s for s in update_afero_api.call_args.args[1]}
+    assert by_class["power"]["value"] == "off"
+    assert "color-mode" not in by_class
+    assert "brightness" not in by_class
+    assert "Ignoring color-mode changes while turning off" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_set_state_mode_before_power_aborts_on_failure(
+    mocked_controller, mocker, caplog
+):
+    """If the pre-power color-mode PUT fails, do not power the light on."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(penrose_light)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller[penrose_light.id]
+    dev.on.on = False
+    dev.color_mode.mode = "white"
+    update_afero_api = _mock_update_api(
+        mocked_controller, mocker, penrose_light.id, return_value=False
+    )
+    with caplog.at_level("WARNING"):
+        await mocked_controller.set_state(
+            penrose_light.id, on=True, color_mode="night-light"
+        )
+    await mocked_controller._bridge.async_block_until_done()
+    assert update_afero_api.call_count == 1
+    assert "aborting turn-on" in caplog.text
+    assert not dev.is_on

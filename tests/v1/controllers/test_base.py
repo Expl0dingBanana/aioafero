@@ -1197,6 +1197,54 @@ async def test_update(
 
 
 @pytest.mark.asyncio
+async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker):
+    """PUT responses must not apply functionClasses we did not send."""
+    ex1_rc = ex1_rc_mocked
+    await ex1_rc.initialize()
+    patch_last_update_time(mocker)
+    await ex1_rc._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(test_device)]
+    )
+    await ex1_rc._bridge.async_block_until_done()
+    assert ex1_rc[test_device.id].on.on is True
+
+    resp = mocker.AsyncMock()
+    resp.status = 200
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {
+        "metadeviceId": test_device.id,
+        "values": [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "off",
+            },
+            {
+                "functionClass": "mapped_beans",
+                "functionInstance": None,
+                "value": "cool",
+            },
+        ],
+    }
+    resp.json = json_resp
+    mocker.patch.object(ex1_rc, "update_afero_api", return_value=resp)
+
+    await ex1_rc.update(
+        test_device.id,
+        states=[
+            {
+                "functionClass": "mapped_beans",
+                "functionInstance": None,
+                "value": "cool",
+            }
+        ],
+    )
+    await ex1_rc._bridge.async_block_until_done()
+    # Echoed power:off must be ignored; only mapped_beans was sent.
+    assert ex1_rc[test_device.id].on.on is True
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("device", "obj_in", "states", "expected_states", "expected_item", "successful"),
     [

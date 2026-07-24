@@ -92,18 +92,32 @@ def resolve_function_instance(afero_device: AferoDevice) -> str | None:
     return None
 
 
-def get_color_modes_for_device(afero_device: AferoDevice) -> list[str]:
-    """Return supported color-mode names for this zone's color-mode function."""
+def _color_mode_function_values(afero_device: AferoDevice) -> list[dict]:
+    """Return the ``values`` list for this zone's color-mode function."""
     instance = resolve_function_instance(afero_device)
     for function in afero_device.functions:
         if function.get("functionClass") != "color-mode":
             continue
         if function.get("functionInstance") == instance:
-            return [value["name"] for value in function.get("values", [])]
+            return list(function.get("values", []))
     for function in afero_device.functions:
         if function.get("functionClass") == "color-mode":
-            return [value["name"] for value in function.get("values", [])]
+            return list(function.get("values", []))
     return []
+
+
+def get_color_modes_for_device(afero_device: AferoDevice) -> list[str]:
+    """Return supported color-mode names for this zone's color-mode function."""
+    return [value["name"] for value in _color_mode_function_values(afero_device)]
+
+
+def get_color_mode_hints_for_device(afero_device: AferoDevice) -> dict[str, list[str]]:
+    """Return category hints keyed by color-mode name (e.g. ``no-brightness``)."""
+    return {
+        value["name"]: list(value["hints"])
+        for value in _color_mode_function_values(afero_device)
+        if value.get("name") and value.get("hints")
+    }
 
 
 def get_valid_states(afero_dev: AferoDevice, instance: str) -> list:
@@ -348,6 +362,7 @@ class LightController(BaseResourcesController[Light]):
                 numbers[number[0]] = number[1]
 
         supported_color_modes = get_color_modes_for_device(afero_device)
+        color_mode_hints = get_color_mode_hints_for_device(afero_device)
 
         self._items[afero_device.id] = Light(
             _id=afero_device.id,
@@ -372,6 +387,7 @@ class LightController(BaseResourcesController[Light]):
             color_temperature=color_temp,
             color=color,
             color_modes=supported_color_modes,
+            color_mode_hints=color_mode_hints or None,
             effect=effect,
             numbers=numbers,
         )
@@ -483,11 +499,16 @@ class LightController(BaseResourcesController[Light]):
             on: Power state.
             temperature: Color temperature in kelvin.
             brightness: Brightness percentage.
-            color_mode: API color mode (``white``, ``color``, ``sequence``, etc.).
+            color_mode: API color mode (``white``, ``color``, ``sequence``,
+                ``night-light``, etc.).
             color: RGB tuple ``(red, green, blue)``.
             effect: Named color sequence effect.
             force_white_mode: Brightness to apply after forcing white mode.
             numbers: Number features keyed by ``(functionClass, functionInstance)``.
+
+        ``no-brightness`` modes omit brightness and, when turning on from off,
+        select the mode before power (aborting if that PUT fails). Turn-off
+        never includes a color-mode change.
 
         """
         update_obj = LightPut()
@@ -496,6 +517,40 @@ class LightController(BaseResourcesController[Light]):
         except errors.DeviceNotFound:
             self._logger.info("Unable to find device %s", device_id)
             return
+        if on is False and (color_mode is not None or force_white_mode is not None):
+            self._logger.warning(
+                "Ignoring color-mode changes while turning off %s "
+                "(color_mode=%s, force_white_mode=%s)",
+                device_id,
+                color_mode,
+                force_white_mode,
+            )
+            color_mode = None
+            force_white_mode = None
+        no_brightness = color_mode is not None and cur_item.color_mode_has_hint(
+            color_mode, "no-brightness"
+        )
+        if no_brightness:
+            brightness = None
+        if (
+            on is True
+            and not cur_item.is_on
+            and no_brightness
+            and cur_item.color_mode is not None
+        ):
+            mode_res = await self.update(
+                device_id,
+                obj_in=LightPut(color_mode=features.ColorModeFeature(mode=color_mode)),
+                send_duplicate_states=True,
+            )
+            if not mode_res:
+                self._logger.warning(
+                    "Failed to select color-mode %s before power-on for %s; "
+                    "aborting turn-on",
+                    color_mode,
+                    device_id,
+                )
+                return
         if on is not None:
             update_obj.on = features.OnFeature(
                 on=on,
