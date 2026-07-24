@@ -469,7 +469,17 @@ def test_get_afero_device(mocked_bridge):
         mocked_bridge.get_afero_device("nope")
 
 
-def test_fetch_device_states(mocked_bridge, mocker):
+@pytest.mark.parametrize(
+    ("temperature_unit", "expect_units_param"),
+    [
+        (TemperatureUnit.CELSIUS, False),
+        (TemperatureUnit.FAHRENHEIT, True),
+    ],
+)
+def test_fetch_device_states(
+    mocked_bridge, mocker, temperature_unit, expect_units_param
+):
+    mocked_bridge.temperature_unit = temperature_unit
     states = [
         AferoState(functionClass="power", functionInstance="light-power", value="on"),
         AferoState(
@@ -495,9 +505,14 @@ def test_fetch_device_states(mocked_bridge, mocker):
     resp = mocker.AsyncMock()
     resp.json = json_resp
     resp.status = 200
-    mocker.patch.object(mocked_bridge, "request", return_value=resp)
+    request = mocker.patch.object(mocked_bridge, "request", return_value=resp)
     states = asyncio.run(mocked_bridge.fetch_device_states(dummy_dev.id))
     assert states == dummy_dev.states
+    params = request.call_args[1]["params"]
+    if expect_units_param:
+        assert params["units"] == TemperatureUnit.FAHRENHEIT.value
+    else:
+        assert "units" not in params
 
 
 def test_get_device_controller(mocked_bridge):
