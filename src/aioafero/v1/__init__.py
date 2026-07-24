@@ -503,6 +503,9 @@ class AferoBridgeV1:
         headers = {
             "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
         }
+        params = {}
+        if self.temperature_unit == TemperatureUnit.FAHRENHEIT:
+            params["units"] = self.temperature_unit.value
         url = self.generate_api_url(
             v1_const.AFERO_GENERICS["API_DEVICE_STATE_ENDPOINT"].format(
                 self.account_id, device_id
@@ -512,6 +515,7 @@ class AferoBridgeV1:
             "get",
             url,
             headers=headers,
+            params=params,
         )
         res.raise_for_status()
         data = await res.json()

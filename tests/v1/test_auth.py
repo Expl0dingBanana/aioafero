@@ -147,7 +147,7 @@ async def test_webapp_login(
     params: dict[str, str] = {
         "response_type": "code",
         "client_id": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_CLIENT_ID"],
-        "redirect_uri": "hubspace-app%3A%2F%2Floginredirect",
+        "redirect_uri": v1_const.AFERO_CLIENTS["hubspace"]["AUTH_DEFAULT_REDIRECT_URI"],
         "code_challenge": challenge.challenge,
         "code_challenge_method": "S256",
         "scope": "openid offline_access",

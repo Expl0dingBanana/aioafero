@@ -2,6 +2,10 @@
 Changelog
 =========
 
+Version 7.0.6
+=============
+ * Pass ``units`` on device-state polls so Fahrenheit temperatures do not revert to Celsius after the first discovery (`Hubspace-Homeassistant #231 <https://github.com/jdeath/Hubspace-Homeassistant/issues/231>`__)
+
 Version 7.0.5
 =============
  * Do not split dual-channel RGB+WW fixtures (``color`` / ``white`` brightness zones); keep RGBCW strips, flushmounts, and similar devices as one light with shared color controls
