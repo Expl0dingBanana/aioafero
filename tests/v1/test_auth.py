@@ -158,7 +158,7 @@ async def test_webapp_login(
     if not expected_err:
         await hs_auth.webapp_login(challenge)
         if redirect:
-            generate_code.asset_not_called()
+            generate_code.assert_not_called()
             parse_code.assert_called_once()
         else:
             generate_code.assert_called_once_with(gc_exp, challenge)

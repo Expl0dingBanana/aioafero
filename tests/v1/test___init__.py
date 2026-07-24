@@ -122,7 +122,10 @@ def test_set_polling_interval(mocked_bridge):
 
 @pytest.mark.asyncio
 async def test_initialize(bridge_with_acct, mocker):
-    mocker.patch.object(bridge_with_acct, "request")
+    resp = mocker.Mock()
+    resp.raise_for_status = mocker.Mock()
+    resp.json = mocker.AsyncMock(return_value=[])
+    mocker.patch.object(bridge_with_acct, "request", return_value=resp)
     mocker.patch.object(
         bridge_with_acct, "get_account_id", return_value="mocked-account-id"
     )
@@ -222,7 +225,10 @@ async def test_fetch_discovery_data_with_version(mocked_bridge_req, mocker):
 
 @pytest.mark.asyncio
 async def test_get_device_versions(mocked_bridge, mocker):
-    req = mocker.patch.object(mocked_bridge, "request")
+    resp = mocker.Mock()
+    resp.raise_for_status = mocker.Mock()
+    resp.json = mocker.AsyncMock(return_value={})
+    req = mocker.patch.object(mocked_bridge, "request", return_value=resp)
     await mocked_bridge.get_device_version("test_device_id")
     req.assert_called_once_with(
         "GET",
@@ -489,9 +495,10 @@ def test_fetch_device_states(
     resp_states.append({"functionClass": "unknown", "functionInstance": "unknown"})
     json_resp = mocker.AsyncMock()
     json_resp.return_value = {"metadeviceId": dummy_dev.id, "values": resp_states}
-    resp = mocker.AsyncMock()
+    resp = mocker.Mock()
     resp.json = json_resp
     resp.status = 200
+    resp.raise_for_status = mocker.Mock()
     request = mocker.patch.object(mocked_bridge, "request", return_value=resp)
     states = asyncio.run(mocked_bridge.fetch_device_states(dummy_dev.id))
     assert states == dummy_dev.states
@@ -557,7 +564,6 @@ async def test_otp_login(mock_aioresponse, aio_sess, mocker, mocked_bridge_req, 
     )
 
 
-@pytest.mark.asyncio
 def test_unsubscribe():
     bridge = AferoBridgeV1("username", "password")
 

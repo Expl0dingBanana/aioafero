@@ -519,7 +519,7 @@ async def test_perform_discovery_poll(
 @pytest.mark.asyncio
 async def test_event_discovery_dev_update(bridge, mocker):
     stream = bridge.events
-    bridge.lights.initialize()
+    await bridge.lights.initialize()
     await bridge.lights.initialize_elem(a21_light)
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
@@ -559,8 +559,8 @@ async def test_event_discovery_dev_update(bridge, mocker):
 @pytest.mark.asyncio
 async def test_event_discovery_dev_delete(bridge, mocker):
     stream = bridge.events
-    bridge.lights.initialize()
-    bridge.lights.initialize_elem(a21_light)
+    await bridge.lights.initialize()
+    await bridge.lights.initialize_elem(a21_light)
     bridge.add_device(a21_light.id, bridge.lights)
     await stream.stop()
 
