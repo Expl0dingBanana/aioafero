@@ -102,12 +102,12 @@ jobs:
         with:
           python-version: ${{ inputs.lint-python-version }}
       - name: Download coverage data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-py*
           merge-multiple: true
       - name: Download test results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: junit-py*
           merge-multiple: true
