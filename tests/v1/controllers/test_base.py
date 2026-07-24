@@ -1198,7 +1198,7 @@ async def test_update(
 
 @pytest.mark.asyncio
 async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker):
-    """PUT responses must not apply functionClasses we did not send."""
+    """PUT responses must not apply class/instance pairs we did not send."""
     ex1_rc = ex1_rc_mocked
     await ex1_rc.initialize()
     patch_last_update_time(mocker)
@@ -1207,6 +1207,7 @@ async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker)
     )
     await ex1_rc._bridge.async_block_until_done()
     assert ex1_rc[test_device.id].on.on is True
+    assert ex1_rc[test_device.id].beans["bean2"].on is False
 
     resp = mocker.AsyncMock()
     resp.status = 200
@@ -1221,8 +1222,14 @@ async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker)
             },
             {
                 "functionClass": "mapped_beans",
-                "functionInstance": None,
-                "value": "cool",
+                "functionInstance": "bean1",
+                "value": "off",
+            },
+            {
+                # Same class, different instance — must not apply.
+                "functionClass": "mapped_beans",
+                "functionInstance": "bean2",
+                "value": "on",
             },
         ],
     }
@@ -1234,14 +1241,16 @@ async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker)
         states=[
             {
                 "functionClass": "mapped_beans",
-                "functionInstance": None,
-                "value": "cool",
+                "functionInstance": "bean1",
+                "value": "off",
             }
         ],
     )
     await ex1_rc._bridge.async_block_until_done()
-    # Echoed power:off must be ignored; only mapped_beans was sent.
+    # Echoed power:off and mapped_beans/bean2 must be ignored.
     assert ex1_rc[test_device.id].on.on is True
+    assert ex1_rc[test_device.id].beans["bean1"].on is False
+    assert ex1_rc[test_device.id].beans["bean2"].on is False
 
 
 @pytest.mark.asyncio
