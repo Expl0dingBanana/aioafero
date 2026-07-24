@@ -23,7 +23,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Python ${{ inputs.lint-python-version }}
         uses: actions/setup-python@v6
         with:
@@ -36,7 +36,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Python ${{ inputs.lint-python-version }}
         uses: actions/setup-python@v6
         with:
@@ -54,7 +54,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set coverage data file
         id: coverage
         run: echo "file=.coverage.py$(echo '${{ matrix.python-version }}' | tr -d '.')" >> "$GITHUB_OUTPUT"
@@ -96,7 +96,7 @@ jobs:
     if: ${{ inputs.run-codecov && !cancelled() && needs.run_tests.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Python ${{ inputs.lint-python-version }}
         uses: actions/setup-python@v6
         with:
