@@ -174,6 +174,7 @@ class ThermostatController(ClimateController[Thermostat]):
     async def set_state(
         self,
         device_id: str,
+        *,
         fan_mode: str | None = None,
         hvac_mode: str | None = None,
         safety_max_temp: float | None = None,

@@ -245,7 +245,7 @@ combine-as-imports = true
 split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D", "SLF001"]
+"tests/**/*.py" = ["D", "SLF001", "PLR0917"]
 [tool.ruff.lint.mccabe]
 max-complexity = 25
 

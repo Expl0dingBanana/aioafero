@@ -124,6 +124,7 @@ class AferoBridgeV1:
         self,
         username: str,
         password: str,
+        *,
         refresh_token: str | None = None,
         session: aiohttp.ClientSession | None = None,
         polling_interval: int = 30,

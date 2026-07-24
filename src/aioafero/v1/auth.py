@@ -70,6 +70,7 @@ class AferoAuth:
         bridge,
         username,
         password,
+        *,
         hide_secrets: bool = True,
         refresh_token: str | None = None,
         afero_client: str | None = "hubspace",
