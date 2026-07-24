@@ -634,20 +634,24 @@ def get_afero_states_from_mapped(
 def get_afero_instance_for_state(
     elem: AferoResource, feature, mapped_afero_key: str | None
 ) -> str | None:
-    """Determine the function instance based on the field data or device."""
-    if hasattr(feature, "func_instance") and getattr(feature, "func_instance", None):
-        instance = getattr(feature, "func_instance", None)
-    elif getattr(elem, "split_identifier", None) and getattr(elem, "instance", None):
-        instance = elem.instance
-    elif (
+    """Determine the function instance based on the field data or device.
+
+    Features that declare ``func_instance`` (including an explicit ``None``) win
+    over split-id suffixes. Portable AC power is split as ``…-portable-ac-power``
+    while the live ``power`` state uses ``functionInstance: null``; treating a
+    falsy ``func_instance`` as unset wrongly sent ``functionInstance: "power"``.
+    """
+    if hasattr(feature, "func_instance"):
+        return getattr(feature, "func_instance", None)
+    if getattr(elem, "split_identifier", None) and getattr(elem, "instance", None):
+        return elem.instance
+    if (
         mapped_afero_key
         and hasattr(elem, "get_instance")
         and elem.get_instance(mapped_afero_key)
     ):
-        instance = elem.get_instance(mapped_afero_key)
-    else:
-        instance = None
-    return instance
+        return elem.get_instance(mapped_afero_key)
+    return None
 
 
 def get_afero_state_from_feature(

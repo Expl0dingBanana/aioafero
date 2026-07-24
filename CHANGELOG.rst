@@ -2,6 +2,12 @@
 Changelog
 =========
 
+Version 7.0.9
+=============
+ * Fix portable AC power switch toggles sending ``functionInstance: "power"`` from the
+   split entity id; the device expects ``null``
+   (`Hubspace-Homeassistant #234 <https://github.com/jdeath/Hubspace-Homeassistant/issues/234>`__)
+
 Version 7.0.8
 =============
  * Preserve color-mode category hints (e.g. ``no-brightness`` on ``night-light``)
