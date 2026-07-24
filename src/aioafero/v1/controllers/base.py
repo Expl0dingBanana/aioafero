@@ -1,10 +1,10 @@
 """Base class for Controllers."""
 
 import asyncio
-from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable, Iterator
 import contextlib
 from dataclasses import dataclass, fields
+from inspect import iscoroutinefunction
 import re
 from typing import TYPE_CHECKING, Any, NamedTuple
 

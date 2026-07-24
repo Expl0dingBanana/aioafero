@@ -467,6 +467,7 @@ class LightController(BaseResourcesController[Light]):
     async def set_state(
         self,
         device_id: str,
+        *,
         on: bool | None = None,
         temperature: int | None = None,
         brightness: int | None = None,

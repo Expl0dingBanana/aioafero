@@ -1,11 +1,11 @@
 """Handle connecting to Afero IoT and distribute events."""
 
 import asyncio
-from asyncio.coroutines import iscoroutinefunction
 from collections.abc import Callable
 import contextlib
 import datetime
 from enum import Enum
+from inspect import iscoroutinefunction
 from types import NoneType
 from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
 
