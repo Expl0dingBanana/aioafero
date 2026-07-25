@@ -4,7 +4,8 @@ name: aioafero-mitmweb
 
 services:
   mitmweb:
-    image: mitmproxy/mitmproxy:latest
+    # Pin a release tag — :latest + --pull always makes the test bed non-reproducible.
+    image: mitmproxy/mitmproxy:12.2.3
     container_name: aioafero-mitmweb
     command: mitmweb --web-host 0.0.0.0 --mode wireguard --set web_password=aioafero
     ports:

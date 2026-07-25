@@ -39,11 +39,19 @@ for Z_PID in $ZYGOTE_PID $ZYGOTE64_PID; do
 done
 echo 'Zygote APEX certificates remounted'
 
-APP_PIDS=$(
-  echo "$ZYGOTE_PID $ZYGOTE64_PID" | \
-  xargs -n1 ps -o 'PID' -P | \
-  grep -v PID
-)
+# Collect PIDs whose parent is zygote/zygote64 via /proc (PPID). Avoids
+# `ps -P`, which means "children of" on Android toybox but not on desktop procps.
+APP_PIDS=""
+for Z_PID in $ZYGOTE_PID $ZYGOTE64_PID; do
+  [ -n "$Z_PID" ] || continue
+  for dir in /proc/[0-9]*; do
+    pid=${dir#/proc/}
+    [ -r "${dir}/status" ] || continue
+    ppid=$(grep '^PPid:' "${dir}/status" | cut -d: -f2 | tr -d ' \t')
+    [ "$ppid" = "$Z_PID" ] || continue
+    APP_PIDS="${APP_PIDS} ${pid}"
+  done
+done
 
 for PID in $APP_PIDS; do
   nsenter --mount="/proc/${PID}/ns/mnt" -- \

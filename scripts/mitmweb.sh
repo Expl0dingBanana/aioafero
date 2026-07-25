@@ -9,11 +9,11 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") <up|down|logs|ps|ca-path>
 
-  up       Pull image and start mitmweb (detached)
+  up       Start mitmweb (detached; pulls pinned image if missing)
   down     Stop and remove the container
   logs     Follow container logs
   ps       Show container status
-  ca-path  Print host path to mitmproxy-ca-cert.pem (WSL; used by inject-mitm-ca.sh)
+  ca-path  Print default host path to mitmproxy-ca-cert.pem (~/.mitmproxy)
 
 Web UI:    http://127.0.0.1:8081/?token=aioafero
 WireGuard: UDP 51820 — set emulator Endpoint to 10.0.2.2:51820
@@ -26,7 +26,7 @@ cmd="${1:-}"
 
 case "${cmd}" in
   up)
-    docker compose -f "${COMPOSE_FILE}" up -d --pull always
+    docker compose -f "${COMPOSE_FILE}" up -d --pull missing
     echo "mitmweb: http://127.0.0.1:8081/?token=aioafero"
     echo "password (same as token query param): aioafero"
     ;;
