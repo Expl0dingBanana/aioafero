@@ -43,7 +43,8 @@ integrations. Add new API behavior here first, then wrap it in
 Documentation
 -------------
 
-User guide and API docs live in ``docs/``. Build locally:
+User guide and API docs live in ``docs/``. Hubspace app HTTPS capture for reverse
+engineering lives under :doc:`mitm/index`. Build locally:
 
 .. code-block:: bash
 

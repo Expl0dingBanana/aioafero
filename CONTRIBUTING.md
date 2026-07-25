@@ -4,6 +4,7 @@ Thanks for contributing to aioafero.
 
 -   **Documentation** — https://aioafero.readthedocs.io/
 -   **Development, tox, coverage, and CI** — [docs/testing.rst](docs/testing.rst) (also on Read the Docs under _Contributing_)
+-   **MITM capture setup** — [docs/mitm/index.rst](docs/mitm/index.rst) (Hubspace app traffic via mitmweb + WireGuard)
 -   **Issues** — [GitHub Issues](https://github.com/Expl0dingBanana/aioafero/issues)
 
 Before opening a pull request:
