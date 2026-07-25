@@ -224,13 +224,13 @@ class OnFeature:
     @property
     def api_value(self):
         """Value to send to Afero API."""
-        state = {
+        return {
             "value": "on" if self.on else "off",
             "functionClass": self.func_class,
+            # Always include so outbound merge does not keep a wrong instance
+            # from split-id fallback (e.g. portable AC ``…-power`` suffix).
+            "functionInstance": self.func_instance,
         }
-        if self.func_instance:
-            state["functionInstance"] = self.func_instance
-        return state
 
 
 @dataclass
@@ -244,13 +244,11 @@ class OpenFeature:
     @property
     def api_value(self):
         """Value to send to Afero API."""
-        state = {
+        return {
             "value": "on" if self.open else "off",
             "functionClass": self.func_class,
+            "functionInstance": self.func_instance,
         }
-        if self.func_instance:
-            state["functionInstance"] = self.func_instance
-        return state
 
 
 @dataclass

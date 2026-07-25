@@ -20,9 +20,10 @@ from aioafero.v1.controllers.base import (
     get_afero_states_from_list,
     get_afero_states_from_mapped,
 )
-from aioafero.v1.models.features import ColorFeature, SelectFeature
+from aioafero.v1.models.features import ColorFeature, OnFeature, SelectFeature
 from aioafero.v1.models.light import Light
 from aioafero.v1.models.resource import DeviceInformation
+from aioafero.v1.models.switch import Switch
 from tests.v1 import utils
 
 _LOGGER = logging.getLogger(__name__)
@@ -139,6 +140,17 @@ split_light = Light(
             {"functionClass": "color-rgb", "functionInstance": "main"},
         ]
     ),
+)
+
+# Portable AC power is split as …-portable-ac-power while power has null instance
+split_portable_ac_power = Switch(
+    _id="parent-id-portable-ac-power",
+    available=True,
+    split_identifier="portable-ac",
+    sensors={},
+    binary_sensors={},
+    on={None: OnFeature(on=True, func_class="power", func_instance=None)},
+    device_information=DeviceInformation(name="Portable AC - power", children=[]),
 )
 
 
@@ -1617,6 +1629,13 @@ def test_get_afero_states_from_mapped(
     [
         # Utilize func_instance
         (test_res, StubFeatureInstance(on=True, func_instance="bean1"), None, "bean1"),
+        # Explicit None on func_instance must not use split id suffix
+        (
+            split_portable_ac_power,
+            OnFeature(on=False, func_class="power", func_instance=None),
+            "on",
+            None,
+        ),
         # Utilize instances
         (test_res_funcs, StubFeatureBool(on=True), "on", "super-beans"),
         # Split devices use instance from entity id, not get_instance()

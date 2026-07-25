@@ -117,6 +117,54 @@ async def test_initialize_portable_ac(bridge):
 
 
 @pytest.mark.asyncio
+async def test_turn_on_portable_ac_sends_null_function_instance(bridge, mocker):
+    """Power is split as …-portable-ac-power but the state uses functionInstance null.
+
+    Regression for Hubspace-Homeassistant #234.
+    """
+    await bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("portable-ac.json")
+    )
+    await bridge.async_block_until_done()
+    power_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559-portable-ac-power"
+    parent_id = "8d0414d6-a7f7-4bdb-99d5-d866318ff559"
+    mocked_controller = bridge.switches
+    assert mocked_controller[power_id].on[None].on is False
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {
+        "metadeviceId": parent_id,
+        "values": [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": 0,
+            },
+        ],
+    }
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    update_afero_api = mocker.patch.object(
+        mocked_controller, "update_afero_api", return_value=resp
+    )
+    await mocked_controller.turn_on(power_id)
+    await bridge.async_block_until_done()
+    update_afero_api.assert_called_once()
+    sent_id, sent_states = update_afero_api.call_args[0]
+    assert sent_id == parent_id
+    assert sent_states == [
+        {
+            "functionClass": "power",
+            "functionInstance": None,
+            "value": "on",
+            "lastUpdateTime": mocker.ANY,
+        }
+    ]
+    assert mocked_controller[power_id].on[None].on is True
+
+
+@pytest.mark.asyncio
 async def test_turn_on_multi(mocked_controller):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(transformer)]

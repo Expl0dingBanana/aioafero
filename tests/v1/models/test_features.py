@@ -125,7 +125,11 @@ def test_NumbersFeature():
 
 def test_OnFeature():
     feat = features.OnFeature(on=True)
-    assert feat.api_value == {"value": "on", "functionClass": "power"}
+    assert feat.api_value == {
+        "value": "on",
+        "functionClass": "power",
+        "functionInstance": None,
+    }
     feat = features.OnFeature(on=False, func_class="cool", func_instance="beans")
     assert feat.api_value == {
         "value": "off",
@@ -136,7 +140,11 @@ def test_OnFeature():
 
 def test_OpenFeature():
     feat = features.OpenFeature(open=True)
-    assert feat.api_value == {"value": "on", "functionClass": "toggle"}
+    assert feat.api_value == {
+        "value": "on",
+        "functionClass": "toggle",
+        "functionInstance": None,
+    }
     feat = features.OpenFeature(open=False, func_class="cool", func_instance="beans")
     assert feat.api_value == {
         "value": "off",
