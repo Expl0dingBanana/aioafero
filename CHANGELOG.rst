@@ -2,6 +2,13 @@
 Changelog
 =========
 
+7.0.10
+==========
+ * MITM capture test bed for Hubspace client traffic: ``docker/mitmweb/`` compose,
+   ``scripts/mitmweb.sh`` / ``inject-mitm-ca.sh``, and ``docs/mitm/`` (install + daily
+   workflow). WireGuard mode, WSL ``adb``, Windows emulator; based on
+   `Hubspace-Homeassistant #198 <https://github.com/jdeath/Hubspace-Homeassistant/issues/198>`_.
+
 Version 7.0.9
 =============
  * Fix portable AC power switch toggles sending ``functionInstance: "power"`` from the

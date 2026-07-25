@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "7.0.9"
+version = "7.0.10"
 dependencies = [
   "aiohttp",
   "beautifulsoup4",
@@ -46,6 +46,7 @@ docs = [
   "sphinx>=9.1.0",
   "furo",
   "sphinx-copybutton",
+  "sphinxcontrib-mermaid",
 ]
 cli = [
   "click",
