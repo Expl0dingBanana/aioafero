@@ -25,6 +25,8 @@ async def test_initialize(mocked_controller):
     assert dev.available is True
     assert dev.selects == {
         ("volume", "buzzer-volume"): features.SelectFeature(
+            function_class="volume",
+            function_instance="buzzer-volume",
             selected="volume-02",
             selects={"volume-00", "volume-01", "volume-02", "volume-03", "volume-04"},
             name="Buzzer Volume",
@@ -95,37 +97,52 @@ async def test_update_elem(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_empty(mocked_controller):
+async def test_set_state_empty(mocked_controller, mocker):
     await mocked_controller._bridge.generate_devices_from_data(security_system)
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(keypad_id)
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_set_state(mocked_controller):
+async def test_set_state(mocked_controller, mocker):
     await mocked_controller._bridge.generate_devices_from_data(security_system)
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         keypad_id,
         selects={("volume", "buzzer-volume"): "volume-03", ("bad", None): False},
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        keypad_id,
+        [
+            {
+                "functionClass": "volume",
+                "functionInstance": "buzzer-volume",
+                "value": "volume-03",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller[keypad_id]
     assert dev.selects[("volume", "buzzer-volume")].selected == "volume-03"
 
 
 @pytest.mark.asyncio
-async def test_set_state_bad_device(mocked_controller):
+async def test_set_state_bad_device(mocked_controller, mocker):
     await mocked_controller._bridge.generate_devices_from_data(security_system)
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         "doesnt-exist",
         selects={("volume", "buzzer-volume"): "volume-03", ("bad", None): False},
     )
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio

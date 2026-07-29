@@ -15,15 +15,11 @@ from aioafero.v1.controllers.base import (
     NumbersFeature,
     NumbersName,
     dataclass_to_afero,
-    get_afero_instance_for_state,
     get_afero_state_from_feature,
     get_afero_states_from_list,
-    get_afero_states_from_mapped,
 )
-from aioafero.v1.models.features import ColorFeature, OnFeature, SelectFeature
-from aioafero.v1.models.light import Light
+from aioafero.v1.models.features import AferoFeature, AferoValueEmission, SelectFeature
 from aioafero.v1.models.resource import DeviceInformation
-from aioafero.v1.models.switch import Switch
 from tests.v1 import utils
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,8 +36,8 @@ def patch_last_update_time(mocker):
     )
 
 
-@dataclass
-class StubFeatureBool:
+@dataclass(kw_only=True)
+class StubFeatureBool(AferoFeature):
     on: bool
 
     @property
@@ -49,37 +45,27 @@ class StubFeatureBool:
         return self.on
 
 
-@dataclass
-class StubFeatureInstance:
+@dataclass(kw_only=True)
+class StubFeatureInstance(AferoFeature):
     on: bool
-    func_instance: str | None
 
     @property
     def api_value(self):
-        return {
-            "value": "on" if self.on else "off",
-            "functionClass": "mapped_beans",
-            "functionInstance": self.func_instance or "",
-        }
+        return "on" if self.on else "off"
 
 
-@dataclass
-class ReturnsAListFeature:
+@dataclass(kw_only=True)
+class ReturnsAListFeature(AferoFeature):
     useless_value: bool
 
     @property
     def api_value(self):
+        return self.useless_value
+
+    def iter_afero_values(self):
         return [
-            {
-                "value": "cool",
-                "functionClass": "bean-type",
-                "functionInstance": "temperature",
-            },
-            {
-                "value": "bean",
-                "functionClass": "bean-type",
-                "functionInstance": "warmth",
-            },
+            AferoValueEmission("bean-type", "temperature", "cool"),
+            AferoValueEmission("bean-type", "warmth", "bean"),
         ]
 
 
@@ -91,67 +77,6 @@ class StubResource:
     beans: dict[str | None, StubFeatureInstance]
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
     instances: dict = field(default_factory=dict, repr=False, init=False)
-
-
-@dataclass
-class StubResourceWithFunctions:
-    id: str
-    available: bool
-    on: StubFeatureBool
-    beans: dict[str | None, StubFeatureInstance]
-    device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    instances: dict = field(default_factory=dict, repr=False, init=False)
-
-    def __init__(self, functions: list, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-        instances = {}
-        for function in functions:
-            instances[function["functionClass"]] = function.get(
-                "functionInstance", None
-            )
-        self.instances = instances
-
-    def get_instance(self, elem):
-        """Lookup the instance associated with the elem"""
-        return self.instances.get(elem, None)
-
-
-test_res_funcs = StubResourceWithFunctions(
-    [{"functionClass": "on", "functionInstance": "super-beans"}],
-    id="cool",
-    available=True,
-    on=StubFeatureBool(on=True),
-    beans={
-        None: StubFeatureInstance(on=True, func_instance=None),
-        "bean1": StubFeatureInstance(on=True, func_instance="bean1"),
-        "bean2": StubFeatureInstance(on=False, func_instance="bean2"),
-    },
-    device_information=DeviceInformation(),
-)
-
-split_light = Light(
-    _id="parent-id-light-trim",
-    available=True,
-    split_identifier="light",
-    device_information=DeviceInformation(
-        functions=[
-            {"functionClass": "color-rgb", "functionInstance": "trim"},
-            {"functionClass": "color-rgb", "functionInstance": "main"},
-        ]
-    ),
-)
-
-# Portable AC power is split as …-portable-ac-power while power has null instance
-split_portable_ac_power = Switch(
-    _id="parent-id-portable-ac-power",
-    available=True,
-    split_identifier="portable-ac",
-    sensors={},
-    binary_sensors={},
-    on={None: OnFeature(on=True, func_class="power", func_instance=None)},
-    device_information=DeviceInformation(name="Portable AC - power", children=[]),
-)
 
 
 @dataclass
@@ -193,11 +118,17 @@ class StubResourceDictPut:
 test_res = StubResource(
     id="cool",
     available=True,
-    on=StubFeatureBool(on=True),
+    on=StubFeatureBool(function_class="power", function_instance=None, on=True),
     beans={
-        None: StubFeatureInstance(on=True, func_instance=None),
-        "bean1": StubFeatureInstance(on=True, func_instance="bean1"),
-        "bean2": StubFeatureInstance(on=False, func_instance="bean2"),
+        None: StubFeatureInstance(
+            function_class="mapped_beans", function_instance=None, on=True
+        ),
+        "bean1": StubFeatureInstance(
+            function_class="mapped_beans", function_instance="bean1", on=True
+        ),
+        "bean2": StubFeatureInstance(
+            function_class="mapped_beans", function_instance="bean2", on=False
+        ),
     },
     device_information=DeviceInformation(
         device_class="light",
@@ -208,11 +139,17 @@ test_res = StubResource(
 test_res_update = StubResource(
     id="cool",
     available=True,
-    on=StubFeatureBool(on=True),
+    on=StubFeatureBool(function_class="power", function_instance=None, on=True),
     beans={
-        None: StubFeatureInstance(on=True, func_instance=None),
-        "bean1": StubFeatureInstance(on=True, func_instance="bean1"),
-        "bean2": StubFeatureInstance(on=True, func_instance="bean2"),
+        None: StubFeatureInstance(
+            function_class="mapped_beans", function_instance=None, on=True
+        ),
+        "bean1": StubFeatureInstance(
+            function_class="mapped_beans", function_instance="bean1", on=True
+        ),
+        "bean2": StubFeatureInstance(
+            function_class="mapped_beans", function_instance="bean2", on=True
+        ),
     },
     device_information=DeviceInformation(
         device_class="light",
@@ -222,11 +159,17 @@ test_res_update = StubResource(
 test_res_update_multiple = StubResource(
     id="cool",
     available=True,
-    on=StubFeatureBool(on=False),
+    on=StubFeatureBool(function_class="power", function_instance=None, on=False),
     beans={
-        None: StubFeatureInstance(on=True, func_instance=None),
-        "bean1": StubFeatureInstance(on=True, func_instance="bean1"),
-        "bean2": StubFeatureInstance(on=True, func_instance="bean2"),
+        None: StubFeatureInstance(
+            function_class="mapped_beans", function_instance=None, on=True
+        ),
+        "bean1": StubFeatureInstance(
+            function_class="mapped_beans", function_instance="bean1", on=True
+        ),
+        "bean2": StubFeatureInstance(
+            function_class="mapped_beans", function_instance="bean2", on=True
+        ),
     },
     device_information=DeviceInformation(
         device_class="light",
@@ -239,13 +182,25 @@ test_res_default_dict = StubResourceDict(
     available=True,
     selects={
         ("b1", None): SelectFeature(
-            selected="True", selects={"True", "False"}, name="b1"
+            function_class="b1",
+            function_instance=None,
+            selected="True",
+            selects={"True", "False"},
+            name="b1",
         ),
         ("b2", "one"): SelectFeature(
-            selected="beans", selects={"beans", "cool"}, name="b2-1"
+            function_class="b2",
+            function_instance="one",
+            selected="beans",
+            selects={"beans", "cool"},
+            name="b2-1",
         ),
         ("b2", "two"): SelectFeature(
-            selected="cool", selects={"beans", "cool"}, name="b2-2"
+            function_class="b2",
+            function_instance="two",
+            selected="cool",
+            selects={"beans", "cool"},
+            name="b2-2",
         ),
     },
     device_information=DeviceInformation(
@@ -259,13 +214,25 @@ test_res_update_dict = StubResourceDict(
     available=True,
     selects={
         ("b1", None): SelectFeature(
-            selected="False", selects={"True", "False"}, name="b1"
+            function_class="b1",
+            function_instance=None,
+            selected="False",
+            selects={"True", "False"},
+            name="b1",
         ),
         ("b2", "one"): SelectFeature(
-            selected="cool", selects={"beans", "cool"}, name="b2-1"
+            function_class="b2",
+            function_instance="one",
+            selected="cool",
+            selects={"beans", "cool"},
+            name="b2-1",
         ),
         ("b2", "two"): SelectFeature(
-            selected="beans", selects={"beans", "cool"}, name="b2-2"
+            function_class="b2",
+            function_instance="two",
+            selected="beans",
+            selects={"beans", "cool"},
+            name="b2-2",
         ),
     },
     device_information=DeviceInformation(
@@ -440,7 +407,6 @@ class Example1ResourceController(BaseResourcesController):
     ITEM_TYPE_ID: models.ResourceTypes = models.ResourceTypes.DEVICE
     ITEM_TYPES: list[models.ResourceTypes] = [models.ResourceTypes.LIGHT]
     ITEM_CLS = StubResource
-    ITEM_MAPPING: dict = {"beans": "mapped_beans"}
     DEVICE_SPLIT_CALLBACKS = {"nada": callback}
     ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
         ("yup", None): NumbersName(unit="unit", display_name="disp"),
@@ -455,10 +421,16 @@ class Example1ResourceController(BaseResourcesController):
         beans: dict[str | None, StubFeatureInstance] = {}
         for state in afero_dev.states:
             if state.functionClass == "power":
-                on = StubFeatureBool(on=state.value == "on")
+                on = StubFeatureBool(
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                    on=state.value == "on",
+                )
             elif state.functionClass == "mapped_beans":
                 beans[state.functionInstance] = StubFeatureInstance(
-                    on=state.value == "on", func_instance=state.functionInstance
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                    on=state.value == "on",
                 )
         return StubResource(
             id=afero_dev.id,
@@ -497,7 +469,6 @@ class Example2ResourceController(BaseResourcesController):
     ITEM_TYPE_ID: models.ResourceTypes = models.ResourceTypes.DEVICE
     ITEM_TYPES: list[models.ResourceTypes] = [models.ResourceTypes.LIGHT]
     ITEM_CLS = StubResource
-    ITEM_MAPPING: dict = {}
     ITEM_SELECTS = {
         ("b1", None): "b1",
         ("b2", "one"): "b2-1",
@@ -873,6 +844,8 @@ async def test_initialize_number(state, expected_name, expected_unit, ex1_rc):
     func_def = {"values": [{"range": {"min": 60, "max": 1800, "step": 60}}]}
     _, number = await ex1_rc.initialize_number(func_def, state)
     assert number == NumbersFeature(
+        function_class=state.functionClass,
+        function_instance=state.functionInstance,
         value=state.value,
         min=60,
         max=1800,
@@ -1104,9 +1077,11 @@ async def test_update_afero_api(
 
 
 @pytest.mark.asyncio
-async def test_update_dev_not_found(ex1_rc, caplog):
+async def test_update_dev_not_found(ex1_rc, caplog, mocker):
     caplog.set_level(logging.DEBUG)
+    update_afero_api = mocker.patch.object(ex1_rc, "update_afero_api")
     await ex1_rc.update("not-a-device")
+    update_afero_api.assert_not_awaited()
     assert "Unable to update device not-a-device as it does not exist" in caplog.text
 
 
@@ -1119,7 +1094,12 @@ async def test_update_dev_not_found(ex1_rc, caplog):
         # Obj in with updates
         (
             StubResourcePut(
-                on=None, beans=StubFeatureInstance(on=True, func_instance="bean2")
+                on=None,
+                beans=StubFeatureInstance(
+                    function_class="mapped_beans",
+                    function_instance="bean2",
+                    on=True,
+                ),
             ),
             None,
             [
@@ -1136,7 +1116,12 @@ async def test_update_dev_not_found(ex1_rc, caplog):
         # Obj in with unsuccessful updates
         (
             StubResourcePut(
-                on=None, beans=StubFeatureInstance(on=True, func_instance="bean2")
+                on=None,
+                beans=StubFeatureInstance(
+                    function_class="mapped_beans",
+                    function_instance="bean2",
+                    on=True,
+                ),
             ),
             None,
             [
@@ -1201,9 +1186,9 @@ async def test_update(
         )
     await ex1_rc.update(test_device.id, obj_in=obj_in, states=states)
     if not expected_states:
-        update_afero_api.assert_not_called()
+        update_afero_api.assert_not_awaited()
     else:
-        update_afero_api.assert_called_once_with(test_device.id, expected_states)
+        update_afero_api.assert_awaited_once_with(test_device.id, expected_states)
     await ex1_rc._bridge.async_block_until_done()
     assert ex1_rc._items[test_device.id] == expected_item
 
@@ -1246,7 +1231,9 @@ async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker)
         ],
     }
     resp.json = json_resp
-    mocker.patch.object(ex1_rc, "update_afero_api", return_value=resp)
+    update_afero_api = mocker.patch.object(
+        ex1_rc, "update_afero_api", return_value=resp
+    )
 
     await ex1_rc.update(
         test_device.id,
@@ -1254,6 +1241,17 @@ async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker)
             {
                 "functionClass": "mapped_beans",
                 "functionInstance": "bean1",
+                "value": "off",
+            }
+        ],
+    )
+    update_afero_api.assert_awaited_once_with(
+        test_device.id,
+        [
+            {
+                "functionClass": "mapped_beans",
+                "functionInstance": "bean1",
+                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
                 "value": "off",
             }
         ],
@@ -1274,13 +1272,25 @@ async def test_update_ignores_unsolicited_response_fields(ex1_rc_mocked, mocker)
             StubResourceDictPut(
                 selects={
                     ("b1", None): SelectFeature(
-                        selected="False", selects={"True", "False"}, name="b1"
+                        function_class="b1",
+                        function_instance=None,
+                        selected="False",
+                        selects={"True", "False"},
+                        name="b1",
                     ),
                     ("b2", "one"): SelectFeature(
-                        selected="cool", selects={"beans", "cool"}, name="b2-1"
+                        function_class="b2",
+                        function_instance="one",
+                        selected="cool",
+                        selects={"beans", "cool"},
+                        name="b2-1",
                     ),
                     ("b2", "two"): SelectFeature(
-                        selected="beans", selects={"beans", "cool"}, name="b2-2"
+                        function_class="b2",
+                        function_instance="two",
+                        selected="beans",
+                        selects={"beans", "cool"},
+                        name="b2-2",
                     ),
                 },
             ),
@@ -1339,9 +1349,9 @@ async def test_update_dict(
     )
     await ex2_rc.update(device.id, obj_in=obj_in, states=states)
     if not expected_states:
-        update_afero_api.assert_not_called()
+        update_afero_api.assert_not_awaited()
     else:
-        update_afero_api.assert_called_once_with(device.id, expected_states)
+        update_afero_api.assert_awaited_once_with(device.id, expected_states)
     await ex2_rc._bridge.async_block_until_done()
     assert ex2_rc._items[device.id] == expected_item
 
@@ -1375,7 +1385,7 @@ async def callback_test(elem, update_vals: dataclass):
         if not str(f.type).startswith("dict"):
             # Special processing for dicts
             if isinstance(elem_val, dict):
-                cur_val = {getattr(cur_val, "func_instance", None): cur_val}
+                cur_val = {getattr(cur_val, "function_instance", None): cur_val}
                 getattr(elem, f.name).update(cur_val)
             else:
                 setattr(elem, f.name, cur_val)
@@ -1383,14 +1393,26 @@ async def callback_test(elem, update_vals: dataclass):
             elem_val.update(cur_val)
 
 
+def test_dataclass_to_afero_rejects_unsupported_feature_type():
+    @dataclass
+    class UnsupportedPut:
+        value: str
+
+    with pytest.raises(TypeError, match="Unsupported Put feature type"):
+        dataclass_to_afero(
+            object(),
+            UnsupportedPut(value="not-a-feature"),
+            send_duplicate_states=True,
+        )
+
+
 @pytest.mark.parametrize(
-    ("elem", "update_obj", "mapping", "send_duplicate_states", "expected"),
+    ("elem", "update_obj", "send_duplicate_states", "expected"),
     [
         # Empty
         (
             replace(test_res_default_dict),
             StubResourceDictPut(selects={}),
-            {},
             False,
             [],
         ),
@@ -1398,7 +1420,6 @@ async def callback_test(elem, update_vals: dataclass):
         (
             replace(test_res_default_dict),
             StubResourcePut(on=None, beans=None),
-            {},
             False,
             [],
         ),
@@ -1408,11 +1429,14 @@ async def callback_test(elem, update_vals: dataclass):
             StubResourceDictPut(
                 selects={
                     ("b2", "two"): SelectFeature(
-                        selected="cool", selects={"beans", "cool"}, name="b2-2"
+                        function_class="b2",
+                        function_instance="two",
+                        selected="cool",
+                        selects={"beans", "cool"},
+                        name="b2-2",
                     ),
                 }
             ),
-            {},
             False,
             [],
         ),
@@ -1422,17 +1446,28 @@ async def callback_test(elem, update_vals: dataclass):
             StubResourceDictPut(
                 selects={
                     ("b1", None): SelectFeature(
-                        selected="False", selects={"True", "False"}, name="b1"
+                        function_class="b1",
+                        function_instance=None,
+                        selected="False",
+                        selects={"True", "False"},
+                        name="b1",
                     ),
                     ("b2", "one"): SelectFeature(
-                        selected="cool", selects={"beans", "cool"}, name="b2-1"
+                        function_class="b2",
+                        function_instance="one",
+                        selected="cool",
+                        selects={"beans", "cool"},
+                        name="b2-1",
                     ),
                     ("b2", "two"): SelectFeature(
-                        selected="beans", selects={"beans", "cool"}, name="b2-2"
+                        function_class="b2",
+                        function_instance="two",
+                        selected="beans",
+                        selects={"beans", "cool"},
+                        name="b2-2",
                     ),
                 },
             ),
-            {},
             False,
             [
                 {
@@ -1459,9 +1494,15 @@ async def callback_test(elem, update_vals: dataclass):
         (
             replace(test_res),
             StubResourcePut(
-                on=False, beans=StubFeatureInstance(on=True, func_instance="bean2")
+                on=StubFeatureBool(
+                    function_class="power", function_instance=None, on=False
+                ),
+                beans=StubFeatureInstance(
+                    function_class="mapped_beans",
+                    function_instance="bean2",
+                    on=True,
+                ),
             ),
-            {"on": "power"},
             False,
             [
                 {
@@ -1480,9 +1521,20 @@ async def callback_test(elem, update_vals: dataclass):
         ),
         # Testing a list
         (
-            StubResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
-            StubResourceListPut(the_beans=ReturnsAListFeature(useless_value=False)),
-            {},
+            StubResourceList(
+                the_beans=ReturnsAListFeature(
+                    function_class="bean-type",
+                    function_instance=None,
+                    useless_value=True,
+                )
+            ),
+            StubResourceListPut(
+                the_beans=ReturnsAListFeature(
+                    function_class="bean-type",
+                    function_instance=None,
+                    useless_value=False,
+                )
+            ),
             False,
             [
                 {
@@ -1501,9 +1553,20 @@ async def callback_test(elem, update_vals: dataclass):
         ),
         # Testing when a value does not change
         (
-            StubResourceList(the_beans=ReturnsAListFeature(useless_value=True)),
-            StubResourceListPut(the_beans=ReturnsAListFeature(useless_value=True)),
-            {},
+            StubResourceList(
+                the_beans=ReturnsAListFeature(
+                    function_class="bean-type",
+                    function_instance=None,
+                    useless_value=True,
+                )
+            ),
+            StubResourceListPut(
+                the_beans=ReturnsAListFeature(
+                    function_class="bean-type",
+                    function_instance=None,
+                    useless_value=True,
+                )
+            ),
             False,
             [],
         ),
@@ -1512,9 +1575,12 @@ async def callback_test(elem, update_vals: dataclass):
             replace(test_res),
             StubResourcePut(
                 on=None,
-                beans=StubFeatureInstance(on=False, func_instance="bean2"),
+                beans=StubFeatureInstance(
+                    on=False,
+                    function_class="mapped_beans",
+                    function_instance="bean2",
+                ),
             ),
-            {},
             False,
             [],
         ),
@@ -1523,9 +1589,12 @@ async def callback_test(elem, update_vals: dataclass):
             replace(test_res),
             StubResourcePut(
                 on=None,
-                beans=StubFeatureInstance(on=True, func_instance="bean2"),
+                beans=StubFeatureInstance(
+                    on=True,
+                    function_class="mapped_beans",
+                    function_instance="bean2",
+                ),
             ),
-            {},
             False,
             [
                 {
@@ -1542,11 +1611,14 @@ async def callback_test(elem, update_vals: dataclass):
             StubResourceDictPut(
                 selects={
                     ("b2", "two"): SelectFeature(
-                        selected="cool", selects={"beans", "cool"}, name="b2-2"
+                        function_class="b2",
+                        function_instance="two",
+                        selected="cool",
+                        selects={"beans", "cool"},
+                        name="b2-2",
                     ),
                 }
             ),
-            {},
             True,
             [
                 {
@@ -1559,131 +1631,13 @@ async def callback_test(elem, update_vals: dataclass):
         ),
     ],
 )
-def test_dataclass_to_afero(
-    elem, update_obj, mapping, send_duplicate_states, expected, mocker
-):
+def test_dataclass_to_afero(elem, update_obj, send_duplicate_states, expected, mocker):
     patch_last_update_time(mocker)
-    assert (
-        dataclass_to_afero(elem, update_obj, mapping, send_duplicate_states) == expected
-    )
+    assert dataclass_to_afero(elem, update_obj, send_duplicate_states) == expected
 
 
 @pytest.mark.parametrize(
-    ("element", "field_name", "update_vals", "send_duplicate_states", "expected"),
-    [
-        # Dont send dupes
-        (
-            replace(test_res_default_dict),
-            "selects",
-            {
-                ("b1", None): SelectFeature(
-                    selected="False", selects={"True", "False"}, name="b1"
-                ),
-                ("b2", "one"): SelectFeature(
-                    selected="beans", selects={"beans", "cool"}, name="b2-1"
-                ),
-                ("b2", "two"): SelectFeature(
-                    selected="beans", selects={"beans", "cool"}, name="b2-2"
-                ),
-            },
-            False,
-            [
-                {
-                    "functionClass": "b1",
-                    "functionInstance": None,
-                    "value": "False",
-                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                },
-                {
-                    "functionClass": "b2",
-                    "functionInstance": "two",
-                    "value": "beans",
-                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                },
-            ],
-        ),
-        # Send dupes
-        (
-            replace(test_res_default_dict),
-            "selects",
-            {
-                ("b1", None): SelectFeature(
-                    selected="False", selects={"True", "False"}, name="b1"
-                ),
-                ("b2", "one"): SelectFeature(
-                    selected="beans", selects={"beans", "cool"}, name="b2-1"
-                ),
-                ("b2", "two"): SelectFeature(
-                    selected="beans", selects={"beans", "cool"}, name="b2-2"
-                ),
-            },
-            True,
-            [
-                {
-                    "functionClass": "b1",
-                    "functionInstance": None,
-                    "value": "False",
-                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                },
-                {
-                    "functionClass": "b2",
-                    "functionInstance": "one",
-                    "value": "beans",
-                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                },
-                {
-                    "functionClass": "b2",
-                    "functionInstance": "two",
-                    "value": "beans",
-                    "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                },
-            ],
-        ),
-    ],
-)
-def test_get_afero_states_from_mapped(
-    element, field_name, update_vals, send_duplicate_states, expected, mocker
-):
-    patch_last_update_time(mocker)
-    assert (
-        get_afero_states_from_mapped(
-            element, field_name, update_vals, send_duplicate_states
-        )
-        == expected
-    )
-
-
-@pytest.mark.parametrize(
-    ("elem", "feat", "mapped_afero_key", "expected"),
-    [
-        # Utilize func_instance
-        (test_res, StubFeatureInstance(on=True, func_instance="bean1"), None, "bean1"),
-        # Explicit None on func_instance must not use split id suffix
-        (
-            split_portable_ac_power,
-            OnFeature(on=False, func_class="power", func_instance=None),
-            "on",
-            None,
-        ),
-        # Utilize instances
-        (test_res_funcs, StubFeatureBool(on=True), "on", "super-beans"),
-        # Split devices use instance from entity id, not get_instance()
-        (
-            split_light,
-            ColorFeature(red=1, green=2, blue=3),
-            "color-rgb",
-            "trim",
-        ),
-        # None fallback
-        (test_res_funcs, StubFeatureBool(on=True), None, None),
-    ],
-)
-def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected):
-    assert get_afero_instance_for_state(elem, feat, mapped_afero_key) == expected
-
-
-@pytest.mark.parametrize(
-    ("func_class", "func_instance", "current_val", "expected"),
+    ("function_class", "function_instance", "current_value", "expected"),
     [
         # Non-dict val
         (
@@ -1697,43 +1651,19 @@ def test_get_afero_instance_for_state(elem, feat, mapped_afero_key, expected):
                 "value": "super-beans",
             },
         ),
-        # dict val
-        (
-            "cool",
-            "beans",
-            {"functionClass": "beans", "functionInstance": "cool", "value": 12},
-            {
-                "functionClass": "beans",
-                "functionInstance": "cool",
-                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                "value": 12,
-            },
-        ),
-        # dict val with stale lastUpdateTime is replaced on outbound states
-        (
-            "cool",
-            "beans",
-            {
-                "functionClass": "beans",
-                "functionInstance": "cool",
-                "value": 12,
-                "lastUpdateTime": 12345,
-            },
-            {
-                "functionClass": "beans",
-                "functionInstance": "cool",
-                "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
-                "value": 12,
-            },
-        ),
     ],
 )
 def test_get_afero_state_from_feature(
-    func_class, func_instance, current_val, expected, mocker
+    function_class, function_instance, current_value, expected, mocker
 ):
     patch_last_update_time(mocker)
     assert (
-        get_afero_state_from_feature(func_class, func_instance, current_val) == expected
+        get_afero_state_from_feature(
+            function_class,
+            function_instance,
+            current_value,
+        )
+        == expected
     )
 
 
@@ -1745,6 +1675,7 @@ def test_get_afero_state_from_feature(
                 {
                     "functionClass": "beans",
                     "functionInstance": "cool",
+                    "requestMetadata": {"source": "manual"},
                     "value": 12,
                 },
                 {
@@ -1758,6 +1689,7 @@ def test_get_afero_state_from_feature(
                     "functionClass": "beans",
                     "functionInstance": "cool",
                     "lastUpdateTime": MOCK_LAST_UPDATE_TIME_MS,
+                    "requestMetadata": {"source": "manual"},
                     "value": 12,
                 },
                 {

@@ -23,25 +23,39 @@ async def test_initialize_multi(mocked_controller):
     dev = mocked_controller[valve.id]
     assert dev.id == "60eb18c9-8510-4bcd-be3f-493dfb351268"
     assert dev.open == {
-        None: features.OpenFeature(open=False, func_class="power", func_instance=None),
+        None: features.OpenFeature(
+            open=False, function_class="power", function_instance=None
+        ),
         "spigot-1": features.OpenFeature(
-            open=False, func_class="toggle", func_instance="spigot-1"
+            open=False, function_class="toggle", function_instance="spigot-1"
         ),
         "spigot-2": features.OpenFeature(
-            open=True, func_class="toggle", func_instance="spigot-2"
+            open=True, function_class="toggle", function_instance="spigot-2"
         ),
     }
 
 
 @pytest.mark.asyncio
-async def test_turn_on_multi(mocked_controller):
+async def test_turn_on_multi(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(valve)]
     )
     await mocked_controller._bridge.async_block_until_done()
 
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.turn_on(valve.id, instance="spigot-1")
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        valve.id,
+        [
+            {
+                "functionClass": "toggle",
+                "functionInstance": "spigot-1",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller[valve.id]
     assert dev.open[None].open is False
     assert dev.open["spigot-1"].open is True
@@ -49,13 +63,25 @@ async def test_turn_on_multi(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_turn_off(mocked_controller):
+async def test_turn_off(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(valve)]
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.turn_off(valve.id, instance="spigot-2")
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        valve.id,
+        [
+            {
+                "functionClass": "toggle",
+                "functionInstance": "spigot-2",
+                "value": "off",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller[valve.id]
     assert dev.open[None].open is False
     assert dev.open["spigot-1"].open is False
@@ -116,12 +142,14 @@ async def test_update_elem(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_empty(mocked_controller):
+async def test_set_state_empty(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(valve)]
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(valve.id)
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -157,30 +185,32 @@ async def test_valve_emitting(bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_state_no_dev(mocked_controller, caplog):
+async def test_set_state_no_dev(mocked_controller, caplog, mocker):
     caplog.set_level(0)
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(valve)]
     )
     await mocked_controller._bridge.async_block_until_done()
     mocked_controller._bridge.add_device(valve.id, mocked_controller)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state("not-a-device")
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
     assert "Unable to find device" in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_set_state_invalid_instance(mocked_controller, caplog):
+async def test_set_state_invalid_instance(mocked_controller, caplog, mocker):
     caplog.set_level(0)
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(valve)]
     )
     await mocked_controller._bridge.async_block_until_done()
     mocked_controller._bridge.add_device(valve.id, mocked_controller)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         valve.id, valve_open=True, instance="not-a-instance"
     )
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
     assert "No states to send. Skipping" in caplog.text
 
 

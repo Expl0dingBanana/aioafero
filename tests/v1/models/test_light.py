@@ -9,19 +9,37 @@ def populated_light():
     return Light(
         _id="entity-1",
         available=True,
-        on=features.OnFeature(on=True),
-        color=features.ColorFeature(red=10, green=20, blue=40),
-        color_mode=features.ColorModeFeature(mode="white"),
+        on=features.OnFeature(on=True, function_class="power", function_instance=None),
+        color=features.ColorFeature(
+            red=10,
+            green=20,
+            blue=40,
+            function_class="color",
+            function_instance=None,
+        ),
+        color_mode=features.ColorModeFeature(
+            mode="white", function_class="color-mode", function_instance=None
+        ),
         color_modes=["white", "color", "night-light"],
         color_mode_hints={"night-light": ["no-brightness"]},
         color_temperature=features.ColorTemperatureFeature(
-            temperature=3000, supported=list(range(2700, 5000, 100)), prefix="K"
+            temperature=3000,
+            supported=list(range(2700, 5000, 100)),
+            prefix="K",
+            function_class="color-temperature",
+            function_instance=None,
         ),
         dimming=features.DimmingFeature(
-            brightness=100, supported=list(range(0, 101, 10))
+            brightness=100,
+            supported=list(range(0, 101, 10)),
+            function_class="dimming",
+            function_instance=None,
         ),
         effect=features.EffectFeature(
-            effect="rainbow", effects={"custom": {"rainbow"}}
+            effect="rainbow",
+            effects={"custom": {"rainbow"}},
+            function_class="color-sequence",
+            function_instance="custom",
         ),
         device_information=DeviceInformation(
             model="AL-TP-RGBICTW-1",
@@ -72,7 +90,6 @@ def test_init(populated_light):
     assert populated_light.color_temperature.temperature == 3000
     assert populated_light.dimming.brightness == 100
     assert populated_light.effect.effect == "rainbow"
-    assert populated_light.instances == {"preset": "preset-1"}
     assert populated_light.supports_on
     assert populated_light.supports_color
     assert populated_light.supports_color_temperature
@@ -106,8 +123,6 @@ def test_empty_light(empty_light):
     assert not empty_light.supports_white
 
 
-def test_get_instance(populated_light):
-    assert populated_light.get_instance("preset") == "preset-1"
 
 
 def test_dual_channel_helpers():
@@ -137,11 +152,16 @@ def test_feature_for_update_comparison_channel_edges():
     dual = Light(
         _id="dual",
         available=True,
-        on=features.OnFeature(on=True, func_class="power", func_instance=None),
+        on=features.OnFeature(on=True, function_class="power", function_instance=None),
         dimming=features.DimmingFeature(
-            brightness=50, supported=[1, 100], func_instance="primary"
+            brightness=50,
+            supported=[1, 100],
+            function_class="brightness",
+            function_instance="primary",
         ),
-        color_mode=features.ColorModeFeature(mode="color"),
+        color_mode=features.ColorModeFeature(
+            mode="color", function_class="color-mode", function_instance=None
+        ),
         channels={
             "color": LightChannel(brightness=None, on=True),
             "white": LightChannel(brightness=10, on=False),
@@ -149,26 +169,30 @@ def test_feature_for_update_comparison_channel_edges():
         device_information=DeviceInformation(),
     )
     # Instance in channels but not a toggle → use primary on.
-    powerish = features.OnFeature(on=True, func_class="power", func_instance="color")
+    powerish = features.OnFeature(on=True, function_class="power", function_instance="color")
     assert dual.feature_for_update_comparison("on", powerish) is dual.on
     # Unknown channel brightness does not suppress.
     dim = features.DimmingFeature(
-        brightness=40, supported=[1, 100], func_instance="color"
+        brightness=40,
+        supported=[1, 100],
+        function_class="brightness",
+        function_instance="color",
     )
     assert dual.feature_for_update_comparison("dimming", dim) is None
     # Known channel brightness compares semantically.
     dual.channels["color"].brightness = 40
     cached_dim = dual.feature_for_update_comparison("dimming", dim)
     assert cached_dim.brightness == 40
-    assert cached_dim.func_instance == "color"
+    assert cached_dim.function_instance == "color"
     # Channel instance on a non on/dimming field falls through.
     assert (
         dual.feature_for_update_comparison(
             "color",
-            features.OnFeature(on=True, func_class="toggle", func_instance="color"),
+            features.OnFeature(on=True, function_class="toggle", function_instance="color"),
         )
         is None
     )
     # Missing dimming feature on the light also does not suppress.
     dual.dimming = None
     assert dual.feature_for_update_comparison("dimming", dim) is None
+

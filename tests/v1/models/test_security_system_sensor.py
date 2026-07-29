@@ -1,6 +1,11 @@
 import pytest
 
-from aioafero.v1.models import DeviceInformation, SecuritySystemSensor, features
+from aioafero.v1.models import (
+    DeviceInformation,
+    SecuritySystemSensor,
+    SecuritySystemSensorPut,
+    features,
+)
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 
 
@@ -15,6 +20,8 @@ def populated_entity():
                 selected="On",
                 selects={"On", "Off"},
                 name="Chirp Mode",
+                function_class="sensor-2",
+                function_instance="chirpMode",
             ),
         },
         binary_sensors={
@@ -73,6 +80,9 @@ def empty_entity():
 def test_init(populated_entity):
     assert populated_entity.id == "7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"
     assert populated_entity.available is True
-    assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.update_id == "7f4e4c01-e799-45c5-9b1a-385433a78edc"
     assert populated_entity.instance == 2
+
+
+def test_put_defaults_to_no_sensor_config():
+    assert SecuritySystemSensorPut().sensor_config is None

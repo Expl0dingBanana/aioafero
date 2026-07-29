@@ -4,12 +4,11 @@ import pytest
 
 from aioafero.device import AferoState
 from aioafero.v1.controllers.portable_ac import (
-    features,
     generate_split_name,
     get_valid_states,
     portable_ac_callback,
 )
-from aioafero.v1.models import ResourceTypes
+from aioafero.v1.models import ResourceTypes, features
 from tests.v1 import utils
 
 portable_ac = utils.create_devices_from_data("portable-ac.json")[0]
@@ -86,22 +85,33 @@ async def test_initialize(mocked_controller):
         function_instance="current-temp",
     )
     assert dev.hvac_mode == features.HVACModeFeature(
+        function_class="mode",
+        function_instance=None,
         mode="auto-cool",
         previous_mode="auto-cool",
         modes={"fan", "auto-cool", "dehumidify", "cool"},
         supported_modes={"fan", "auto-cool", "dehumidify", "cool"},
     )
     assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
-        value=22, step=0.5, min=16, max=30, instance="cooling-target"
+        function_class="temperature",
+        function_instance="cooling-target",
+        value=22,
+        step=0.5,
+        min=16,
+        max=30,
     )
     assert dev.numbers == {}
     assert dev.selects == {
         ("fan-speed", "ac-fan-speed"): features.SelectFeature(
+            function_class="fan-speed",
+            function_instance="ac-fan-speed",
             selected="fan-speed-auto",
             selects={"fan-speed-auto", "fan-speed-2-100", "fan-speed-2-050"},
             name="Fan Speed",
         ),
         ("sleep", None): features.SelectFeature(
+            function_class="sleep",
+            function_instance=None,
             selected="off",
             selects={"on", "off"},
             name="Sleep Mode",
@@ -125,22 +135,33 @@ async def test_initialize_f(mocked_controller):
         function_instance="current-temp",
     )
     assert dev.hvac_mode == features.HVACModeFeature(
+        function_class="mode",
+        function_instance=None,
         mode="auto-cool",
         previous_mode="auto-cool",
         modes={"fan", "auto-cool", "dehumidify", "cool"},
         supported_modes={"fan", "auto-cool", "dehumidify", "cool"},
     )
     assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
-        value=60, step=1, min=60, max=86, instance="cooling-target"
+        function_class="temperature",
+        function_instance="cooling-target",
+        value=60,
+        step=1,
+        min=60,
+        max=86,
     )
     assert dev.numbers == {}
     assert dev.selects == {
         ("fan-speed", "ac-fan-speed"): features.SelectFeature(
+            function_class="fan-speed",
+            function_instance="ac-fan-speed",
             selected="fan-speed-auto",
             selects={"fan-speed-auto", "fan-speed-2-100", "fan-speed-2-050"},
             name="Fan Speed",
         ),
         ("sleep", None): features.SelectFeature(
+            function_class="sleep",
+            function_instance=None,
             selected="off",
             selects={"on", "off"},
             name="Sleep Mode",
@@ -164,30 +185,48 @@ async def test_initialize_swing(mocked_controller):
         function_instance="current-temp",
     )
     assert dev.hvac_mode == features.HVACModeFeature(
+        function_class="mode",
+        function_instance=None,
         mode="cool",
         previous_mode="cool",
         modes={"fan", "dehumidify", "heat", "cool"},
         supported_modes={"fan", "dehumidify", "heat", "cool"},
     )
     assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
-        value=21, step=1, min=16, max=31, instance="cooling-target"
+        function_class="temperature",
+        function_instance="cooling-target",
+        value=21,
+        step=1,
+        min=16,
+        max=31,
     )
     assert dev.target_temperature_heating == features.TargetTemperatureFeature(
-        value=31, step=1, min=16, max=31, instance="heating-target"
+        function_class="temperature",
+        function_instance="heating-target",
+        value=31,
+        step=1,
+        min=16,
+        max=31,
     )
     assert dev.numbers == {}
     assert dev.selects == {
         ("fan-speed", "ac-fan-speed"): features.SelectFeature(
+            function_class="fan-speed",
+            function_instance="ac-fan-speed",
             selected="fan-speed-3-033",
             selects={"fan-speed-3-100", "fan-speed-3-033", "fan-speed-3-066"},
             name="Fan Speed",
         ),
         ("sleep", None): features.SelectFeature(
+            function_class="sleep",
+            function_instance=None,
             selected="off",
             selects={"on", "off"},
             name="Sleep Mode",
         ),
         ("air-swing", None): features.SelectFeature(
+            function_class="air-swing",
+            function_instance=None,
             selected="on",
             selects={"on", "off"},
             name="Swing",
@@ -274,12 +313,13 @@ async def test_update_elem_no_updates(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state(mocked_controller):
+async def test_set_state(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(portable_ac)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         portable_ac_id,
         hvac_mode="cool",
@@ -290,6 +330,29 @@ async def test_set_state(mocked_controller):
         },
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        portable_ac_id,
+        [
+            {
+                "functionClass": "mode",
+                "functionInstance": None,
+                "value": "cool",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "cooling-target",
+                "value": 22.5,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "fan-speed",
+                "functionInstance": "ac-fan-speed",
+                "value": "fan-speed-2-100",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     dev = mocked_controller.items[0]
     assert dev.target_temperature_cooling.value == 22.5
     assert dev.hvac_mode.mode == "cool"
@@ -298,46 +361,60 @@ async def test_set_state(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_invalid_dev(mocked_controller):
+async def test_set_state_invalid_dev(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(portable_ac)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         "nope",
         hvac_mode="cool",
         target_temperature=22.5,
         selects={("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_set_state_no_updates(mocked_controller):
+async def test_set_state_no_updates(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(portable_ac)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         portable_ac_id,
     )
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_set_state_invalid_updates(mocked_controller):
+async def test_set_state_invalid_updates(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(portable_ac)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         portable_ac_id,
         hvac_mode="i dont exist",
         selects={(None, None): 7, ("fan-speed", "ac-fan-speed"): "fan-speed-2-100"},
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        portable_ac_id,
+        [
+            {
+                "functionClass": "fan-speed",
+                "functionInstance": "ac-fan-speed",
+                "value": "fan-speed-2-100",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller.items[0]
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"

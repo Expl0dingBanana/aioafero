@@ -15,31 +15,68 @@ def populated_entity():
             function_instance="current-temp",
         ),
         fan_running=False,
-        fan_mode=features.ModeFeature(mode="off", modes={"on", "off"}),
+        fan_mode=features.ModeFeature(
+            mode="off",
+            modes={"on", "off"},
+            function_class="fan-mode",
+            function_instance=None,
+        ),
         hvac_action="off",
         hvac_mode=features.HVACModeFeature(
             mode="heat",
             previous_mode="heat",
             modes={"off", "heat", "auto", "fan", "cool"},
             supported_modes={"off", "heat", "auto", "fan", "cool"},
+            function_class="hvac-mode",
+            function_instance=None,
         ),
         safety_max_temp=features.TargetTemperatureFeature(
-            value=36, step=0.5, min=29.5, max=37, instance="safety-mode-max-temp"
+            value=36,
+            step=0.5,
+            min=29.5,
+            max=37,
+            function_class="temperature",
+            function_instance="safety-mode-max-temp",
         ),
         safety_min_temp=features.TargetTemperatureFeature(
-            value=4, step=0.5, min=4, max=13, instance="safety-mode-min-temp"
+            value=4,
+            step=0.5,
+            min=4,
+            max=13,
+            function_class="temperature",
+            function_instance="safety-mode-min-temp",
         ),
         target_temperature_auto_heating=features.TargetTemperatureFeature(
-            value=18, step=0.5, min=4, max=32, instance="auto-heating-target"
+            value=18,
+            step=0.5,
+            min=4,
+            max=32,
+            function_class="temperature",
+            function_instance="auto-heating-target",
         ),
         target_temperature_auto_cooling=features.TargetTemperatureFeature(
-            value=26.5, step=0.5, min=4, max=32, instance="auto-cooling-target"
+            value=26.5,
+            step=0.5,
+            min=4,
+            max=32,
+            function_class="temperature",
+            function_instance="auto-cooling-target",
         ),
         target_temperature_heating=features.TargetTemperatureFeature(
-            value=19, step=0.5, min=4, max=32, instance="heating-target"
+            value=19,
+            step=0.5,
+            min=4,
+            max=32,
+            function_class="temperature",
+            function_instance="heating-target",
         ),
         target_temperature_cooling=features.TargetTemperatureFeature(
-            value=26, step=0.5, min=10, max=37, instance="cooling-target"
+            value=26,
+            step=0.5,
+            min=10,
+            max=37,
+            function_class="temperature",
+            function_instance="cooling-target",
         ),
         device_information=DeviceInformation(
             functions=[
@@ -104,7 +141,6 @@ def test_target_temperature_step_not_populated(populated_entity):
 def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
-    assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.current_temperature == features.CurrentTemperatureFeature(
         temperature=12,
         function_class="temperature",
@@ -114,15 +150,15 @@ def test_init(populated_entity):
     assert populated_entity.hvac_action == "off"
     assert populated_entity.hvac_mode.mode == "heat"
     assert populated_entity.safety_max_temp.value == 36
-    assert populated_entity.safety_max_temp.instance == "safety-mode-max-temp"
+    assert populated_entity.safety_max_temp.function_instance == "safety-mode-max-temp"
     assert populated_entity.safety_min_temp.value == 4
-    assert populated_entity.safety_min_temp.instance == "safety-mode-min-temp"
+    assert populated_entity.safety_min_temp.function_instance == "safety-mode-min-temp"
     assert populated_entity.target_temperature_auto_heating.value == 18
     assert populated_entity.target_temperature_auto_heating.step == 0.5
     assert populated_entity.target_temperature_auto_heating.min == 4
     assert populated_entity.target_temperature_auto_heating.max == 32
     assert (
-        populated_entity.target_temperature_auto_heating.instance
+        populated_entity.target_temperature_auto_heating.function_instance
         == "auto-heating-target"
     )
     # Property checks
@@ -178,7 +214,3 @@ def test_init_empty(empty_entity):
     # Property Checks
     assert not empty_entity.supports_fan_mode
     assert not empty_entity.supports_temperature_range
-
-
-def test_get_instance(populated_entity):
-    assert populated_entity.get_instance("preset") == "preset-1"

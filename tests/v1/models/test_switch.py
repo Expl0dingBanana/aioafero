@@ -9,7 +9,11 @@ def populated_entity():
     return Switch(
         _id="entity-1",
         available=True,
-        on={None: features.OnFeature(on=True)},
+        on={
+            None: features.OnFeature(
+                on=True, function_class="power", function_instance=None
+            )
+        },
         device_information=DeviceInformation(
             functions=[
                 {
@@ -45,7 +49,6 @@ def empty_entity():
 def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
-    assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.on[None].on is True
     assert populated_entity.update_id == "entity-1"
     assert populated_entity.instance is None
@@ -57,7 +60,3 @@ def test_init(populated_entity):
 
 def test_init_empty(empty_entity):
     assert not empty_entity.on
-
-
-def test_get_instance(populated_entity):
-    assert populated_entity.get_instance("preset") == "preset-1"

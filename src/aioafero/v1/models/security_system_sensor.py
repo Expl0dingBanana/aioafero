@@ -28,5 +28,5 @@ class SecuritySystemSensorPut:
     """States that can be updated for a Security System Sensor."""
 
     sensor_config: features.SecuritySensorConfigFeature | None = field(
-        default_factory=dict, repr=False, init=False
+        default=None, repr=False, init=False
     )

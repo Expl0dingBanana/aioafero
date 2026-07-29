@@ -2,6 +2,7 @@
 
 from contextlib import suppress
 import copy
+from dataclasses import replace
 import logging
 
 from aioafero import device, errors
@@ -102,7 +103,7 @@ def resolve_brightness_instance(
 ) -> str | None:
     """Return the brightness functionInstance to PUT for dual-channel fixtures."""
     if not cur_item.is_dual_channel:
-        return cur_item.dimming.func_instance if cur_item.dimming else None
+        return cur_item.dimming.function_instance if cur_item.dimming else None
     if channel in cur_item.channels:
         return channel
     if color is not None or effect is not None or color_mode in ("color", "sequence"):
@@ -116,7 +117,7 @@ def resolve_brightness_instance(
         return "color"
     if active_mode == "white" and "white" in cur_item.channels:
         return "white"
-    return cur_item.dimming.func_instance if cur_item.dimming else "primary"
+    return cur_item.dimming.function_instance if cur_item.dimming else "primary"
 
 
 def resolve_color_mode(cur_item: Light, color_mode: str | None) -> str | None:
@@ -177,8 +178,8 @@ def apply_brightness_state_update(
     if cur_item.dimming.brightness != new_val:
         cur_item.dimming.brightness = new_val
         updated_keys.add("dimming")
-    if cur_item.dimming.func_instance != instance:
-        cur_item.dimming.func_instance = instance
+    if cur_item.dimming.function_instance != instance:
+        cur_item.dimming.function_instance = instance
         updated_keys.add("dimming")
 
 
@@ -337,13 +338,6 @@ class LightController(BaseResourcesController[Light]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.LIGHT]
     ITEM_CLS = Light
-    ITEM_MAPPING = {
-        "color": "color-rgb",
-        "color_mode": "color-mode",
-        "color_temperature": "color-temperature",
-        "dimming": "brightness",
-        "effect": "color-sequence",
-    }
     ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
         ("speed", "color-sequence"): NumbersName(
             unit="speed", display_name="Effect Speed"
@@ -469,9 +463,10 @@ class LightController(BaseResourcesController[Light]):
         effect: features.EffectFeature | None = None
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
-        numbers: dict[tuple[str, str], features.NumbersFeature] = {}
+        numbers: dict[tuple[str, str | None], features.NumbersFeature] = {}
         dual_channel = is_dual_channel_rgb_fixture(afero_device)
         channels: dict[str, LightChannel] = {}
+        color_seq_states: dict[str | None, AferoState] = {}
         if dual_channel:
             for name in _channel_brightness_instances(afero_device):
                 channels[name] = LightChannel()
@@ -484,8 +479,8 @@ class LightController(BaseResourcesController[Light]):
             ):
                 on = features.OnFeature(
                     on=state.value == "on",
-                    func_class=state.functionClass,
-                    func_instance=state.functionInstance,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "color-temperature":
                 if len(func_def["values"]) > 1:
@@ -497,7 +492,11 @@ class LightController(BaseResourcesController[Light]):
                 if isinstance(current_temp, str) and current_temp.endswith("K"):
                     current_temp = current_temp[:-1]
                 color_temp = features.ColorTemperatureFeature(
-                    temperature=int(current_temp), supported=avail_temps, prefix=prefix
+                    temperature=int(current_temp),
+                    supported=avail_temps,
+                    prefix=prefix,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "brightness":
                 instance = state.functionInstance
@@ -508,20 +507,25 @@ class LightController(BaseResourcesController[Light]):
                     dimming = features.DimmingFeature(
                         brightness=int(state.value),
                         supported=temp_bright,
-                        func_instance=state.functionInstance,
+                        function_class=state.functionClass,
+                        function_instance=state.functionInstance,
                     )
             elif state.functionClass == "color-sequence":
-                current_effect = state.value
-                effects = process_effects(afero_device.functions)
-                effect = features.EffectFeature(effect=current_effect, effects=effects)
+                color_seq_states[state.functionInstance] = state
             elif state.functionClass == "color-rgb":
                 color = features.ColorFeature(
                     red=state.value["color-rgb"].get("r", 0),
                     green=state.value["color-rgb"].get("g", 0),
                     blue=state.value["color-rgb"].get("b", 0),
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "color-mode":
-                color_mode = features.ColorModeFeature(state.value)
+                color_mode = features.ColorModeFeature(
+                    mode=state.value,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
             elif state.functionClass == "available":
                 available = state.value
             elif dual_channel and state.functionClass == "toggle":
@@ -530,6 +534,18 @@ class LightController(BaseResourcesController[Light]):
                     channels[instance].on = state.value == "on"
             if number := await self.initialize_number(func_def, state):
                 numbers[number[0]] = number[1]
+
+        effects = process_effects(afero_device.functions)
+        current_effect = resolve_effect_value(effects, color_seq_states)
+        if current_effect is not None:
+            preset_state = color_seq_states["preset"]
+            effect = features.EffectFeature(
+                effect=current_effect,
+                effects=effects,
+                function_class=preset_state.functionClass,
+                function_instance=preset_state.functionInstance,
+            )
+
         supported_color_modes = get_color_modes_for_device(afero_device)
         color_mode_hints = get_color_mode_hints_for_device(afero_device)
 
@@ -572,7 +588,7 @@ class LightController(BaseResourcesController[Light]):
         """
         cur_item = self.get_device(afero_device.id)
         updated_keys = set()
-        color_seq_states: dict[str, AferoState] = {}
+        color_seq_states: dict[str | None, AferoState] = {}
         for state in afero_device.states:
             # Split clones are pre-filtered in light_callback; this guards other paths.
             if not state_matches_instance(afero_device, state):
@@ -638,23 +654,19 @@ class LightController(BaseResourcesController[Light]):
             await self.update_elem_color(cur_item, color_seq_states)
         )
 
-    async def update_elem_color(self, cur_item: Light, color_seq_states: dict) -> set:
+    async def update_elem_color(
+        self,
+        cur_item: Light,
+        color_seq_states: dict[str | None, AferoState],
+    ) -> set:
         """Perform the update for effects."""
-        updated_keys = set()
-        if color_seq_states and "preset" in color_seq_states:
-            preset_val = color_seq_states["preset"].value
-            if cur_item.effect.is_preset(preset_val):
-                if cur_item.effect.effect != preset_val:
-                    cur_item.effect.effect = preset_val
-                    updated_keys.add("effect")
-            else:
-                new_val = color_seq_states[color_seq_states["preset"].value].value
-                if cur_item.effect.effect != new_val:
-                    cur_item.effect.effect = color_seq_states[
-                        color_seq_states["preset"].value
-                    ].value
-                    updated_keys.add("effect")
-        return updated_keys
+        if cur_item.effect is None:
+            return set()
+        new_effect = resolve_effect_value(cur_item.effect.effects, color_seq_states)
+        if new_effect is None or cur_item.effect.effect == new_effect:
+            return set()
+        cur_item.effect.effect = new_effect
+        return {"effect"}
 
     async def set_state(
         self,
@@ -667,7 +679,7 @@ class LightController(BaseResourcesController[Light]):
         color: tuple[int, int, int] | None = None,
         effect: str | None = None,
         force_white_mode: int | None = None,
-        numbers: dict[tuple[str, str], float] | None = None,
+        numbers: dict[tuple[str, str | None], float] | None = None,
         channel: str | None = None,
     ) -> None:
         """Update light state in the cloud.
@@ -733,7 +745,9 @@ class LightController(BaseResourcesController[Light]):
         ):
             mode_res = await self.update(
                 device_id,
-                obj_in=LightPut(color_mode=features.ColorModeFeature(mode=color_mode)),
+                obj_in=LightPut(
+                    color_mode=replace(cur_item.color_mode, mode=color_mode)
+                ),
                 send_duplicate_states=True,
             )
             if not mode_res:
@@ -748,24 +762,16 @@ class LightController(BaseResourcesController[Light]):
             if channel_valid:
                 update_obj.on = features.OnFeature(
                     on=on,
-                    func_class="toggle",
-                    func_instance=channel,
+                    function_class="toggle",
+                    function_instance=channel,
                 )
             elif not channel_requested:
                 # Only touch primary power when the caller did not intend a
                 # channel toggle (unknown channel= must not fall through).
-                update_obj.on = features.OnFeature(
-                    on=on,
-                    func_class=cur_item.on.func_class,
-                    func_instance=cur_item.on.func_instance,
-                )
+                update_obj.on = replace(cur_item.on, on=on)
         if force_white_mode is not None:
-            update_obj.color_mode = features.ColorModeFeature(mode="white")
-            update_obj.dimming = features.DimmingFeature(
-                brightness=force_white_mode,
-                supported=cur_item.dimming.supported,
-                func_instance=cur_item.dimming.func_instance,
-            )
+            update_obj.color_mode = replace(cur_item.color_mode, mode="white")
+            update_obj.dimming = replace(cur_item.dimming, brightness=force_white_mode)
             send_duplicate_states = True
         else:
             send_duplicate_states = _populate_light_put(
@@ -796,7 +802,7 @@ def _populate_light_put(
     color_mode: str | None,
     color: tuple[int, int, int] | None,
     effect: str | None,
-    numbers: dict[tuple[str, str], float] | None,
+    numbers: dict[tuple[str, str | None], float] | None,
     channel: str | None,
     channel_valid: bool,
 ) -> bool:
@@ -811,23 +817,18 @@ def _populate_light_put(
         for key, val in numbers.items():
             if key not in cur_item.numbers:
                 continue
-            update_obj.numbers[key] = features.NumbersFeature(
+            update_obj.numbers[key] = replace(
+                cur_item.numbers[key],
                 value=val,
-                min=cur_item.numbers[key].min,
-                max=cur_item.numbers[key].max,
-                step=cur_item.numbers[key].step,
-                name=cur_item.numbers[key].name,
-                unit=cur_item.numbers[key].unit,
             )
     if temperature is not None and cur_item.color_temperature is not None:
         adjusted_temp = min(
             cur_item.color_temperature.supported,
             key=lambda x: abs(x - temperature),
         )
-        update_obj.color_temperature = features.ColorTemperatureFeature(
+        update_obj.color_temperature = replace(
+            cur_item.color_temperature,
             temperature=adjusted_temp,
-            supported=cur_item.color_temperature.supported,
-            prefix=cur_item.color_temperature.prefix,
         )
         if color_mode is None:
             color_mode = "white"
@@ -846,10 +847,10 @@ def _populate_light_put(
     if color_mode is not None and not channel_turning_off:
         color_mode = resolve_color_mode(cur_item, color_mode)
     if brightness is not None and cur_item.dimming is not None:
-        update_obj.dimming = features.DimmingFeature(
+        update_obj.dimming = replace(
+            cur_item.dimming,
             brightness=brightness,
-            supported=cur_item.dimming.supported,
-            func_instance=resolve_brightness_instance(
+            function_instance=resolve_brightness_instance(
                 cur_item,
                 color_mode=brightness_color_mode,
                 color=color,
@@ -859,11 +860,11 @@ def _populate_light_put(
             ),
         )
     if color is not None and cur_item.color is not None:
-        update_obj.color = features.ColorFeature(
-            red=color[0], green=color[1], blue=color[2]
+        update_obj.color = replace(
+            cur_item.color, red=color[0], green=color[1], blue=color[2]
         )
     if color_mode is not None and cur_item.color_mode is not None:
-        update_obj.color_mode = features.ColorModeFeature(mode=color_mode)
+        update_obj.color_mode = replace(cur_item.color_mode, mode=color_mode)
         # No-CCT zones that support white (e.g. accent trim with RGB) must always
         # PUT color-mode white when requested. Skipping unchanged fields leaves the
         # device in RGB when cache is stale or the user re-selects white in HA.
@@ -874,9 +875,7 @@ def _populate_light_put(
         ):
             send_duplicate_states = True
     if effect is not None and cur_item.effect is not None:
-        update_obj.effect = features.EffectFeature(
-            effect=effect, effects=cur_item.effect.effects
-        )
+        update_obj.effect = replace(cur_item.effect, effect=effect)
     return send_duplicate_states
 
 
@@ -906,3 +905,20 @@ def process_effects(functions: list[dict]) -> dict[str, set]:
     with suppress(KeyError):
         supported_effects["preset"].remove("custom")
     return supported_effects
+
+
+def resolve_effect_value(
+    effects: dict[str, set[str]],
+    states: dict[str | None, AferoState],
+) -> str | None:
+    """Resolve the active effect from plural color-sequence states."""
+    preset_state = states.get("preset")
+    if preset_state is None or not isinstance(preset_state.value, str):
+        return None
+    preset_value = preset_state.value
+    if preset_value in effects.get("preset", ()):
+        return preset_value
+    selected_state = states.get(preset_value)
+    if selected_state is None or not isinstance(selected_state.value, str):
+        return None
+    return selected_state.value

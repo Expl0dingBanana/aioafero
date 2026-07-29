@@ -19,6 +19,8 @@ def populated_entity():
                     "volume-04",
                 },
                 name="Buzzer Volume",
+                function_class="volume",
+                function_instance="buzzer-volume",
             ),
         },
         device_information=DeviceInformation(
@@ -37,8 +39,3 @@ def populated_entity():
 def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
-    assert populated_entity.instances == {"preset": "preset-1"}
-
-
-def test_get_instance(populated_entity):
-    assert populated_entity.get_instance("preset") == "preset-1"

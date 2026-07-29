@@ -21,6 +21,19 @@ Version 8.0.0
    (fan, light, switch, valve, exhaust fan, security system / keypad / sensor;
    thermostat already was). ``switch`` / ``valve`` ``turn_on`` / ``turn_off``
    take ``instance`` as keyword-only as well
+ * Every feature dataclass now requires keyword-only ``function_class`` and
+   ``function_instance`` (including explicit ``None``). Renames ``func_class`` /
+   ``func_instance`` / ``TargetTemperatureFeature.instance``
+ * Feature ``api_value`` is value-only; Afero envelopes are built by the serializer
+   from feature-owned identity
+ * Remove ``get_afero_instance_for_state``, controller ``ITEM_MAPPING``, and
+   ``StandardMixin.instances`` / ``get_instance`` outbound inference, along with the
+   unused ``AferoFeatures`` registry
+ * Preserve observed identities when initializing and updating devices (including
+   fan ``fan-power`` and split-light zones)
+   (`Hubspace-Homeassistant #240 <https://github.com/jdeath/Hubspace-Homeassistant/issues/240>`__)
+ * Rename ``get_afero_state_from_feature`` keyword parameters to the full
+   ``function_class`` / ``function_instance`` / ``current_value`` names
 
 **Added / behavior**
 
@@ -37,6 +50,11 @@ Version 8.0.0
    instance (dict-backed fields and dual-channel light ``channels``) so
    unchanged channel toggles/dimming are not re-sent
    (``aioafero.v1.models.update_comparison``)
+ * Preserve effect-owned function classes during plural emission and ensure
+   color-temperature values without a prefix remain valid numeric strings
+ * Resolve plural color-sequence state independently of API row ordering and match
+   function definitions by exact ``functionInstance`` (including ``None``)
+ * Skip fan direction updates when the fan is off (Hubspace API quirk)
 
 7.0.10
 ==========

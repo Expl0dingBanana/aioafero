@@ -1,5 +1,6 @@
 """Base controller for climate devices."""
 
+from dataclasses import replace
 from typing import TypeVar
 
 from aioafero import device
@@ -31,7 +32,8 @@ def generate_target_temp(
         step=func_def["range"]["step"],
         min=func_def["range"]["min"],
         max=func_def["range"]["max"],
-        instance=state.functionInstance,
+        function_class=state.functionClass,
+        function_instance=state.functionInstance,
     )
 
 
@@ -44,7 +46,8 @@ def generate_target_temp_capability(
         step=capability.options["range"]["step"],
         min=capability.options["range"]["min"],
         max=capability.options["range"]["max"],
-        instance=state.functionInstance,
+        function_class=state.functionClass,
+        function_instance=state.functionInstance,
     )
 
 
@@ -104,12 +107,20 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                     else:
                         self._logger.warning("Found unknown temp instance, %s", state)
             elif state.functionClass == "mode":
-                all_modes = set(process_function(afero_device.functions, "mode"))
+                all_modes = set(
+                    process_function(
+                        afero_device.functions,
+                        state.functionClass,
+                        state.functionInstance,
+                    )
+                )
                 climate_data["hvac_mode"] = features.HVACModeFeature(
                     mode=state.value,
                     previous_mode=state.value,
                     modes=all_modes,
                     supported_modes=all_modes,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "available":
                 climate_data["available"] = state.value
@@ -177,13 +188,7 @@ class ClimateController(BaseResourcesController[AferoResourceT]):
                 setattr(
                     update_obj,
                     attr_name,
-                    features.TargetTemperatureFeature(
-                        value=temp_val,
-                        min=cur_temp_feature.min,
-                        max=cur_temp_feature.max,
-                        step=cur_temp_feature.step,
-                        instance=cur_temp_feature.instance,
-                    ),
+                    replace(cur_temp_feature, value=temp_val),
                 )
 
         await self.update(device_id, obj_in=update_obj)

@@ -1,25 +1,58 @@
 """Feature Schemas used by various Afero resources."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from aioafero.util import percentage_to_ordered_list_item
 
 
-@dataclass
-class ColorModeFeature:
+@dataclass(frozen=True, slots=True)
+class AferoValueEmission:
+    """One outbound Afero state derived from a feature."""
+
+    function_class: str
+    function_instance: str | None
+    value: Any
+
+
+@dataclass(kw_only=True)
+class AferoFeature:
+    """Base feature with required Afero function identity."""
+
+    function_class: str
+    function_instance: str | None
+
+    @property
+    def api_value(self) -> Any:
+        """Value member to send to the Afero API."""
+        raise NotImplementedError
+
+    def iter_afero_values(self) -> list[AferoValueEmission]:
+        """Return outbound states owned by this feature."""
+        return [
+            AferoValueEmission(
+                self.function_class,
+                self.function_instance,
+                self.api_value,
+            )
+        ]
+
+
+@dataclass(kw_only=True)
+class ColorModeFeature(AferoFeature):
     """Represent the current mode (ie white, color) Feature object."""
 
     mode: str
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
         return self.mode
 
 
-@dataclass
-class ColorFeature:
+@dataclass(kw_only=True)
+class ColorFeature(AferoFeature):
     """Represent `RGB` Feature object."""
 
     red: int
@@ -27,29 +60,27 @@ class ColorFeature:
     blue: int
 
     @property
-    def api_value(self):
+    def api_value(self) -> dict[str, dict[str, int]]:
         """Value to send to Afero API."""
         return {
-            "value": {
-                "color-rgb": {
-                    "r": self.red,
-                    "g": self.green,
-                    "b": self.blue,
-                }
+            "color-rgb": {
+                "r": self.red,
+                "g": self.green,
+                "b": self.blue,
             }
         }
 
 
-@dataclass
-class ColorTemperatureFeature:
+@dataclass(kw_only=True)
+class ColorTemperatureFeature(AferoFeature):
     """Represent Current temperature Feature."""
 
     temperature: int
     supported: list[int]
-    prefix: str | None = None
+    prefix: str = ""
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
         return f"{self.temperature}{self.prefix}"
 
@@ -68,109 +99,94 @@ class CurrentPositionEnum(Enum):
         return cls.UNKNOWN
 
 
-@dataclass
-class CurrentPositionFeature:
+@dataclass(kw_only=True)
+class CurrentPositionFeature(AferoFeature):
     """Represents the current position of the lock."""
 
     position: CurrentPositionEnum
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
         return self.position.value
 
 
-@dataclass
-class CurrentTemperatureFeature:
+@dataclass(kw_only=True)
+class CurrentTemperatureFeature(AferoFeature):
     """Represents the current temperature."""
 
     temperature: float
-    function_class: str
-    function_instance: str | None
 
     @property
-    def api_value(self):
+    def api_value(self) -> float:
         """Value to send to Afero API."""
-        return {
-            "functionClass": self.function_class,
-            "functionInstance": self.function_instance,
-            "value": round(self.temperature, 1),
-        }
+        return round(self.temperature, 1)
 
 
-@dataclass
-class DimmingFeature:
+@dataclass(kw_only=True)
+class DimmingFeature(AferoFeature):
     """Represent Current temperature Feature."""
 
     brightness: int
     supported: list[int]
-    func_instance: str | None = field(default=None)
 
     @property
-    def api_value(self):
+    def api_value(self) -> int:
         """Value to send to Afero API."""
         return self.brightness
 
 
-@dataclass
-class DirectionFeature:
+@dataclass(kw_only=True)
+class DirectionFeature(AferoFeature):
     """Represent Current Fan direction Feature."""
 
     forward: bool
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
         return "forward" if self.forward else "reverse"
 
 
-@dataclass
-class EffectFeature:
+@dataclass(kw_only=True)
+class EffectFeature(AferoFeature):
     """Represent the current effect."""
 
     effect: str
     effects: dict[str, set[str]]
 
     @property
-    def api_value(self):
-        """States to send to Afero API."""
-        states = []
-        seq_key = None
-        for effect_group, effects in self.effects.items():
-            if self.effect not in effects:
-                continue
-            seq_key = effect_group
-            break
+    def api_value(self) -> str:
+        """Canonical effect value; multi-state emission uses ``iter_afero_values``."""
+        return self.effect
+
+    def iter_afero_values(self) -> list[AferoValueEmission]:
+        """Emit ordered color-sequence states for the selected effect."""
+        seq_key = next(
+            (
+                effect_group
+                for effect_group, effects in self.effects.items()
+                if self.effect in effects
+            ),
+            None,
+        )
         if seq_key is None:
             return []
-        preset_val = self.effect if self.effect in self.effects["preset"] else seq_key
-        states.append(
-            {
-                "functionClass": "color-sequence",
-                "functionInstance": "preset",
-                "value": preset_val,
-            }
-        )
+        preset_val = self.effect if self.is_preset(self.effect) else seq_key
+        states = [
+            AferoValueEmission(self.function_class, "preset", preset_val),
+        ]
         if seq_key != "preset":
-            states.append(
-                {
-                    "functionClass": "color-sequence",
-                    "functionInstance": seq_key,
-                    "value": self.effect,
-                }
-            )
+            states.append(AferoValueEmission(self.function_class, seq_key, self.effect))
         return states
 
-    def is_preset(self, effect):
+    def is_preset(self, effect: str) -> bool:
         """Determine if the current state is a preset effect."""
-        try:
-            return effect in self.effects["preset"]
-        except KeyError:
-            return False
+        return effect in self.effects.get("preset", ())
 
 
-@dataclass
-class HVACModeFeature:
+@dataclass(kw_only=True)
+class HVACModeFeature(AferoFeature):
     """Represent HVAC Mode Feature."""
 
     mode: str | None
@@ -179,26 +195,26 @@ class HVACModeFeature:
     modes: set[str]
 
     @property
-    def api_value(self):
+    def api_value(self) -> str | None:
         """Value to send to Afero API."""
         return self.mode
 
 
-@dataclass
-class ModeFeature:
+@dataclass(kw_only=True)
+class ModeFeature(AferoFeature):
     """Represent Current Fan mode Feature."""
 
     mode: str | None
     modes: set[str]
 
     @property
-    def api_value(self):
+    def api_value(self) -> str | None:
         """Value to send to Afero API."""
         return self.mode
 
 
-@dataclass
-class NumbersFeature:
+@dataclass(kw_only=True)
+class NumbersFeature(AferoFeature):
     """Represents a numeric value."""
 
     value: float
@@ -209,69 +225,49 @@ class NumbersFeature:
     unit: str | None
 
     @property
-    def api_value(self):
+    def api_value(self) -> float:
         """Value to send to Afero API."""
         return self.value
 
 
-@dataclass
-class OnFeature:
+@dataclass(kw_only=True)
+class OnFeature(AferoFeature):
     """Represent `On` Feature object as used by various Afero resources."""
 
     on: bool
-    func_class: str | None = field(default="power")
-    func_instance: str | None = field(default=None)
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
-        return {
-            "value": "on" if self.on else "off",
-            "functionClass": self.func_class,
-            # Always include so outbound merge does not keep a wrong instance
-            # from split-id fallback (e.g. portable AC ``…-power`` suffix).
-            "functionInstance": self.func_instance,
-        }
+        return "on" if self.on else "off"
 
 
-@dataclass
-class OpenFeature:
+@dataclass(kw_only=True)
+class OpenFeature(AferoFeature):
     """Represent `Open` Feature object."""
 
     open: bool
-    func_class: str | None = field(default="toggle")
-    func_instance: str | None = field(default=None)
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
-        return {
-            "value": "on" if self.open else "off",
-            "functionClass": self.func_class,
-            "functionInstance": self.func_instance,
-        }
+        return "on" if self.open else "off"
 
 
-@dataclass
-class PresetFeature:
+@dataclass(kw_only=True)
+class PresetFeature(AferoFeature):
     """Represent the current preset."""
 
     enabled: bool
-    func_instance: str
-    func_class: str
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
-        return {
-            "functionClass": self.func_class,
-            "functionInstance": self.func_instance,
-            "value": "enabled" if self.enabled else "disabled",
-        }
+        return "enabled" if self.enabled else "disabled"
 
 
-@dataclass
-class SecuritySensorConfigFeature:
+@dataclass(kw_only=True)
+class SecuritySensorConfigFeature(AferoFeature):
     """Represent the current security sensor configuration."""
 
     sensor_id: int
@@ -281,23 +277,19 @@ class SecuritySensorConfigFeature:
     key_name: str
 
     @property
-    def api_value(self):
+    def api_value(self) -> dict[str, dict[str, int]]:
         """Value to send to Afero API."""
         return {
-            "functionClass": "sensor-config",
-            "value": {
-                self.key_name: {
-                    "chirpMode": self.chirpMode,
-                    "triggerType": self.triggerType,
-                    "bypassType": self.bypassType,
-                }
-            },
-            "functionInstance": f"sensor-{self.sensor_id}",
+            self.key_name: {
+                "chirpMode": self.chirpMode,
+                "triggerType": self.triggerType,
+                "bypassType": self.bypassType,
+            }
         }
 
 
-@dataclass
-class SelectFeature:
+@dataclass(kw_only=True)
+class SelectFeature(AferoFeature):
     """Represent available options and currently selected."""
 
     selected: str
@@ -305,104 +297,66 @@ class SelectFeature:
     name: str
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
         return self.selected
 
 
-@dataclass
-class SecuritySystemDisarmPin:
+@dataclass(kw_only=True)
+class SecuritySystemDisarmPin(AferoFeature):
     """Represent the disarm pin feature."""
 
     pin: int
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
-        return {
-            "functionClass": "disarm",
-            "functionInstance": None,
-            "value": str(self.pin),
-        }
+        return str(self.pin)
 
 
-@dataclass
-class SecuritySensorSirenFeature:
+@dataclass(kw_only=True)
+class SecuritySensorSirenFeature(AferoFeature):
     """Represent the current state of the siren."""
 
     result_code: int | None
     command: int | None
 
     @property
-    def api_value(self):
+    def api_value(self) -> dict[str, dict[str, int | None]] | None:
         """Value to send to Afero API."""
         if self.result_code is None and self.command is None:
-            return {
-                "functionClass": "siren-action",
-                "value": None,
-                "functionInstance": None,
-            }
+            return None
         return {
-            "functionClass": "siren-action",
-            "value": {
-                "security-siren-action": {
-                    "resultCode": self.result_code,
-                    "command": self.command,
-                }
-            },
-            "functionInstance": None,
+            "security-siren-action": {
+                "resultCode": self.result_code,
+                "command": self.command,
+            }
         }
 
 
-@dataclass
-class SpeedFeature:
+@dataclass(kw_only=True)
+class SpeedFeature(AferoFeature):
     """Represent Current Fan speed Feature."""
 
     speed: int
     speeds: list[str]
 
     @property
-    def api_value(self):
+    def api_value(self) -> str:
         """Value to send to Afero API."""
         return percentage_to_ordered_list_item(self.speeds, self.speed)
 
 
-@dataclass
-class TargetTemperatureFeature:
+@dataclass(kw_only=True)
+class TargetTemperatureFeature(AferoFeature):
     """Represents the target temperature for auto."""
 
     value: float
     min: float
     max: float
     step: float
-    instance: str
 
     @property
-    def api_value(self):
+    def api_value(self) -> float:
         """Value to send to Afero API."""
-        return {
-            "functionClass": "temperature",
-            "functionInstance": self.instance,
-            "value": self.value,
-        }
-
-
-AferoFeatures: list = [
-    ColorModeFeature,
-    ColorFeature,
-    ColorTemperatureFeature,
-    CurrentPositionEnum,
-    CurrentPositionFeature,
-    DimmingFeature,
-    DirectionFeature,
-    EffectFeature,
-    HVACModeFeature,
-    ModeFeature,
-    NumbersFeature,
-    OnFeature,
-    OpenFeature,
-    PresetFeature,
-    SelectFeature,
-    SpeedFeature,
-    TargetTemperatureFeature,
-]
+        return self.value

@@ -1,12 +1,12 @@
 """Controller holding and managing Afero IoT resources of type `exhaust-fan`."""
 
 import copy
+from dataclasses import replace
 
 from aioafero.device import AferoDevice, get_function_from_device
 from aioafero.errors import DeviceNotFound
 from aioafero.v1.models import features
 from aioafero.v1.models.exhaust_fan import ExhaustFan, ExhaustFanPut
-from aioafero.v1.models.features import NumbersFeature, SelectFeature
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
@@ -71,7 +71,6 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.EXHAUST_FAN]
     ITEM_CLS = ExhaustFan
-    ITEM_MAPPING = {}
     # Sensors map functionClass -> Unit
     ITEM_SENSORS: dict[str, str] = {}
     # Binary sensors map key -> alerting value
@@ -101,8 +100,8 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
         """
         self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
-        numbers: dict[tuple[str, str], features.NumbersFeature] = {}
-        selects: dict[tuple[str, str], features.SelectFeature] = {}
+        numbers: dict[tuple[str, str | None], features.NumbersFeature] = {}
+        selects: dict[tuple[str, str | None], features.SelectFeature] = {}
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
@@ -165,8 +164,8 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
         self,
         device_id: str,
         *,
-        numbers: dict[tuple[str, str], float] | None = None,
-        selects: dict[tuple[str, str], str] | None = None,
+        numbers: dict[tuple[str, str | None], float] | None = None,
+        selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
         """Update exhaust fan numbers and selects in the cloud.
 
@@ -186,22 +185,17 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
             for key, val in numbers.items():
                 if key not in cur_item.numbers:
                     continue
-                update_obj.numbers[key] = NumbersFeature(
+                update_obj.numbers[key] = replace(
+                    cur_item.numbers[key],
                     value=val,
-                    min=cur_item.numbers[key].min,
-                    max=cur_item.numbers[key].max,
-                    step=cur_item.numbers[key].step,
-                    name=cur_item.numbers[key].name,
-                    unit=cur_item.numbers[key].unit,
                 )
         if selects:
             for key, val in selects.items():
                 if key not in cur_item.selects:
                     continue
-                update_obj.selects[key] = SelectFeature(
+                update_obj.selects[key] = replace(
+                    cur_item.selects[key],
                     selected=val,
-                    selects=cur_item.selects[key].selects,
-                    name=cur_item.selects[key].name,
                 )
 
         await self.update(device_id, obj_in=update_obj)

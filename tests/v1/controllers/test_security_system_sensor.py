@@ -1,7 +1,6 @@
 """Test Security System Sensor"""
 
 import copy
-from dataclasses import asdict
 
 import pytest
 
@@ -54,6 +53,8 @@ async def test_initialize(mocked_controller):
     }
     assert dev.selects == {
         ("bypassType", None): features.SelectFeature(
+            function_class="bypassType",
+            function_instance=None,
             selected="Off",
             selects={
                 "Off",
@@ -63,6 +64,8 @@ async def test_initialize(mocked_controller):
             name="Bypass",
         ),
         ("chirpMode", None): features.SelectFeature(
+            function_class="chirpMode",
+            function_instance=None,
             selected="Off",
             selects={
                 "Off",
@@ -71,6 +74,8 @@ async def test_initialize(mocked_controller):
             name="Chime",
         ),
         ("triggerType", None): features.SelectFeature(
+            function_class="triggerType",
+            function_instance=None,
             selected="Home/Away",
             selects={
                 "Away",
@@ -170,6 +175,8 @@ async def test_update_elem(mocked_controller, caplog):
     }
     assert dev.selects == {
         ("bypassType", None): features.SelectFeature(
+            function_class="bypassType",
+            function_instance=None,
             selected="Manual",
             selects={
                 "Off",
@@ -179,6 +186,8 @@ async def test_update_elem(mocked_controller, caplog):
             name="Bypass",
         ),
         ("chirpMode", None): features.SelectFeature(
+            function_class="chirpMode",
+            function_instance=None,
             selected="On",
             selects={
                 "Off",
@@ -187,6 +196,8 @@ async def test_update_elem(mocked_controller, caplog):
             name="Chime",
         ),
         ("triggerType", None): features.SelectFeature(
+            function_class="triggerType",
+            function_instance=None,
             selected="Away",
             selects={
                 "Away",
@@ -214,7 +225,6 @@ async def test_update_security_sensor_no_updates(mocked_controller):
     (
         "device",
         "updates",
-        "expected_updates",
     ),
     [
         # Selects are updated
@@ -228,46 +238,35 @@ async def test_update_security_sensor_no_updates(mocked_controller):
                     ("doesnt_exist", None): "On",
                 }
             },
-            [
-                {
-                    "functionClass": "sensor-config",
-                    "value": {
-                        "security-sensor-config-v2": {
-                            "chirpMode": 1,  # On
-                            "triggerType": 2,  # Away
-                            "bypassType": 4,  # On
-                        }
-                    },
-                    "functionInstance": "sensor-2",
-                    "lastUpdateTime": 12345,
-                }
-            ],
         ),
     ],
 )
-async def test_set_state(device, updates, expected_updates, mocked_controller, mocker):
+async def test_set_state(device, updates, mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("security-system.json")
     )
     await bridge.async_block_until_done()
-    # Split devices require a full update during testing
-    resp = mocker.AsyncMock()
-    dev_update = utils.create_devices_from_data("security-system.json")[1]
-    for state in expected_updates:
-        utils.modify_state(dev_update, AferoState(**state))
-    # Split devices need their IDs correctly set
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {
-        "metadeviceId": security_system.id,
-        "values": [asdict(x) for x in dev_update.states],
-    }
-    resp = mocker.AsyncMock()
-    resp.json = json_resp
-    resp.status = 200
-    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(device.id, **updates)
     await bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        security_system.id,
+        [
+            {
+                "functionClass": "sensor-config",
+                "functionInstance": "sensor-2",
+                "value": {
+                    "security-sensor-config-v2": {
+                        "chirpMode": 1,
+                        "triggerType": 2,
+                        "bypassType": 4,
+                    }
+                },
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller["7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2"]
     assert dev.selects[("chirpMode", None)].selected == "On"
     assert dev.selects[("triggerType", None)].selected == "Away"
@@ -275,7 +274,8 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
 
 
 @pytest.mark.asyncio
-async def test_set_state_bad_device(mocked_controller):
+async def test_set_state_bad_device(mocked_controller, mocker):
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         "bad device",
         selects={
@@ -286,19 +286,20 @@ async def test_set_state_bad_device(mocked_controller):
             }
         },
     )
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_set_states_nothing(mocked_controller):
+async def test_set_states_nothing(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         utils.create_hs_raw_from_dump("security-system.json")
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         security_system_sensor_2.id,
     )
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio

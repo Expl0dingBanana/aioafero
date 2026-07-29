@@ -9,11 +9,20 @@ def populated_fan():
     return Fan(
         _id="fan-1",
         available=True,
-        on=features.OnFeature(on=True),
-        speed=features.SpeedFeature(speed=50, speeds=[25, 50, 75, 100]),
-        direction=features.DirectionFeature(forward=True),
+        on=features.OnFeature(on=True, function_class="power", function_instance=None),
+        speed=features.SpeedFeature(
+            speed=50,
+            speeds=[25, 50, 75, 100],
+            function_class="fan-speed",
+            function_instance=None,
+        ),
+        direction=features.DirectionFeature(
+            forward=True, function_class="direction", function_instance=None
+        ),
         preset=features.PresetFeature(
-            enabled=True, func_class="preset", func_instance="preset-1"
+            enabled=True,
+            function_class="preset",
+            function_instance="preset-1",
         ),
         device_information=DeviceInformation(
             functions=[

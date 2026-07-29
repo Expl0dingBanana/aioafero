@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `security-system-keypad`."""
 
+from dataclasses import replace
+
 from aioafero.device import AferoDevice
 from aioafero.errors import DeviceNotFound
 from aioafero.v1.models import SecuritySystemKeypad, SecuritySystemKeypadPut, features
@@ -104,9 +106,8 @@ class SecuritySystemKeypadController(BaseResourcesController[SecuritySystemKeypa
             for key, val in selects.items():
                 if key not in cur_item.selects:
                     continue
-                update_obj.selects[key] = features.SelectFeature(
+                update_obj.selects[key] = replace(
+                    cur_item.selects[key],
                     selected=val,
-                    selects=cur_item.selects[key].selects,
-                    name=cur_item.selects[key].name,
                 )
         await self.update(device_id, obj_in=update_obj)

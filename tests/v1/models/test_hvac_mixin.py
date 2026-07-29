@@ -22,21 +22,48 @@ def populatedEntity():
             previous_mode="fan",
             modes={"fan", "auto-cool", "dehumidify", "cool"},
             supported_modes={"fan", "auto-cool", "dehumidify", "cool"},
+            function_class="hvac-mode",
+            function_instance=None,
         ),
         target_temperature_heating=features.TargetTemperatureFeature(
-            value=19, step=0.5, min=4, max=32, instance="heating-target"
+            value=19,
+            step=0.5,
+            min=4,
+            max=32,
+            function_class="temperature",
+            function_instance="heating-target",
         ),
         target_temperature_cooling=features.TargetTemperatureFeature(
-            value=26, step=0.5, min=10, max=37, instance="cooling-target"
+            value=26,
+            step=0.5,
+            min=10,
+            max=37,
+            function_class="temperature",
+            function_instance="cooling-target",
         ),
         target_temperature_auto_heating=features.TargetTemperatureFeature(
-            value=18, step=0.5, min=4, max=32, instance="auto-heating-target"
+            value=18,
+            step=0.5,
+            min=4,
+            max=32,
+            function_class="temperature",
+            function_instance="auto-heating-target",
         ),
         target_temperature_auto_cooling=features.TargetTemperatureFeature(
-            value=26.5, step=0.5, min=4, max=32, instance="auto-cooling-target"
+            value=26.5,
+            step=0.5,
+            min=4,
+            max=32,
+            function_class="temperature",
+            function_instance="auto-cooling-target",
         ),
         fan_running=False,
-        fan_mode=features.ModeFeature(mode="off", modes={"on", "off"}),
+        fan_mode=features.ModeFeature(
+            mode="off",
+            modes={"on", "off"},
+            function_class="fan-mode",
+            function_instance=None,
+        ),
     )
 
 
@@ -65,13 +92,23 @@ def test_target_temperature_no_feature(populatedEntity):
         (
             "cool",
             features.TargetTemperatureFeature(
-                value=26, step=0.5, min=10, max=37, instance="cooling-target"
+                value=26,
+                step=0.5,
+                min=10,
+                max=37,
+                function_class="temperature",
+                function_instance="cooling-target",
             ),
         ),
         (
             "heat",
             features.TargetTemperatureFeature(
-                value=19, step=0.5, min=4, max=32, instance="heating-target"
+                value=19,
+                step=0.5,
+                min=4,
+                max=32,
+                function_class="temperature",
+                function_instance="heating-target",
             ),
         ),
         ("dry", None),

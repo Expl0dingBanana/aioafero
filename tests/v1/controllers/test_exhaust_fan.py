@@ -109,6 +109,8 @@ async def test_initialize(mocked_controller):
     assert dev.sensors == {}
     assert dev.numbers == {
         ("auto-off-timer", "auto-off"): features.NumbersFeature(
+            function_class="auto-off-timer",
+            function_instance="auto-off",
             value=1200,
             min=60,
             max=1800,
@@ -119,9 +121,15 @@ async def test_initialize(mocked_controller):
     }
     assert dev.selects == {
         ("motion-action", "exhaust-fan"): features.SelectFeature(
-            selected="light", selects={"both", "fan", "light"}, name="Motion Action"
+            function_class="motion-action",
+            function_instance="exhaust-fan",
+            selected="light",
+            selects={"both", "fan", "light"},
+            name="Motion Action",
         ),
         ("sensitivity", "humidity-sensitivity"): features.SelectFeature(
+            function_class="sensitivity",
+            function_instance="humidity-sensitivity",
             selected="3-medium",
             selects={"1-low", "2-low-medium", "3-medium", "4-medium-high", "5-high"},
             name="Humidity Sensitivity",
@@ -213,16 +221,18 @@ async def test_update_state_no_change(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_empty(mocked_controller):
+async def test_set_state_empty(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(exhaust_fan)]
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(exhaust_fan.id)
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_set_state(mocked_controller):
+async def test_set_state(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(exhaust_fan)]
     )
@@ -230,6 +240,7 @@ async def test_set_state(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.available is True
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         exhaust_fan.id,
         numbers={
@@ -242,6 +253,23 @@ async def test_set_state(mocked_controller):
         },
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        exhaust_fan.id,
+        [
+            {
+                "functionClass": "auto-off-timer",
+                "functionInstance": "auto-off",
+                "value": 120,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "motion-action",
+                "functionInstance": "exhaust-fan",
+                "value": "both",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     dev = mocked_controller.items[0]
     assert dev.numbers[("auto-off-timer", "auto-off")].value == 120
     assert dev.selects[("motion-action", "exhaust-fan")].selected == "both"
@@ -280,13 +308,14 @@ async def test_exhaust_fan_emitting(bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_state_no_dev(mocked_controller, caplog):
+async def test_set_state_no_dev(mocked_controller, caplog, mocker):
     caplog.set_level(0)
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(exhaust_fan)]
     )
     await mocked_controller._bridge.async_block_until_done()
     mocked_controller._bridge.add_device(exhaust_fan.id, mocked_controller)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state("not-a-device")
-    mocked_controller._bridge.request.assert_not_called()
+    update_afero_api.assert_not_awaited()
     assert "Unable to find device" in caplog.text

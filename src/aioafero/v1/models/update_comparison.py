@@ -23,11 +23,11 @@ def default_feature_for_update_comparison(
     """Look up a dict-backed feature by instance when Put targets one entry."""
     current = getattr(elem, field_name, None)
     if isinstance(current, dict) and put_feature is not None:
-        func_instance = getattr(put_feature, "func_instance", None)
-        if func_instance in current:
-            return current[func_instance]
-        func_class = getattr(put_feature, "func_class", None)
-        mapped_key = (func_class, func_instance)
+        function_instance = getattr(put_feature, "function_instance", None)
+        if function_instance in current:
+            return current[function_instance]
+        function_class = getattr(put_feature, "function_class", None)
+        mapped_key = (function_class, function_instance)
         if mapped_key in current:
             return current[mapped_key]
     return current
@@ -48,21 +48,21 @@ def features_equivalent_for_update(
     if isinstance(put_feature, OnFeature) and isinstance(cached_feature, OnFeature):
         return (
             put_feature.on == cached_feature.on
-            and put_feature.func_class == cached_feature.func_class
-            and put_feature.func_instance == cached_feature.func_instance
+            and put_feature.function_class == cached_feature.function_class
+            and put_feature.function_instance == cached_feature.function_instance
         )
     if isinstance(put_feature, OpenFeature) and isinstance(cached_feature, OpenFeature):
         return (
             put_feature.open == cached_feature.open
-            and put_feature.func_class == cached_feature.func_class
-            and put_feature.func_instance == cached_feature.func_instance
+            and put_feature.function_class == cached_feature.function_class
+            and put_feature.function_instance == cached_feature.function_instance
         )
     if isinstance(put_feature, DimmingFeature) and isinstance(
         cached_feature, DimmingFeature
     ):
         return (
             put_feature.brightness == cached_feature.brightness
-            and put_feature.func_instance == cached_feature.func_instance
+            and put_feature.function_instance == cached_feature.function_instance
         )
     return put_feature == cached_feature
 

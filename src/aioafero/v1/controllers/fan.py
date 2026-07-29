@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `fan`."""
 
+from dataclasses import replace
+
 from aioafero.device import AferoDevice, get_function_from_device
 from aioafero.util import ordered_list_item_to_percentage
 from aioafero.v1.models import features
@@ -17,11 +19,6 @@ class FanController(BaseResourcesController[Fan]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.FAN]
     ITEM_CLS = Fan
-    ITEM_MAPPING = {
-        "on": "power",
-        "speed": "fan-speed",
-        "direction": "fan-reverse",
-    }
 
     async def turn_on(self, device_id: str) -> None:
         """Turn on the fan.
@@ -65,6 +62,7 @@ class FanController(BaseResourcesController[Fan]):
             # Thanks Hubspace for this one! Additionally, turning it on and setting
             # direction at the same time does not work as expected
             self._logger.info("Fan is not running so direction will not be set")
+            return
         await self.set_state(device_id, forward=forward)
 
     async def set_preset(self, device_id: str, preset: bool) -> None:
@@ -93,7 +91,11 @@ class FanController(BaseResourcesController[Fan]):
         binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass == "power":
-                on = features.OnFeature(on=state.value == "on")
+                on = features.OnFeature(
+                    on=state.value == "on",
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
             elif state.functionClass == "fan-speed":
                 speeds = get_function_from_device(
                     afero_device.functions, state.functionClass, state.functionInstance
@@ -104,9 +106,18 @@ class FanController(BaseResourcesController[Fan]):
                         tmp_speed.add(value["name"])
                 speeds = sorted(tmp_speed)
                 percentage = ordered_list_item_to_percentage(speeds, state.value)
-                speed = features.SpeedFeature(speed=percentage, speeds=speeds)
+                speed = features.SpeedFeature(
+                    speed=percentage,
+                    speeds=speeds,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
             elif state.functionClass == "fan-reverse":
-                direction = features.DirectionFeature(forward=state.value == "forward")
+                direction = features.DirectionFeature(
+                    forward=state.value == "forward",
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
             elif (
                 state.functionClass == "toggle"
                 and state.functionInstance in KNOWN_PRESETS
@@ -114,8 +125,8 @@ class FanController(BaseResourcesController[Fan]):
                 # I have only seen fans with a single preset
                 preset = features.PresetFeature(
                     enabled=state.value == "enabled",
-                    func_class=state.functionClass,
-                    func_instance=state.functionInstance,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "available":
                 available = state.value
@@ -207,20 +218,14 @@ class FanController(BaseResourcesController[Fan]):
         update_obj = FanPut()
         cur_item = self.get_device(device_id)
         if on is not None:
-            update_obj.on = features.OnFeature(on=on)
+            update_obj.on = replace(cur_item.on, on=on)
         if speed is not None and cur_item.speed is not None:
             if speed == 0:
-                update_obj.on = features.OnFeature(on=False)
+                update_obj.on = replace(cur_item.on, on=False)
             else:
-                update_obj.speed = features.SpeedFeature(
-                    speed=speed, speeds=cur_item.speed.speeds
-                )
+                update_obj.speed = replace(cur_item.speed, speed=speed)
         if preset is not None and cur_item.preset is not None:
-            update_obj.preset = features.PresetFeature(
-                enabled=preset,
-                func_class=cur_item.preset.func_class,
-                func_instance=cur_item.preset.func_instance,
-            )
+            update_obj.preset = replace(cur_item.preset, enabled=preset)
         if forward is not None and cur_item.direction is not None:
-            update_obj.direction = features.DirectionFeature(forward=forward)
+            update_obj.direction = replace(cur_item.direction, forward=forward)
         await self.update(device_id, obj_in=update_obj)
