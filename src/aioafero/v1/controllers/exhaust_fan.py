@@ -164,6 +164,7 @@ class ExhaustFanController(BaseResourcesController[ExhaustFan]):
     async def set_state(
         self,
         device_id: str,
+        *,
         numbers: dict[tuple[str, str], float] | None = None,
         selects: dict[tuple[str, str], str] | None = None,
     ) -> None:

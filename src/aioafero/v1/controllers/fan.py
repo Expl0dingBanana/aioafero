@@ -188,6 +188,7 @@ class FanController(BaseResourcesController[Fan]):
     async def set_state(
         self,
         device_id: str,
+        *,
         on: bool | None = None,
         speed: int | None = None,
         forward: bool | None = None,

@@ -278,7 +278,7 @@ async def test_set_state(device, updates, expected_updates, mocked_controller, m
 async def test_set_state_bad_device(mocked_controller):
     await mocked_controller.set_state(
         "bad device",
-        {
+        selects={
             "selects": {
                 ("sensor-2", "chirpMode"): "On",
                 ("sensor-2", "triggerType"): "Away",

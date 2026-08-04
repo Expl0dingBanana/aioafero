@@ -182,3 +182,21 @@ async def test_set_state_invalid_instance(mocked_controller, caplog):
     )
     mocked_controller._bridge.request.assert_not_called()
     assert "No states to send. Skipping" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_set_state_skips_unchanged_instance(mocked_controller, mocker, caplog):
+    """Scalar Put against dict-backed open cache suppresses unchanged toggles."""
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(valve)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    # spigot-2 is already open in the dump.
+    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
+    with caplog.at_level("DEBUG"):
+        await mocked_controller.set_state(
+            valve.id, valve_open=True, instance="spigot-2"
+        )
+        await mocked_controller._bridge.async_block_until_done()
+    assert update_afero_api.call_count == 0
+    assert "No states to send. Skipping" in caplog.text

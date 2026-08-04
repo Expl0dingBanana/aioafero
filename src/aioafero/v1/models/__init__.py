@@ -10,6 +10,7 @@ __all__ = [
     "Fan",
     "FanPut",
     "Light",
+    "LightChannel",
     "LightPut",
     "Lock",
     "LockPut",
@@ -34,7 +35,7 @@ __all__ = [
 from .device import Device
 from .exhaust_fan import ExhaustFan, ExhaustFanPut
 from .fan import Fan, FanPut
-from .light import Light, LightPut
+from .light import Light, LightChannel, LightPut
 from .lock import Lock, LockPut
 from .portable_ac import PortableAC, PortableACPut
 from .resource import DeviceInformation, ResourceTypes

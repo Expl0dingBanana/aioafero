@@ -1,7 +1,7 @@
 import pytest
 
 from aioafero.v1.models import DeviceInformation, features
-from aioafero.v1.models.light import Light
+from aioafero.v1.models.light import Light, LightChannel
 
 
 @pytest.fixture
@@ -108,3 +108,67 @@ def test_empty_light(empty_light):
 
 def test_get_instance(populated_light):
     assert populated_light.get_instance("preset") == "preset-1"
+
+
+def test_dual_channel_helpers():
+    """Dual-channel fixtures expose per-driver state via channels."""
+    dual = Light(
+        _id="dual",
+        available=True,
+        channels={
+            "color": LightChannel(brightness=10, on=True),
+            "white": LightChannel(brightness=90, on=False),
+        },
+    )
+    assert dual.is_dual_channel
+    assert dual.channel_brightness("color") == 10
+    assert dual.channel_brightness("white") == 90
+    assert dual.channel_brightness("primary") is None
+    assert dual.channel_on("color") is True
+    assert dual.channel_on("white") is False
+    assert dual.channel_on("missing") is None
+
+    single = Light(_id="single", available=True)
+    assert not single.is_dual_channel
+
+
+def test_feature_for_update_comparison_channel_edges():
+    """Channel comparison only remaps toggle/dimming; other fields fall through."""
+    dual = Light(
+        _id="dual",
+        available=True,
+        on=features.OnFeature(on=True, func_class="power", func_instance=None),
+        dimming=features.DimmingFeature(
+            brightness=50, supported=[1, 100], func_instance="primary"
+        ),
+        color_mode=features.ColorModeFeature(mode="color"),
+        channels={
+            "color": LightChannel(brightness=None, on=True),
+            "white": LightChannel(brightness=10, on=False),
+        },
+        device_information=DeviceInformation(),
+    )
+    # Instance in channels but not a toggle → use primary on.
+    powerish = features.OnFeature(on=True, func_class="power", func_instance="color")
+    assert dual.feature_for_update_comparison("on", powerish) is dual.on
+    # Unknown channel brightness does not suppress.
+    dim = features.DimmingFeature(
+        brightness=40, supported=[1, 100], func_instance="color"
+    )
+    assert dual.feature_for_update_comparison("dimming", dim) is None
+    # Known channel brightness compares semantically.
+    dual.channels["color"].brightness = 40
+    cached_dim = dual.feature_for_update_comparison("dimming", dim)
+    assert cached_dim.brightness == 40
+    assert cached_dim.func_instance == "color"
+    # Channel instance on a non on/dimming field falls through.
+    assert (
+        dual.feature_for_update_comparison(
+            "color",
+            features.OnFeature(on=True, func_class="toggle", func_instance="color"),
+        )
+        is None
+    )
+    # Missing dimming feature on the light also does not suppress.
+    dual.dimming = None
+    assert dual.feature_for_update_comparison("dimming", dim) is None

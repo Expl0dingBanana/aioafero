@@ -25,6 +25,10 @@ from aioafero.v1 import v1_const
 from aioafero.v1.models.features import NumbersFeature, SelectFeature
 from aioafero.v1.models.resource import ResourceTypes
 from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
+from aioafero.v1.models.update_comparison import (
+    features_equivalent_for_update,
+    resolve_feature_for_update_comparison,
+)
 
 from .event import AferoEvent, EventCallBackType, EventType
 
@@ -573,45 +577,44 @@ def dataclass_to_afero(
     """Convert the current state to be consumed by Afero IoT."""
     states = []
     for f in fields(cls):
-        current_feature = getattr(cls, f.name, None)
-        if current_feature is None:
+        put_feature = getattr(cls, f.name, None)
+        if put_feature is None:
             continue
         api_key = mapping.get(f.name, f.name)
         # There is probably a better way to approach this
         field_is_dict = str(f.type).startswith("dict")
         is_tuple_key = False
-        if field_is_dict and current_feature and current_feature.keys():
-            is_tuple_key = isinstance(list(current_feature.keys())[0], tuple)
+        if field_is_dict and put_feature and put_feature.keys():
+            is_tuple_key = isinstance(list(put_feature.keys())[0], tuple)
         # Tuple keys signify (func_class / func_instance).
         if field_is_dict and is_tuple_key:
             states.extend(
                 get_afero_states_from_mapped(
-                    elem, f.name, current_feature, send_duplicate_states
+                    elem, f.name, put_feature, send_duplicate_states
                 )
             )
-        elif field_is_dict and not current_feature:
+        elif field_is_dict and not put_feature:
             continue
         else:
             # We need to determine funcClass / funcInstance when we dump our data
+            cached = resolve_feature_for_update_comparison(elem, f.name, put_feature)
             if (
-                current_feature == getattr(elem, f.name, None)
+                features_equivalent_for_update(put_feature, cached)
                 and not send_duplicate_states
             ):
                 continue
-            current_feature_value = current_feature
-            if hasattr(current_feature, "api_value"):
-                current_feature_value = current_feature.api_value
-            if not isinstance(current_feature_value, list):
-                func_instance = get_afero_instance_for_state(
-                    elem, current_feature, api_key
-                )
+            put_feature_value = put_feature
+            if hasattr(put_feature, "api_value"):
+                put_feature_value = put_feature.api_value
+            if not isinstance(put_feature_value, list):
+                func_instance = get_afero_instance_for_state(elem, put_feature, api_key)
                 states.append(
                     get_afero_state_from_feature(
-                        api_key, func_instance, current_feature_value
+                        api_key, func_instance, put_feature_value
                     )
                 )
             else:
-                states.extend(get_afero_states_from_list(current_feature_value))
+                states.extend(get_afero_states_from_list(put_feature_value))
     return states
 
 
@@ -623,9 +626,10 @@ def get_afero_states_from_mapped(
 ) -> list[dict]:
     """Convert an update element to dict to be consumed by Afero API."""
     states = []
-    current_elems = getattr(element, field_name, None)
+    current_elems = getattr(element, field_name, None) or {}
     for key, val in update_vals.items():
-        if val == current_elems.get(key, None) and not send_duplicate_states:
+        cached = current_elems.get(key)
+        if features_equivalent_for_update(val, cached) and not send_duplicate_states:
             continue
         states.append(get_afero_state_from_feature(key[0], key[1], val.api_value))
     return states

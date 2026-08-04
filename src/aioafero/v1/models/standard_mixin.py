@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from . import features
 from .resource import DeviceInformation
 from .sensor import AferoBinarySensor, AferoSensor
+from .update_comparison import default_feature_for_update_comparison
 
 
 @dataclass(kw_only=True)
@@ -39,6 +40,12 @@ class StandardMixin:
     def get_instance(self, elem):
         """Lookup the instance associated with the elem."""
         return self.instances.get(elem, None)
+
+    def feature_for_update_comparison(
+        self, field_name: str, put_feature: object | None
+    ) -> object | None:
+        """Return the cached feature used to suppress unchanged API writes."""
+        return default_feature_for_update_comparison(self, field_name, put_feature)
 
     @property
     def id(self):

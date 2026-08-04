@@ -20,7 +20,7 @@ class ValveController(BaseResourcesController[Valve]):
     ITEM_CLS = Valve
     ITEM_MAPPING = {}
 
-    async def turn_on(self, device_id: str, instance: str | None = None) -> None:
+    async def turn_on(self, device_id: str, *, instance: str | None = None) -> None:
         """Open the valve.
 
         Args:
@@ -30,7 +30,7 @@ class ValveController(BaseResourcesController[Valve]):
         """
         await self.set_state(device_id, valve_open=True, instance=instance)
 
-    async def turn_off(self, device_id: str, instance: str | None = None) -> None:
+    async def turn_off(self, device_id: str, *, instance: str | None = None) -> None:
         """Close the valve.
 
         Args:
@@ -107,6 +107,7 @@ class ValveController(BaseResourcesController[Valve]):
     async def set_state(
         self,
         device_id: str,
+        *,
         valve_open: bool | None = None,
         instance: str | None = None,
     ) -> None:
