@@ -123,8 +123,6 @@ def test_empty_light(empty_light):
     assert not empty_light.supports_white
 
 
-
-
 def test_dual_channel_helpers():
     """Dual-channel fixtures expose per-driver state via channels."""
     dual = Light(
@@ -169,7 +167,9 @@ def test_feature_for_update_comparison_channel_edges():
         device_information=DeviceInformation(),
     )
     # Instance in channels but not a toggle → use primary on.
-    powerish = features.OnFeature(on=True, function_class="power", function_instance="color")
+    powerish = features.OnFeature(
+        on=True, function_class="power", function_instance="color"
+    )
     assert dual.feature_for_update_comparison("on", powerish) is dual.on
     # Unknown channel brightness does not suppress.
     dim = features.DimmingFeature(
@@ -188,11 +188,12 @@ def test_feature_for_update_comparison_channel_edges():
     assert (
         dual.feature_for_update_comparison(
             "color",
-            features.OnFeature(on=True, function_class="toggle", function_instance="color"),
+            features.OnFeature(
+                on=True, function_class="toggle", function_instance="color"
+            ),
         )
         is None
     )
     # Missing dimming feature on the light also does not suppress.
     dual.dimming = None
     assert dual.feature_for_update_comparison("dimming", dim) is None
-

@@ -10,7 +10,7 @@ from aioafero.v1.controllers.light import (
     process_effects,
     state_matches_instance,
 )
-from aioafero.v1.models.features import ColorFeature, EffectFeature
+from aioafero.v1.models.features import EffectFeature
 from aioafero.v1.models.light import Light, LightChannel
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 from tests.v1 import utils
@@ -388,7 +388,9 @@ def test_apply_brightness_state_update_dual_channel_channels():
     cur_item = _dual_channel_light(
         dimming=features.DimmingFeature(
             function_class="brightness",
-            brightness=50, supported=[1, 100], function_instance="color"
+            brightness=50,
+            supported=[1, 100],
+            function_instance="color",
         )
     )
     updated: set[str] = set()
@@ -422,7 +424,9 @@ def test_apply_brightness_state_update_syncs_function_instance_without_brightnes
     cur_item = _dual_channel_light(
         dimming=features.DimmingFeature(
             function_class="brightness",
-            brightness=40, supported=[1, 100], function_instance="color"
+            brightness=40,
+            supported=[1, 100],
+            function_instance="color",
         )
     )
     updated: set[str] = set()
@@ -526,7 +530,9 @@ def test_resolve_brightness_instance_dual_channel(
         },
         dimming=features.DimmingFeature(
             function_class="brightness",
-            brightness=50, supported=[1, 100], function_instance="primary"
+            brightness=50,
+            supported=[1, 100],
+            function_instance="primary",
         ),
     )
     assert (
@@ -550,10 +556,14 @@ def test_resolve_brightness_instance_from_cached_white_mode():
             "color": LightChannel(),
             "white": LightChannel(),
         },
-        color_mode=features.ColorModeFeature(mode="white", function_class="color-mode", function_instance=None),
+        color_mode=features.ColorModeFeature(
+            mode="white", function_class="color-mode", function_instance=None
+        ),
         dimming=features.DimmingFeature(
             function_class="brightness",
-            brightness=50, supported=[1, 100], function_instance="primary"
+            brightness=50,
+            supported=[1, 100],
+            function_instance="primary",
         ),
     )
     assert light.resolve_brightness_instance(cur_item) == "white"
@@ -561,13 +571,21 @@ def test_resolve_brightness_instance_from_cached_white_mode():
 
 def test_resolve_brightness_instance_from_cached_color_mode():
     """Brightness-only PUTs follow cached color mode when no explicit mode is passed."""
-    cur_item = _dual_channel_light(color_mode=features.ColorModeFeature(mode="color", function_class="color-mode", function_instance=None))
+    cur_item = _dual_channel_light(
+        color_mode=features.ColorModeFeature(
+            mode="color", function_class="color-mode", function_instance=None
+        )
+    )
     assert light.resolve_brightness_instance(cur_item) == "color"
 
 
 def test_resolve_brightness_instance_from_cached_sequence_mode():
     """Cached sequence mode routes brightness to the color channel."""
-    cur_item = _dual_channel_light(color_mode=features.ColorModeFeature(mode="sequence", function_class="color-mode", function_instance=None))
+    cur_item = _dual_channel_light(
+        color_mode=features.ColorModeFeature(
+            mode="sequence", function_class="color-mode", function_instance=None
+        )
+    )
     assert light.resolve_brightness_instance(cur_item) == "color"
 
 
@@ -578,7 +596,9 @@ def test_resolve_brightness_instance_non_dual_channel():
         available=True,
         dimming=features.DimmingFeature(
             function_class="brightness",
-            brightness=50, supported=[1, 100], function_instance="main"
+            brightness=50,
+            supported=[1, 100],
+            function_instance="main",
         ),
     )
     assert light.resolve_brightness_instance(cur_item) == "main"
@@ -1597,7 +1617,6 @@ async def test_set_rgb(mocked_controller, mocker):
     assert dev.color.red == 0
     assert dev.color.green == 20
     assert dev.color.blue == 40
-
 
 
 @pytest.mark.asyncio
