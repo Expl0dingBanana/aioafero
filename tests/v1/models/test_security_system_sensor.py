@@ -16,19 +16,19 @@ def populated_entity():
         split_identifier="sensor",
         available=True,
         selects={
-            ("sensor-2 ", "chirpMode"): features.SelectFeature(
+            ("chirpMode", None): features.SelectFeature(
                 selected="On",
                 selects={"On", "Off"},
                 name="Chirp Mode",
-                function_class="sensor-2",
-                function_instance="chirpMode",
+                function_class="chirpMode",
+                function_instance=None,
             ),
         },
         binary_sensors={
-            "tampered": AferoBinarySensor(
-                id="tampered",
+            "tampered|None": AferoBinarySensor(
+                id="tampered|None",
                 owner="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-                instance="tampered",
+                instance=None,
                 current_value=1,
                 _error=1,
             )
