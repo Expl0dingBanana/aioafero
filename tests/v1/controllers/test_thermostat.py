@@ -4,6 +4,7 @@ import logging
 
 import pytest
 
+from aioafero import errors
 from aioafero.device import AferoState
 from aioafero.v1.controllers.device import AferoBinarySensor
 from aioafero.v1.controllers.thermostat import features, get_supported_modes
@@ -27,33 +28,68 @@ async def test_initialize(mocked_controller):
     assert dev.id == thermostat_id
     assert dev.current_temperature.temperature == 18.3
     assert dev.fan_mode == features.ModeFeature(
-        mode="auto", modes={"on", "auto", "intermittent"}
+        function_class="fan-mode",
+        function_instance=None,
+        mode="auto",
+        modes={"on", "auto", "intermittent"},
     )
     assert dev.fan_running is False
     assert dev.hvac_action == "off"
     assert dev.hvac_mode == features.HVACModeFeature(
+        function_class="mode",
+        function_instance=None,
         mode="heat",
         previous_mode="heat",
         modes={"off", "heat", "auto", "fan", "cool"},
         supported_modes={"off", "heat", "fan"},
     )
     assert dev.safety_max_temp == features.TargetTemperatureFeature(
-        value=36, min=29.5, max=37, step=0.5, instance="safety-mode-max-temp"
+        function_class="temperature",
+        function_instance="safety-mode-max-temp",
+        value=36,
+        min=29.5,
+        max=37,
+        step=0.5,
     )
     assert dev.safety_min_temp == features.TargetTemperatureFeature(
-        value=4, min=4, max=13, step=0.5, instance="safety-mode-min-temp"
+        function_class="temperature",
+        function_instance="safety-mode-min-temp",
+        value=4,
+        min=4,
+        max=13,
+        step=0.5,
     )
     assert dev.target_temperature_auto_cooling == features.TargetTemperatureFeature(
-        value=26.5, step=0.5, min=10, max=37, instance="auto-cooling-target"
+        function_class="temperature",
+        function_instance="auto-cooling-target",
+        value=26.5,
+        step=0.5,
+        min=10,
+        max=37,
     )
     assert dev.target_temperature_auto_heating == features.TargetTemperatureFeature(
-        value=18.5, step=0.5, min=4, max=32, instance="auto-heating-target"
+        function_class="temperature",
+        function_instance="auto-heating-target",
+        value=18.5,
+        step=0.5,
+        min=4,
+        max=32,
     )
     assert dev.target_temperature_cooling == features.TargetTemperatureFeature(
-        value=26.5, step=0.5, min=10, max=37, instance="cooling-target"
+        function_class="temperature",
+        function_instance="cooling-target",
+        value=26.5,
+        step=0.5,
+        min=10,
+        max=37,
     )
     assert dev.target_temperature_heating == features.TargetTemperatureFeature(
-        value=18, step=0.5, min=4, max=32, instance="heating-target"
+        function_class="temperature",
+        function_instance="heating-target",
+        value=18,
+        step=0.5,
+        min=4,
+        max=32,
     )
     assert dev.sensors == {}
     assert dev.binary_sensors == {
@@ -311,7 +347,7 @@ async def test_update_elem_no_updates(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state(mocked_controller):
+async def test_set_state(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
     )
@@ -319,6 +355,7 @@ async def test_set_state(mocked_controller):
     mocked_controller[thermostat_id].hvac_mode.mode = "heat"
     mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         thermostat_id,
         hvac_mode="cool",
@@ -330,6 +367,53 @@ async def test_set_state(mocked_controller):
         target_temperature_cooling=18,
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        thermostat_id,
+        [
+            {
+                "functionClass": "mode",
+                "functionInstance": None,
+                "value": "cool",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "safety-mode-max-temp",
+                "value": 35,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "safety-mode-min-temp",
+                "value": 8,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "auto-heating-target",
+                "value": 22,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "auto-cooling-target",
+                "value": 22.5,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "heating-target",
+                "value": 17,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "cooling-target",
+                "value": 18,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     dev = mocked_controller[thermostat_id]
     assert dev.fan_mode.mode == "auto"
     assert dev.fan_running is False
@@ -343,7 +427,7 @@ async def test_set_state(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_in_f_force_c(mocked_controller):
+async def test_set_state_in_f_force_c(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
     )
@@ -351,6 +435,7 @@ async def test_set_state_in_f_force_c(mocked_controller):
     assert len(mocked_controller.items) == 1
     mocked_controller[thermostat_id].hvac_mode.mode = "heat"
     mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         thermostat_id,
         hvac_mode="cool",
@@ -363,6 +448,53 @@ async def test_set_state_in_f_force_c(mocked_controller):
         is_celsius=True,
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        thermostat_id,
+        [
+            {
+                "functionClass": "mode",
+                "functionInstance": None,
+                "value": "cool",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "safety-mode-max-temp",
+                "value": 35,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "safety-mode-min-temp",
+                "value": 8,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "auto-heating-target",
+                "value": 22,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "auto-cooling-target",
+                "value": 22.5,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "heating-target",
+                "value": 17,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "cooling-target",
+                "value": 18,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     dev = mocked_controller[thermostat_id]
     assert dev.fan_mode.mode == "auto"
     assert dev.fan_running is False
@@ -377,7 +509,14 @@ async def test_set_state_in_f_force_c(mocked_controller):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("current_mode", "prev_mode", "params", "expected_result", "expected_messages"),
+    (
+        "current_mode",
+        "prev_mode",
+        "params",
+        "expected_result",
+        "expected_states",
+        "expected_messages",
+    ),
     [
         # Testing target_temp / cooling
         (
@@ -385,6 +524,13 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "cool",
             {"target_temperature": 25},
             {"instance": "cooling-target", "value": 25},
+            [
+                {
+                    "functionClass": "temperature",
+                    "functionInstance": "cooling-target",
+                    "value": 25,
+                }
+            ],
             [],
         ),
         # Testing target_temp / cooling
@@ -393,6 +539,13 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "heat",
             {"target_temperature": 24},
             {"instance": "heating-target", "value": 24},
+            [
+                {
+                    "functionClass": "temperature",
+                    "functionInstance": "heating-target",
+                    "value": 24,
+                }
+            ],
             [],
         ),
         # Testing changing mode
@@ -401,6 +554,14 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "heat",
             {"target_temperature": 24, "hvac_mode": "cool"},
             {"instance": "cooling-target", "value": 24, "mode": "cool"},
+            [
+                {"functionClass": "mode", "functionInstance": None, "value": "cool"},
+                {
+                    "functionClass": "temperature",
+                    "functionInstance": "cooling-target",
+                    "value": 24,
+                },
+            ],
             [],
         ),
         # Testing target_temp / debug message
@@ -408,6 +569,7 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "off",
             "off",
             {"target_temperature": 25},
+            [],
             [],
             ["Unable to set the target temperature due to the active mode: off"],
         ),
@@ -417,6 +579,7 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "cool",
             {"fan_mode": "beans"},
             [],
+            [],
             ["Unknown fan mode beans. Available modes: auto, intermittent, on"],
         ),
         # Invalid hvac mode
@@ -424,6 +587,7 @@ async def test_set_state_in_f_force_c(mocked_controller):
             "auto",
             "cool",
             {"hvac_mode": "beans"},
+            [],
             [],
             ["Unknown hvac mode beans. Available modes: cool, fan, heat, off"],
         ),
@@ -434,8 +598,10 @@ async def test_set_state_hvac_generics(
     prev_mode,
     params,
     expected_result,
+    expected_states,
     expected_messages,
     mocked_controller,
+    mocker,
     caplog,
 ):
     caplog.set_level(logging.DEBUG)
@@ -447,8 +613,16 @@ async def test_set_state_hvac_generics(
     mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
     mocked_controller[thermostat_id].hvac_mode.previous_mode = prev_mode
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(thermostat_id, **params)
     await mocked_controller._bridge.async_block_until_done()
+    if expected_states:
+        update_afero_api.assert_awaited_once_with(
+            thermostat_id,
+            [{**state, "lastUpdateTime": mocker.ANY} for state in expected_states],
+        )
+    else:
+        update_afero_api.assert_not_awaited()
     dev = mocked_controller[thermostat_id]
     if expected_result:
         if "mode" in expected_result:
@@ -495,6 +669,7 @@ async def test_set_state_fan_generics(
     expected_states,
     expected_messages,
     mocked_controller,
+    mocker,
     caplog,
 ):
     caplog.set_level(logging.DEBUG)
@@ -505,8 +680,29 @@ async def test_set_state_fan_generics(
     mocked_controller[thermostat_id].hvac_mode.mode = hvac_mode
     mocked_controller[thermostat_id].fan_mode.mode = fan_mode
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(thermostat_id, **params)
     await mocked_controller._bridge.async_block_until_done()
+    if expected_states:
+        update_afero_api.assert_awaited_once_with(
+            thermostat_id,
+            [
+                {
+                    "functionClass": "fan-mode",
+                    "functionInstance": None,
+                    "value": expected_states["fan-mode"],
+                    "lastUpdateTime": mocker.ANY,
+                },
+                {
+                    "functionClass": "mode",
+                    "functionInstance": None,
+                    "value": expected_states["mode"],
+                    "lastUpdateTime": mocker.ANY,
+                },
+            ],
+        )
+    else:
+        update_afero_api.assert_not_awaited()
     dev = mocked_controller[thermostat_id]
     if expected_states:
         assert dev.fan_mode.mode == expected_states["fan-mode"]
@@ -516,22 +712,40 @@ async def test_set_state_fan_generics(
 
 
 @pytest.mark.asyncio
-async def test_set_fan_mode(mocked_controller):
+async def test_set_fan_mode(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
     mocked_controller[thermostat_id].fan_mode.mode = "off"
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_fan_mode(thermostat_id, "on")
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        thermostat_id,
+        [
+            {
+                "functionClass": "fan-mode",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "mode",
+                "functionInstance": None,
+                "value": "fan",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     dev = mocked_controller[thermostat_id]
     assert dev.fan_mode.mode == "on"
     assert dev.hvac_mode.mode == "fan"
 
 
 @pytest.mark.asyncio
-async def test_set_hvac_mode(mocked_controller):
+async def test_set_hvac_mode(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
     )
@@ -539,14 +753,26 @@ async def test_set_hvac_mode(mocked_controller):
     assert len(mocked_controller.items) == 1
     mocked_controller[thermostat_id].hvac_mode.mode = "heat"
     mocked_controller[thermostat_id].hvac_mode.supported_modes.add("cool")
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_hvac_mode(thermostat_id, "cool")
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        thermostat_id,
+        [
+            {
+                "functionClass": "mode",
+                "functionInstance": None,
+                "value": "cool",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller[thermostat_id]
     assert dev.hvac_mode.mode == "cool"
 
 
 @pytest.mark.asyncio
-async def test_set_target_temperature(mocked_controller):
+async def test_set_target_temperature(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
     )
@@ -554,14 +780,26 @@ async def test_set_target_temperature(mocked_controller):
     assert len(mocked_controller.items) == 1
     mocked_controller[thermostat_id].hvac_mode.mode = "heat"
     mocked_controller[thermostat_id].target_temperature_heating.value = 20
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_target_temperature(thermostat_id, 21)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        thermostat_id,
+        [
+            {
+                "functionClass": "temperature",
+                "functionInstance": "heating-target",
+                "value": 21,
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     dev = mocked_controller[thermostat_id]
     assert dev.target_temperature_heating.value == 21
 
 
 @pytest.mark.asyncio
-async def test_set_temperature_range(mocked_controller):
+async def test_set_temperature_range(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(thermostat)]
     )
@@ -570,8 +808,26 @@ async def test_set_temperature_range(mocked_controller):
     mocked_controller[thermostat_id].hvac_mode.mode = "auto"
     mocked_controller[thermostat_id].target_temperature_auto_heating.value = 20
     mocked_controller[thermostat_id].target_temperature_auto_cooling.value = 21
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_temperature_range(thermostat_id, 21, 22)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        thermostat_id,
+        [
+            {
+                "functionClass": "temperature",
+                "functionInstance": "auto-heating-target",
+                "value": 21,
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "temperature",
+                "functionInstance": "auto-cooling-target",
+                "value": 22,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     dev = mocked_controller[thermostat_id]
     assert dev.target_temperature_auto_heating.value == 21
     assert dev.target_temperature_auto_cooling.value == 22
@@ -593,5 +849,9 @@ def test_get_supported_modes(system_type, modes, expected):
     assert get_supported_modes(system_type, modes) == expected
 
 
-async def set_state_invalid_device(mocked_controller):
-    assert await mocked_controller.set_state("invalid", hvac_mode="cool") is None
+@pytest.mark.asyncio
+async def test_set_state_invalid_device(mocked_controller, mocker):
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    with pytest.raises(errors.DeviceNotFound):
+        await mocked_controller.set_state("invalid", hvac_mode="cool")
+    update_afero_api.assert_not_awaited()

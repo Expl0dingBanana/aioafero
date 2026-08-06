@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `valve`."""
 
+from dataclasses import replace
+
 from aioafero import errors
 from aioafero.device import AferoDevice
 from aioafero.v1.models import features
@@ -18,7 +20,6 @@ class ValveController(BaseResourcesController[Valve]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.WATER_TIMER]
     ITEM_CLS = Valve
-    ITEM_MAPPING = {}
 
     async def turn_on(self, device_id: str, *, instance: str | None = None) -> None:
         """Open the valve.
@@ -49,15 +50,15 @@ class ValveController(BaseResourcesController[Valve]):
         """
         self._logger.info("Initializing %s", afero_device.id)
         available: bool = False
-        valve_open: dict[str, features.OpenFeature] = {}
+        valve_open: dict[str | None, features.OpenFeature] = {}
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
             if state.functionClass in ["power", "toggle"]:
                 valve_open[state.functionInstance] = features.OpenFeature(
                     open=state.value == "on",
-                    func_class=state.functionClass,
-                    func_instance=state.functionInstance,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "available":
                 available = state.value
@@ -127,11 +128,7 @@ class ValveController(BaseResourcesController[Valve]):
             return
         if valve_open is not None:
             try:
-                update_obj.open = features.OpenFeature(
-                    open=valve_open,
-                    func_class=cur_item.open[instance].func_class,
-                    func_instance=instance,
-                )
+                update_obj.open = replace(cur_item.open[instance], open=valve_open)
             except KeyError:
                 self._logger.info("Unable to find instance %s", instance)
         await self.update(device_id, obj_in=update_obj)

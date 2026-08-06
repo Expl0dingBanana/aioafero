@@ -2,6 +2,7 @@
 
 import asyncio
 import copy
+from dataclasses import replace
 
 from aioafero.device import (
     AferoCapability,
@@ -160,7 +161,7 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
             valid_functions.append(
                 {
                     "functionClass": "chirpMode",
-                    "functionInstance": func["functionInstance"],
+                    "functionInstance": None,
                     "type": "category",
                     "values": [{"name": x} for x in GENERIC_MODES.values()],
                 }
@@ -168,7 +169,7 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
             valid_functions.append(
                 {
                     "functionClass": "triggerType",
-                    "functionInstance": func["functionInstance"],
+                    "functionInstance": None,
                     "type": "category",
                     "values": [{"name": x} for x in TRIGGER_MODES.values()],
                 }
@@ -176,7 +177,7 @@ def get_valid_functions(afero_functions: list, sensor_id: int) -> list:
             valid_functions.append(
                 {
                     "functionClass": "bypassType",
-                    "functionInstance": func["functionInstance"],
+                    "functionInstance": None,
                     "type": "category",
                     "values": [{"name": x} for x in BYPASS_MODES.values()],
                 }
@@ -224,7 +225,6 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.SECURITY_SYSTEM]
     ITEM_CLS = SecuritySystem
-    ITEM_MAPPING = {"alarm_state": "alarm-state"}
     # Sensors map functionClass -> Unit
     ITEM_SENSORS: dict[str, str] = {
         "alarm-state": None,
@@ -332,8 +332,14 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 alarm_state = features.ModeFeature(
                     mode=state.value,
                     modes=set(
-                        process_function(afero_device.functions, state.functionClass)
+                        process_function(
+                            afero_device.functions,
+                            state.functionClass,
+                            state.functionInstance,
+                        )
                     ),
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif sensor := await self.initialize_sensor(state, afero_device.device_id):
                 if isinstance(sensor, AferoBinarySensor):
@@ -354,6 +360,25 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
                 siren_action = features.SecuritySensorSirenFeature(
                     result_code=result_code,
                     command=command,
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
+                )
+
+        if siren_action is None:
+            siren_function = next(
+                (
+                    function
+                    for function in afero_device.functions
+                    if function["functionClass"] == "siren-action"
+                ),
+                None,
+            )
+            if siren_function is not None:
+                siren_action = features.SecuritySensorSirenFeature(
+                    result_code=None,
+                    command=None,
+                    function_class=siren_function["functionClass"],
+                    function_instance=siren_function.get("functionInstance"),
                 )
 
         self._items[afero_device.id] = SecuritySystem(
@@ -450,33 +475,36 @@ class SecuritySystemController(BaseResourcesController[SecuritySystem]):
             force_mode = True
             if command != 5:
                 await self.validate_arm_state(device_id, command)
-            update_obj.siren_action = features.SecuritySensorSirenFeature(
-                result_code=0,
-                command=command,
-            )
+            if cur_item.siren_action is None:
+                self._logger.warning("Device %s has no siren-action feature", device_id)
+            else:
+                update_obj.siren_action = replace(
+                    cur_item.siren_action,
+                    result_code=0,
+                    command=command,
+                )
         if disarm_pin is not None:
             force_mode = True
-            update_obj.disarm_pin = features.SecuritySystemDisarmPin(pin=disarm_pin)
+            update_obj.disarm_pin = features.SecuritySystemDisarmPin(
+                pin=disarm_pin,
+                function_class="disarm",
+                function_instance=None,
+            )
         if numbers:
             for key, val in numbers.items():
                 if key not in cur_item.numbers:
                     continue
-                update_obj.numbers[key] = features.NumbersFeature(
+                update_obj.numbers[key] = replace(
+                    cur_item.numbers[key],
                     value=val,
-                    min=cur_item.numbers[key].min,
-                    max=cur_item.numbers[key].max,
-                    step=cur_item.numbers[key].step,
-                    name=cur_item.numbers[key].name,
-                    unit=cur_item.numbers[key].unit,
                 )
         if selects:
             for key, val in selects.items():
                 if key not in cur_item.selects:
                     continue
-                update_obj.selects[key] = features.SelectFeature(
+                update_obj.selects[key] = replace(
+                    cur_item.selects[key],
                     selected=val,
-                    selects=cur_item.selects[key].selects,
-                    name=cur_item.selects[key].name,
                 )
         await self.update(
             device_id, obj_in=update_obj, send_duplicate_states=force_mode

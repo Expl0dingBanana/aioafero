@@ -64,7 +64,7 @@ class Fan(StandardMixin):
     def current_preset(self) -> str | None:
         """Current fan preset."""
         if self.preset and self.preset.enabled:
-            return self.preset.func_instance
+            return self.preset.function_instance
         return None
 
 

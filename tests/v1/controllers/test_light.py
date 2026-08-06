@@ -4,14 +4,13 @@ import pytest
 
 from aioafero.device import AferoCapability, AferoDevice, AferoState, merge_afero_states
 from aioafero.v1.controllers import event, light
-from aioafero.v1.controllers.base import get_afero_instance_for_state
 from aioafero.v1.controllers.light import (
     features,
     process_color_temps,
     process_effects,
     state_matches_instance,
 )
-from aioafero.v1.models.features import ColorFeature, EffectFeature
+from aioafero.v1.models.features import EffectFeature
 from aioafero.v1.models.light import Light, LightChannel
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 from tests.v1 import utils
@@ -43,11 +42,39 @@ def _dual_channel_light(**kwargs) -> Light:
             "white": LightChannel(brightness=100, on=False),
         },
         "dimming": features.DimmingFeature(
-            brightness=50, supported=[1, 100], func_instance="primary"
+            brightness=50,
+            supported=[1, 100],
+            function_class="brightness",
+            function_instance="primary",
         ),
     }
     defaults.update(kwargs)
     return Light(**defaults)
+
+
+def test_resolve_effect_value_is_order_independent():
+    effects = {"preset": {"fade-3"}, "custom": {"rainbow"}}
+    custom = AferoState(
+        functionClass="color-sequence",
+        functionInstance="custom",
+        value="rainbow",
+        lastUpdateTime=0,
+    )
+    preset = AferoState(
+        functionClass="color-sequence",
+        functionInstance="preset",
+        value="custom",
+        lastUpdateTime=0,
+    )
+
+    assert (
+        light.resolve_effect_value(
+            effects,
+            {"custom": custom, "preset": preset},
+        )
+        == "rainbow"
+    )
+    assert light.resolve_effect_value(effects, {"preset": preset}) is None
 
 
 def _trim_update_with_states(
@@ -360,7 +387,10 @@ def test_apply_brightness_state_update_dual_channel_channels():
     """Inbound color, white, and primary brightness update the light model."""
     cur_item = _dual_channel_light(
         dimming=features.DimmingFeature(
-            brightness=50, supported=[1, 100], func_instance="color"
+            function_class="brightness",
+            brightness=50,
+            supported=[1, 100],
+            function_instance="color",
         )
     )
     updated: set[str] = set()
@@ -385,15 +415,18 @@ def test_apply_brightness_state_update_dual_channel_channels():
     assert cur_item.channels["color"].brightness == 25
     assert cur_item.channels["white"].brightness == 75
     assert cur_item.dimming.brightness == 40
-    assert cur_item.dimming.func_instance == "primary"
+    assert cur_item.dimming.function_instance == "primary"
     assert updated == {"channels", "dimming"}
 
 
-def test_apply_brightness_state_update_syncs_func_instance_without_brightness_change():
+def test_apply_brightness_state_update_syncs_function_instance_without_brightness_change():
     """Primary brightness instance must update even when the level is unchanged."""
     cur_item = _dual_channel_light(
         dimming=features.DimmingFeature(
-            brightness=40, supported=[1, 100], func_instance="color"
+            function_class="brightness",
+            brightness=40,
+            supported=[1, 100],
+            function_instance="color",
         )
     )
     updated: set[str] = set()
@@ -404,7 +437,7 @@ def test_apply_brightness_state_update_syncs_func_instance_without_brightness_ch
         updated,
     )
     assert cur_item.dimming.brightness == 40
-    assert cur_item.dimming.func_instance == "primary"
+    assert cur_item.dimming.function_instance == "primary"
     assert updated == {"dimming"}
 
 
@@ -421,7 +454,7 @@ def test_apply_brightness_state_update_skips_non_preferred_dimming():
     assert cur_item.channels["color"].brightness == 99
     assert updated == {"channels"}
     assert cur_item.dimming.brightness == 50
-    assert cur_item.dimming.func_instance == "primary"
+    assert cur_item.dimming.function_instance == "primary"
 
 
 def test_get_split_instances_skips_toggle_matching_light_zone():
@@ -496,7 +529,10 @@ def test_resolve_brightness_instance_dual_channel(
             "white": LightChannel(brightness=100),
         },
         dimming=features.DimmingFeature(
-            brightness=50, supported=[1, 100], func_instance="primary"
+            function_class="brightness",
+            brightness=50,
+            supported=[1, 100],
+            function_instance="primary",
         ),
     )
     assert (
@@ -520,9 +556,14 @@ def test_resolve_brightness_instance_from_cached_white_mode():
             "color": LightChannel(),
             "white": LightChannel(),
         },
-        color_mode=features.ColorModeFeature("white"),
+        color_mode=features.ColorModeFeature(
+            mode="white", function_class="color-mode", function_instance=None
+        ),
         dimming=features.DimmingFeature(
-            brightness=50, supported=[1, 100], func_instance="primary"
+            function_class="brightness",
+            brightness=50,
+            supported=[1, 100],
+            function_instance="primary",
         ),
     )
     assert light.resolve_brightness_instance(cur_item) == "white"
@@ -530,13 +571,21 @@ def test_resolve_brightness_instance_from_cached_white_mode():
 
 def test_resolve_brightness_instance_from_cached_color_mode():
     """Brightness-only PUTs follow cached color mode when no explicit mode is passed."""
-    cur_item = _dual_channel_light(color_mode=features.ColorModeFeature("color"))
+    cur_item = _dual_channel_light(
+        color_mode=features.ColorModeFeature(
+            mode="color", function_class="color-mode", function_instance=None
+        )
+    )
     assert light.resolve_brightness_instance(cur_item) == "color"
 
 
 def test_resolve_brightness_instance_from_cached_sequence_mode():
     """Cached sequence mode routes brightness to the color channel."""
-    cur_item = _dual_channel_light(color_mode=features.ColorModeFeature("sequence"))
+    cur_item = _dual_channel_light(
+        color_mode=features.ColorModeFeature(
+            mode="sequence", function_class="color-mode", function_instance=None
+        )
+    )
     assert light.resolve_brightness_instance(cur_item) == "color"
 
 
@@ -546,7 +595,10 @@ def test_resolve_brightness_instance_non_dual_channel():
         _id=a21_light.id,
         available=True,
         dimming=features.DimmingFeature(
-            brightness=50, supported=[1, 100], func_instance="main"
+            function_class="brightness",
+            brightness=50,
+            supported=[1, 100],
+            function_instance="main",
         ),
     )
     assert light.resolve_brightness_instance(cur_item) == "main"
@@ -916,24 +968,6 @@ def test_get_color_mode_hints_for_device_penrose():
     assert hints == {"night-light": ["no-brightness"]}
 
 
-@pytest.mark.asyncio
-async def test_get_afero_instance_for_trim_split_uses_elem_instance(mocked_controller):
-    """Outbound must use elem.instance; get_instance() alone would pick main."""
-    await mocked_controller._bridge.events.generate_events_from_data(
-        utils.create_hs_raw_from_dump("light-with-trim.json")
-    )
-    await mocked_controller._bridge.async_block_until_done()
-    trim_resource = mocked_controller[trim_light_trim_id]
-    assert trim_resource.instance == "trim"
-    assert trim_resource.get_instance("color-rgb") == "main"
-    assert (
-        get_afero_instance_for_state(
-            trim_resource, ColorFeature(red=0, green=0, blue=0), "color-rgb"
-        )
-        == "trim"
-    )
-
-
 def test_merge_afero_states_preserves_other_instances():
     """Partial API payloads must not drop other functionInstance rows."""
     existing = [
@@ -984,10 +1018,22 @@ async def test_initialize_a21(mocked_controller):
     assert len(mocked_controller.items) == 1
     dev = mocked_controller.items[0]
     assert dev.id == "dd883754-e9f2-4c48-b755-09bf6ce776be"
-    assert dev.on == features.OnFeature(on=True)
-    assert dev.color == features.ColorFeature(red=232, green=255, blue=30)
-    assert dev.color_mode == features.ColorModeFeature(mode="white")
+    assert dev.on == features.OnFeature(
+        function_class="power", function_instance=None, on=True
+    )
+    assert dev.color == features.ColorFeature(
+        function_class="color-rgb",
+        function_instance=None,
+        red=232,
+        green=255,
+        blue=30,
+    )
+    assert dev.color_mode == features.ColorModeFeature(
+        function_class="color-mode", function_instance=None, mode="white"
+    )
     assert dev.color_temperature == features.ColorTemperatureFeature(
+        function_class="color-temperature",
+        function_instance=None,
         temperature=4000,
         supported=[
             2200,
@@ -1038,6 +1084,8 @@ async def test_initialize_a21(mocked_controller):
         prefix="",
     )
     assert dev.dimming == features.DimmingFeature(
+        function_class="brightness",
+        function_instance=None,
         brightness=50,
         supported=[
             1,
@@ -1143,6 +1191,8 @@ async def test_initialize_a21(mocked_controller):
         ],
     )
     assert dev.effect == features.EffectFeature(
+        function_class="color-sequence",
+        function_instance="preset",
         effect="getting-ready",
         effects={
             "preset": {"jump-3", "fade-3", "fade-7", "jump-7", "flash"},
@@ -1172,12 +1222,16 @@ async def test_initialize_zandra(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.id == "3a0c5015-c19d-417f-8e08-e71cd5bc221b"
     assert dev.on == features.OnFeature(
-        on=True, func_class="power", func_instance="light-power"
+        function_class="power", function_instance="light-power", on=True
     )
     assert dev.color is None
     assert dev.color_mode is None
     assert dev.color_temperature == features.ColorTemperatureFeature(
-        temperature=3000, supported=[2700, 3000, 3500, 4000, 5000, 6500], prefix="K"
+        function_class="color-temperature",
+        function_instance=None,
+        temperature=3000,
+        supported=[2700, 3000, 3500, 4000, 5000, 6500],
+        prefix="K",
     )
 
 
@@ -1188,7 +1242,7 @@ async def test_initialize_dimmer(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.id == "ebda9f3b-05bc-4764-a9f7-e2d52f707130"
     assert dev.on == features.OnFeature(
-        on=False, func_class="power", func_instance="gang-1"
+        function_class="power", function_instance="gang-1", on=False
     )
 
 
@@ -1200,7 +1254,14 @@ async def test_initialize_with_speed(mocked_controller):
     assert dev.id == "a2d36de5-8b91-411a-907a-ecb665422d00"
     assert dev.numbers == {
         ("speed", "color-sequence"): features.NumbersFeature(
-            value=-10, min=-10, max=10, step=1, unit="speed", name="Effect Speed"
+            function_class="speed",
+            function_instance="color-sequence",
+            value=-10,
+            min=-10,
+            max=10,
+            step=1,
+            unit="speed",
+            name="Effect Speed",
         )
     }
 
@@ -1214,7 +1275,7 @@ async def test_initialize_with_speed(mocked_controller):
         (dimmer_light),
     ],
 )
-async def test_turn_on(afero_dev, mocked_controller):
+async def test_turn_on(afero_dev, mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(afero_dev)]
@@ -1223,8 +1284,20 @@ async def test_turn_on(afero_dev, mocked_controller):
     await mocked_controller.initialize_elem(afero_dev)
     dev = mocked_controller.items[0]
     dev.on.on = False
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.turn_on(afero_dev.id)
     await bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        afero_dev.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": dev.on.function_instance,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert dev.is_on
 
 
@@ -1237,7 +1310,7 @@ async def test_turn_on(afero_dev, mocked_controller):
         (dimmer_light),
     ],
 )
-async def test_turn_off(afero_dev, mocked_controller):
+async def test_turn_off(afero_dev, mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(afero_dev)]
@@ -1245,13 +1318,25 @@ async def test_turn_off(afero_dev, mocked_controller):
     await bridge.async_block_until_done()
     dev = mocked_controller.items[0]
     dev.on.on = True
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.turn_off(afero_dev.id)
     await bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        afero_dev.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": dev.on.function_instance,
+                "value": "off",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert not dev.is_on
 
 
 @pytest.mark.asyncio
-async def test_set_color_temperature(mocked_controller):
+async def test_set_color_temperature(mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(a21_light)]
@@ -1262,8 +1347,32 @@ async def test_set_color_temperature(mocked_controller):
     dev.on.on = False
     dev.color_temperature.temperature = 2700
     dev.color_mode.mode = "color"
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_color_temperature(a21_light.id, 3475)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        a21_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": None,
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-temperature",
+                "functionInstance": None,
+                "value": "3500",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     assert dev.is_on
     assert dev.color_mode.mode == "white"
     assert dev.color_temperature.temperature == 3500
@@ -1280,24 +1389,30 @@ async def test_set_state_temperature_defaults_color_mode_white(
     await mocked_controller._bridge.async_block_until_done()
     dev = mocked_controller[a21_light.id]
     dev.color_mode.mode = "color"
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": a21_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(a21_light.id, on=True, temperature=3475)
     await mocked_controller._bridge.async_block_until_done()
-    sent_states = update_afero_api.call_args[0][1]
-    by_class = {state["functionClass"]: state for state in sent_states}
-    assert by_class["color-mode"]["value"] == "white"
-    assert "color-temperature" in by_class
+    update_afero_api.assert_awaited_once_with(
+        a21_light.id,
+        [
+            {
+                "functionClass": "color-mode",
+                "functionInstance": None,
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-temperature",
+                "functionInstance": None,
+                "value": "3500",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
-async def test_set_brightness(mocked_controller):
+async def test_set_brightness(mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(a21_light)]
@@ -1307,8 +1422,26 @@ async def test_set_brightness(mocked_controller):
     dev = mocked_controller.items[0]
     dev.on.on = False
     dev.dimming.brightness = 50
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_brightness(a21_light.id, 60)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        a21_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "brightness",
+                "functionInstance": None,
+                "value": 60,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     assert dev.is_on
     assert dev.dimming.brightness == 60
 
@@ -1440,7 +1573,7 @@ async def test_set_color_mode_keeps_exclusive_when_other_channel_off(
 
 
 @pytest.mark.asyncio
-async def test_set_rgb(mocked_controller):
+async def test_set_rgb(mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(a21_light)]
@@ -1453,8 +1586,32 @@ async def test_set_rgb(mocked_controller):
     dev.color.red = 100
     dev.color.green = 100
     dev.color.blue = 100
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_rgb(a21_light.id, 0, 20, 40)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        a21_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-rgb",
+                "functionInstance": None,
+                "value": {"color-rgb": {"r": 0, "g": 20, "b": 40}},
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": None,
+                "value": "color",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     assert dev.is_on
     assert dev.color_mode.mode == "color"
     assert dev.color.red == 0
@@ -1475,25 +1632,32 @@ async def test_set_rgb_trim(mocked_controller, mocker):
     trim_dev.color.red = 100
     trim_dev.color.green = 100
     trim_dev.color.blue = 100
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_rgb(trim_light_trim_id, 10, 20, 30)
     await mocked_controller._bridge.async_block_until_done()
-    update_afero_api.assert_called_once()
-    assert update_afero_api.call_args[0][0] == trim_light.id
-    sent_states = update_afero_api.call_args[0][1]
-    instances = {
-        state["functionClass"]: state["functionInstance"] for state in sent_states
-    }
-    assert instances["power"] == "trim"
-    assert instances["color-rgb"] == "trim"
-    assert instances["color-mode"] == "trim"
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "trim",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-rgb",
+                "functionInstance": "trim",
+                "value": {"color-rgb": {"r": 10, "g": 20, "b": 30}},
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "color",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -1508,7 +1672,7 @@ async def test_initialize_rgbcw_single_light_supports_rgb(mocked_controller):
     assert dev.supports_color
     assert dev.supports_color_temperature
     assert dev.color_mode is not None
-    assert dev.dimming.func_instance == "primary"
+    assert dev.dimming.function_instance == "primary"
 
 
 @pytest.mark.asyncio
@@ -1866,23 +2030,26 @@ async def test_set_brightness_trim(mocked_controller, mocker):
     await mocked_controller._bridge.async_block_until_done()
     trim_dev = mocked_controller[trim_light_trim_id]
     trim_dev.on.on = False
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_brightness(trim_light_trim_id, 42)
     await mocked_controller._bridge.async_block_until_done()
-    update_afero_api.assert_called_once()
-    sent_states = update_afero_api.call_args[0][1]
-    instances = {
-        state["functionClass"]: state["functionInstance"] for state in sent_states
-    }
-    assert instances["power"] == "trim"
-    assert instances["brightness"] == "trim"
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "trim",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "brightness",
+                "functionInstance": "trim",
+                "value": 42,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -1965,25 +2132,26 @@ async def test_set_white_trim_sends_color_mode_not_cct(mocked_controller, mocker
     trim_dev = mocked_controller[trim_light_trim_id]
     assert trim_dev.supports_color_white
     trim_dev.color_mode.mode = "color"
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_white(trim_light_trim_id, on=None, brightness=40)
     await mocked_controller._bridge.async_block_until_done()
-    update_afero_api.assert_called_once()
-    assert update_afero_api.call_args[0][0] == trim_light.id
-    sent_states = update_afero_api.call_args[0][1]
-    by_class = {state["functionClass"]: state for state in sent_states}
-    assert by_class["color-mode"]["functionInstance"] == "trim"
-    assert by_class["color-mode"]["value"] == "white"
-    assert by_class["brightness"]["functionInstance"] == "trim"
-    assert by_class["brightness"]["value"] == 40
-    assert "color-temperature" not in by_class
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "brightness",
+                "functionInstance": "trim",
+                "value": 40,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -1997,22 +2165,26 @@ async def test_set_color_temperature_trim_routes_to_white(mocked_controller, moc
     assert trim_dev.supports_color_white
     assert trim_dev.color_temperature is None
     trim_dev.color_mode.mode = "color"
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_color_temperature(trim_light_trim_id, 2700)
     await mocked_controller._bridge.async_block_until_done()
-    update_afero_api.assert_called_once()
-    sent_states = update_afero_api.call_args[0][1]
-    by_class = {state["functionClass"]: state for state in sent_states}
-    assert by_class["color-mode"]["functionInstance"] == "trim"
-    assert by_class["color-mode"]["value"] == "white"
-    assert "color-temperature" not in by_class
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "trim",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -2020,7 +2192,7 @@ async def test_set_color_temperature_missing_device(mocked_controller, mocker):
     """Unknown device id must not call the API."""
     update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
     await mocked_controller.set_color_temperature("missing-light-id", 3000)
-    update_afero_api.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -2034,7 +2206,7 @@ async def test_set_color_temperature_no_cct_no_white(mocked_controller, mocker):
     trim_dev.color_modes = ["color", "sequence"]
     update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
     await mocked_controller.set_color_temperature(trim_light_trim_id, 2700)
-    update_afero_api.assert_not_called()
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -2046,14 +2218,26 @@ async def test_set_color_temperature_trim_logs_ignored_kelvin(
         utils.create_hs_raw_from_dump("light-with-trim.json")
     )
     await mocked_controller._bridge.async_block_until_done()
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    mocker.patch.object(mocked_controller, "update_afero_api", return_value=resp)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     caplog.set_level("INFO")
     await mocked_controller.set_color_temperature(trim_light_trim_id, 2700)
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "trim",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     assert "ignoring 2700 K" in caplog.text
 
 
@@ -2068,21 +2252,26 @@ async def test_set_white_trim_already_white_resends_color_mode(
     await mocked_controller._bridge.async_block_until_done()
     trim_dev = mocked_controller[trim_light_trim_id]
     trim_dev.color_mode.mode = "white"
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_white(trim_light_trim_id, on=None, brightness=40)
     await mocked_controller._bridge.async_block_until_done()
-    sent_states = update_afero_api.call_args[0][1]
-    by_class = {state["functionClass"]: state for state in sent_states}
-    assert by_class["color-mode"]["functionInstance"] == "trim"
-    assert by_class["color-mode"]["value"] == "white"
-    assert by_class["brightness"]["value"] == 40
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "brightness",
+                "functionInstance": "trim",
+                "value": 40,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -2096,23 +2285,28 @@ async def test_set_state_temperature_respects_explicit_color_mode(
     await mocked_controller._bridge.async_block_until_done()
     trim_dev = mocked_controller[trim_light_trim_id]
     trim_dev.color_mode.mode = "white"
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         trim_light_trim_id, on=True, temperature=2700, color_mode="color"
     )
     await mocked_controller._bridge.async_block_until_done()
-    by_class = {
-        state["functionClass"]: state for state in update_afero_api.call_args[0][1]
-    }
-    assert by_class["color-mode"]["value"] == "color"
-    assert "color-temperature" not in by_class
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "trim",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "color",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -2160,23 +2354,28 @@ async def test_set_state_temperature_routes_to_white_without_cct(
     await mocked_controller._bridge.async_block_until_done()
     trim_dev = mocked_controller[trim_light_trim_id]
     trim_dev.color_mode.mode = "color"
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         trim_light_trim_id, on=True, temperature=2700, color_mode=None
     )
     await mocked_controller._bridge.async_block_until_done()
-    update_afero_api.assert_called_once()
-    sent_states = update_afero_api.call_args[0][1]
-    by_class = {state["functionClass"]: state for state in sent_states}
-    assert by_class["color-mode"]["value"] == "white"
-    assert "color-temperature" not in by_class
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "trim",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "trim",
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -2235,22 +2434,32 @@ async def test_set_rgb_main_split(mocked_controller, mocker):
     await mocked_controller._bridge.async_block_until_done()
     main_dev = mocked_controller[trim_light_primary_id]
     main_dev.on.on = False
-    resp = mocker.AsyncMock()
-    resp.status = 200
-    json_resp = mocker.AsyncMock()
-    json_resp.return_value = {"metadeviceId": trim_light.id, "values": []}
-    resp.json = json_resp
-    update_afero_api = mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=resp
-    )
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_rgb(trim_light_primary_id, 4, 5, 6)
     await mocked_controller._bridge.async_block_until_done()
-    sent_states = update_afero_api.call_args[0][1]
-    instances = {
-        state["functionClass"]: state["functionInstance"] for state in sent_states
-    }
-    assert instances["color-rgb"] == "main"
-    assert instances["power"] == "main"
+    update_afero_api.assert_awaited_once_with(
+        trim_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": "main",
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-rgb",
+                "functionInstance": "main",
+                "value": {"color-rgb": {"r": 4, "g": 5, "b": 6}},
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": "main",
+                "value": "color",
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -2261,7 +2470,7 @@ async def test_set_rgb_main_split(mocked_controller, mocker):
         ("fade-7"),
     ],
 )
-async def test_set_effect(effect, mocked_controller):
+async def test_set_effect(effect, mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(a21_light)]
@@ -2271,8 +2480,39 @@ async def test_set_effect(effect, mocked_controller):
     dev = mocked_controller.items[0]
     dev.on.on = False
     dev.effect.effect = None
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_effect(a21_light.id, effect)
     await mocked_controller._bridge.async_block_until_done()
+    expected = [
+        {
+            "functionClass": "power",
+            "functionInstance": None,
+            "value": "on",
+            "lastUpdateTime": mocker.ANY,
+        },
+        {
+            "functionClass": "color-mode",
+            "functionInstance": None,
+            "value": "sequence",
+            "lastUpdateTime": mocker.ANY,
+        },
+        {
+            "functionClass": "color-sequence",
+            "functionInstance": "preset",
+            "value": "custom" if effect == "rainbow" else effect,
+            "lastUpdateTime": mocker.ANY,
+        },
+    ]
+    if effect == "rainbow":
+        expected.append(
+            {
+                "functionClass": "color-sequence",
+                "functionInstance": "custom",
+                "value": "rainbow",
+                "lastUpdateTime": mocker.ANY,
+            }
+        )
+    update_afero_api.assert_awaited_once_with(a21_light.id, expected)
     assert dev.is_on
     assert dev.color_mode.mode == "sequence"
     assert dev.effect.effect == effect
@@ -2434,9 +2674,11 @@ async def test_update_elem_effect(new_states, expected, mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_empty(mocked_controller):
+async def test_set_state_empty(mocked_controller, mocker):
     await mocked_controller.initialize_elem(a21_light)
+    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
     await mocked_controller.set_state(a21_light.id)
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -2472,11 +2714,13 @@ async def test_light_emitting(bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_state_no_dev(mocked_controller, caplog):
+async def test_set_state_no_dev(mocked_controller, mocker, caplog):
     caplog.set_level(0)
     await mocked_controller.initialize_elem(a21_light)
     mocked_controller._bridge.add_device(a21_light.id, mocked_controller)
+    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
     await mocked_controller.set_state("not-a-device")
+    update_afero_api.assert_not_awaited()
     mocked_controller._bridge.request.assert_not_called()
     assert "Unable to find device" in caplog.text
 
@@ -2518,19 +2762,34 @@ light1_effects = {
 light1 = Light(
     _id="test-light-1",
     available=True,
-    effect=EffectFeature(effect="getting-ready", effects=light1_effects),
+    effect=EffectFeature(
+        function_class="color-sequence",
+        function_instance="custom",
+        effect="getting-ready",
+        effects=light1_effects,
+    ),
     device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update = Light(
     _id="test-light-1",
     available=True,
-    effect=EffectFeature(effect="rainbow", effects=light1_effects),
+    effect=EffectFeature(
+        function_class="color-sequence",
+        function_instance="custom",
+        effect="rainbow",
+        effects=light1_effects,
+    ),
     device_information=DeviceInformation(model="TBD"),
 )
 light1_no_update_preset = Light(
     _id="test-light-1",
     available=True,
-    effect=EffectFeature(effect="fade-3", effects=light1_effects),
+    effect=EffectFeature(
+        function_class="color-sequence",
+        function_instance="preset",
+        effect="fade-3",
+        effects=light1_effects,
+    ),
     device_information=DeviceInformation(model="TBD"),
 )
 
@@ -2598,50 +2857,72 @@ async def test_emitting(bridge):
 
 
 @pytest.mark.asyncio
-async def test_set_state_white_light(mocked_controller):
+async def test_set_state_white_light(mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(speaker_power_light)]
     )
     await bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         speaker_power_light.id, on=True, force_white_mode=75
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        speaker_power_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "color-mode",
+                "functionInstance": None,
+                "value": "white",
+                "lastUpdateTime": mocker.ANY,
+            },
+            {
+                "functionClass": "brightness",
+                "functionInstance": None,
+                "value": 75,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
     assert mocked_controller[speaker_power_light.id].on.on is True
     assert mocked_controller[speaker_power_light.id].color_mode.mode == "white"
     assert mocked_controller[speaker_power_light.id].dimming.brightness == 75
 
 
 @pytest.mark.asyncio
-async def test_set_state_speed(mocked_controller):
+async def test_set_state_speed(mocked_controller, mocker):
     bridge = mocked_controller._bridge
     await bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(speed_light)]
     )
     await bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         speed_light.id,
         numbers={("speed", "color-sequence"): 5, ("doesnt-exist", "color-sequence"): 5},
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        speed_light.id,
+        [
+            {
+                "functionClass": "speed",
+                "functionInstance": "color-sequence",
+                "value": 5,
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert (
         mocked_controller[speed_light.id].numbers[("speed", "color-sequence")].value
         == 5
-    )
-
-
-def _mock_update_api(mocked_controller, mocker, device_id: str, return_value=None):
-    """Patch update_afero_api with a successful (or custom) response."""
-    if return_value is None:
-        resp = mocker.AsyncMock()
-        resp.status = 200
-        json_resp = mocker.AsyncMock()
-        json_resp.return_value = {"metadeviceId": device_id, "values": []}
-        resp.json = json_resp
-        return_value = resp
-    return mocker.patch.object(
-        mocked_controller, "update_afero_api", return_value=return_value
     )
 
 
@@ -2655,20 +2936,41 @@ async def test_set_state_night_light_mode_before_power(mocked_controller, mocker
     dev = mocked_controller[penrose_light.id]
     dev.on.on = False
     dev.color_mode.mode = "white"
-    update_afero_api = _mock_update_api(mocked_controller, mocker, penrose_light.id)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         penrose_light.id, on=True, color_mode="night-light"
     )
     await mocked_controller._bridge.async_block_until_done()
-    assert update_afero_api.call_count == 2
-    first_states = update_afero_api.call_args_list[0].args[1]
-    second_by_class = {
-        s["functionClass"]: s for s in update_afero_api.call_args_list[1].args[1]
-    }
-    assert {s["functionClass"] for s in first_states} == {"color-mode"}
-    assert first_states[0]["value"] == "night-light"
-    assert second_by_class["power"]["value"] == "on"
-    assert second_by_class["color-mode"]["value"] == "night-light"
+    assert update_afero_api.call_args_list == [
+        mocker.call(
+            penrose_light.id,
+            [
+                {
+                    "functionClass": "color-mode",
+                    "functionInstance": None,
+                    "value": "night-light",
+                    "lastUpdateTime": mocker.ANY,
+                }
+            ],
+        ),
+        mocker.call(
+            penrose_light.id,
+            [
+                {
+                    "functionClass": "power",
+                    "functionInstance": None,
+                    "value": "on",
+                    "lastUpdateTime": mocker.ANY,
+                },
+                {
+                    "functionClass": "color-mode",
+                    "functionInstance": None,
+                    "value": "night-light",
+                    "lastUpdateTime": mocker.ANY,
+                },
+            ],
+        ),
+    ]
 
 
 @pytest.mark.asyncio
@@ -2681,14 +2983,22 @@ async def test_set_state_night_light_omits_brightness(mocked_controller, mocker)
     dev = mocked_controller[penrose_light.id]
     dev.on.on = True
     dev.color_mode.mode = "white"
-    update_afero_api = _mock_update_api(mocked_controller, mocker, penrose_light.id)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         penrose_light.id, on=True, color_mode="night-light", brightness=50
     )
     await mocked_controller._bridge.async_block_until_done()
-    by_class = {s["functionClass"]: s for s in update_afero_api.call_args.args[1]}
-    assert by_class["color-mode"]["value"] == "night-light"
-    assert "brightness" not in by_class
+    update_afero_api.assert_awaited_once_with(
+        penrose_light.id,
+        [
+            {
+                "functionClass": "color-mode",
+                "functionInstance": None,
+                "value": "night-light",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
 
 
 @pytest.mark.asyncio
@@ -2698,16 +3008,23 @@ async def test_set_state_turn_off_drops_color_mode(mocked_controller, mocker, ca
         [utils.create_hs_raw_from_device(penrose_light)]
     )
     await mocked_controller._bridge.async_block_until_done()
-    update_afero_api = _mock_update_api(mocked_controller, mocker, penrose_light.id)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     with caplog.at_level("WARNING"):
         await mocked_controller.set_state(
             penrose_light.id, on=False, color_mode="white", force_white_mode=75
         )
     await mocked_controller._bridge.async_block_until_done()
-    by_class = {s["functionClass"]: s for s in update_afero_api.call_args.args[1]}
-    assert by_class["power"]["value"] == "off"
-    assert "color-mode" not in by_class
-    assert "brightness" not in by_class
+    update_afero_api.assert_awaited_once_with(
+        penrose_light.id,
+        [
+            {
+                "functionClass": "power",
+                "functionInstance": None,
+                "value": "off",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert "Ignoring color-mode changes while turning off" in caplog.text
 
 
@@ -2723,14 +3040,24 @@ async def test_set_state_mode_before_power_aborts_on_failure(
     dev = mocked_controller[penrose_light.id]
     dev.on.on = False
     dev.color_mode.mode = "white"
-    update_afero_api = _mock_update_api(
-        mocked_controller, mocker, penrose_light.id, return_value=False
+    update_afero_api = utils.mock_update_api(
+        mocked_controller, mocker, return_value=False
     )
     with caplog.at_level("WARNING"):
         await mocked_controller.set_state(
             penrose_light.id, on=True, color_mode="night-light"
         )
     await mocked_controller._bridge.async_block_until_done()
-    assert update_afero_api.call_count == 1
+    update_afero_api.assert_awaited_once_with(
+        penrose_light.id,
+        [
+            {
+                "functionClass": "color-mode",
+                "functionInstance": None,
+                "value": "night-light",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert "aborting turn-on" in caplog.text
     assert not dev.is_on

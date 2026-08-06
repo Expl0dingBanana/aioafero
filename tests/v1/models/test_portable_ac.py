@@ -7,7 +7,14 @@ from aioafero.v1.models import DeviceInformation, PortableAC, features
 def populated_entity():
     numbers = {
         ("timer", None): features.NumbersFeature(
-            value=0, min=0, max=1440, step=30, name="timer", unit="minutes"
+            value=0,
+            min=0,
+            max=1440,
+            step=30,
+            name="timer",
+            unit="minutes",
+            function_class="timer",
+            function_instance=None,
         )
     }
     selects = {
@@ -15,11 +22,15 @@ def populated_entity():
             selected="fan-speed-auto",
             selects={"fan-speed-auto", "fan-speed-2-100", "fan-speed-2-050"},
             name="Fan Speed",
+            function_class="fan-speed",
+            function_instance="ac-fan-speed",
         ),
         ("sleep", None): features.SelectFeature(
             selected="off",
             selects={"on", "off"},
             name="Sleep Timer",
+            function_class="sleep",
+            function_instance=None,
         ),
     }
     return PortableAC(
@@ -35,9 +46,16 @@ def populated_entity():
             previous_mode="fan",
             modes={"fan", "auto-cool", "dehumidify", "cool"},
             supported_modes={"fan", "auto-cool", "dehumidify", "cool"},
+            function_class="hvac-mode",
+            function_instance=None,
         ),
         target_temperature_cooling=features.TargetTemperatureFeature(
-            value=26, step=0.5, min=10, max=37, instance="cooling-target"
+            value=26,
+            step=0.5,
+            min=10,
+            max=37,
+            function_class="temperature",
+            function_instance="cooling-target",
         ),
         numbers=numbers,
         selects=selects,
@@ -57,7 +75,6 @@ def populated_entity():
 def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
-    assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.temperature == 35
     assert populated_entity.current_temperature.function_class == "temperature"
     assert populated_entity.current_temperature.function_instance == "current-temp"
@@ -73,10 +90,6 @@ def test_init(populated_entity):
     assert populated_entity.target_temperature_step == 0.5
     assert populated_entity.supports_fan_mode is False
     assert populated_entity.supports_temperature_range is False
-
-
-def test_get_instance(populated_entity):
-    assert populated_entity.get_instance("preset") == "preset-1"
 
 
 def test_empty():

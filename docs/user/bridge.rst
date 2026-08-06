@@ -56,7 +56,7 @@ Polling loop (simplified):
 2. For each parent metadevice, returned states are **merged** into the cached
    ``AferoDevice`` (matched by ``functionClass`` and ``functionInstance``) rather than
    replacing the full ``states`` list. Partial poll payloads therefore do not drop
-   other zones or dual-channel brightness rows.
+   other zones or split-light state rows.
 3. Changed devices are queued on ``bridge.events``.
 4. Each controller merges API data into its models (``update_elem``).
 5. If something changed, registered callbacks run with ``(event_type, item)``.

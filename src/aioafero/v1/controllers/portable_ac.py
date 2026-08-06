@@ -1,10 +1,10 @@
 """Controller holding and managing Afero IoT resources of type `portable-air-conditioner`."""
 
 import copy
+from dataclasses import replace
 
 from aioafero.device import AferoDevice
 from aioafero.errors import DeviceNotFound
-from aioafero.v1.models import features
 from aioafero.v1.models.portable_ac import PortableAC, PortableACPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
@@ -56,9 +56,6 @@ class PortableACController(ClimateController[PortableAC]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.PORTABLE_AC]
     ITEM_CLS = PortableAC
-    ITEM_MAPPING = {
-        "hvac_mode": "mode",
-    }
     # Elements that map to Select. func class / func instance to name
     ITEM_SELECTS = {
         ("fan-speed", "ac-fan-speed"): "Fan Speed",
@@ -136,11 +133,10 @@ class PortableACController(ClimateController[PortableAC]):
             return
         if hvac_mode:
             if hvac_mode in cur_item.hvac_mode.supported_modes:
-                update_obj.hvac_mode = features.HVACModeFeature(
+                update_obj.hvac_mode = replace(
+                    cur_item.hvac_mode,
                     mode=hvac_mode,
-                    modes=cur_item.hvac_mode.modes,
                     previous_mode=cur_item.hvac_mode.mode,
-                    supported_modes=cur_item.hvac_mode.supported_modes,
                 )
             else:
                 self._logger.debug(
@@ -154,9 +150,8 @@ class PortableACController(ClimateController[PortableAC]):
         for key, val in selects.items():
             if key not in cur_item.selects:
                 continue
-            update_obj.selects[key] = features.SelectFeature(
+            update_obj.selects[key] = replace(
+                cur_item.selects[key],
                 selected=val,
-                selects=cur_item.selects[key].selects,
-                name=cur_item.selects[key].name,
             )
         await self.set_climate_state(device_id, update_obj, **kwargs)

@@ -109,6 +109,25 @@ def test_process_range(range_vals, expected):
 )
 def test_process_function(functions, func_class, func_instance, expected):
     assert (
-        util.process_function(functions, func_class, func_instance=func_instance)
+        util.process_function(functions, func_class, function_instance=func_instance)
         == expected
     )
+
+
+def test_process_function_distinguishes_null_instance_from_wildcard():
+    functions = [
+        {
+            "functionClass": "mode",
+            "functionInstance": "zone",
+            "type": "category",
+            "values": [{"name": "zone-mode"}],
+        },
+        {
+            "functionClass": "mode",
+            "type": "category",
+            "values": [{"name": "global-mode"}],
+        },
+    ]
+
+    assert util.process_function(functions, "mode") == ["zone-mode"]
+    assert util.process_function(functions, "mode", None) == ["global-mode"]

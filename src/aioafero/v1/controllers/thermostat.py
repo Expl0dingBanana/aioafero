@@ -1,6 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `thermostat`."""
 
 import copy
+from dataclasses import replace
 
 from aioafero.device import AferoDevice
 from aioafero.util import process_function
@@ -17,10 +18,6 @@ class ThermostatController(ClimateController[Thermostat]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.THERMOSTAT]
     ITEM_CLS = Thermostat
-    ITEM_MAPPING = {
-        "fan_mode": "fan-mode",
-        "hvac_mode": "mode",
-    }
     # Binary sensors map key -> alerting value
     ITEM_BINARY_SENSORS: dict[str, str] = {
         "filter-replacement": "replacement-needed",
@@ -46,7 +43,15 @@ class ThermostatController(ClimateController[Thermostat]):
             if state.functionClass == "fan-mode":
                 fan_mode = features.ModeFeature(
                     mode=state.value,
-                    modes=set(process_function(afero_device.functions, "fan-mode")),
+                    modes=set(
+                        process_function(
+                            afero_device.functions,
+                            state.functionClass,
+                            state.functionInstance,
+                        )
+                    ),
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "current-fan-state":
                 fan_running = state.value == "on"
@@ -205,15 +210,11 @@ class ThermostatController(ClimateController[Thermostat]):
         cur_item = self.get_device(device_id)
         if fan_mode is not None:
             if fan_mode in cur_item.fan_mode.modes:
-                update_obj.fan_mode = features.ModeFeature(
-                    mode=fan_mode,
-                    modes=cur_item.fan_mode.modes,
-                )
-                update_obj.hvac_mode = features.HVACModeFeature(
+                update_obj.fan_mode = replace(cur_item.fan_mode, mode=fan_mode)
+                update_obj.hvac_mode = replace(
+                    cur_item.hvac_mode,
                     mode="fan",
-                    modes=cur_item.hvac_mode.modes,
                     previous_mode=cur_item.hvac_mode.mode,
-                    supported_modes=cur_item.hvac_mode.supported_modes,
                 )
             else:
                 self._logger.debug(
@@ -223,11 +224,10 @@ class ThermostatController(ClimateController[Thermostat]):
                 )
         if hvac_mode is not None and not update_obj.hvac_mode:
             if hvac_mode in cur_item.hvac_mode.supported_modes:
-                update_obj.hvac_mode = features.HVACModeFeature(
+                update_obj.hvac_mode = replace(
+                    cur_item.hvac_mode,
                     mode=hvac_mode,
-                    modes=cur_item.hvac_mode.modes,
                     previous_mode=cur_item.hvac_mode.mode,
-                    supported_modes=cur_item.hvac_mode.supported_modes,
                 )
             else:
                 self._logger.debug(

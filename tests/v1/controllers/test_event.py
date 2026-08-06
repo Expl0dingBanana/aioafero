@@ -24,6 +24,13 @@ a21_light = utils.create_devices_from_data("light-a21.json")[0]
 switch = utils.create_devices_from_data("switch-HPDA311CWB.json")[0]
 
 
+def test_callback_response_has_immutable_empty_default():
+    response = event.CallbackResponse()
+
+    assert response.split_devices == ()
+    assert response.remove_original is False
+
+
 @pytest.mark.asyncio
 async def test_properties(bridge):
     stream = bridge.events

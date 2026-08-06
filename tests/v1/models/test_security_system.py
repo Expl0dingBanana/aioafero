@@ -9,7 +9,10 @@ def populated_entity():
         _id="entity-1",
         available=True,
         alarm_state=features.ModeFeature(
-            mode="arm-away", modes={"arm-away", "disarmed", "arm-stay", "alarming-sos"}
+            mode="arm-away",
+            modes={"arm-away", "disarmed", "arm-stay", "alarming-sos"},
+            function_class="security-system-mode",
+            function_instance=None,
         ),
         numbers={
             ("arm-exit-delay", "away"): features.NumbersFeature(
@@ -19,6 +22,8 @@ def populated_entity():
                 step=1,
                 name="Exit Delay - Away",
                 unit="seconds",
+                function_class="arm-exit-delay",
+                function_instance="away",
             ),
         },
         selects={
@@ -32,6 +37,8 @@ def populated_entity():
                     "volume-04",
                 },
                 name="Siren Volume",
+                function_class="volume",
+                function_instance="siren",
             ),
         },
         device_information=DeviceInformation(
@@ -61,7 +68,6 @@ def empty_entity():
 def test_init(populated_entity):
     assert populated_entity.id == "entity-1"
     assert populated_entity.available is True
-    assert populated_entity.instances == {"preset": "preset-1"}
     assert populated_entity.supports_away is True
     assert populated_entity.supports_arm_bypass is False
     assert populated_entity.supports_home is True
@@ -72,7 +78,3 @@ def test_init(populated_entity):
 
 def test_init_empty(empty_entity):
     assert empty_entity.alarm_state is None
-
-
-def test_get_instance(populated_entity):
-    assert populated_entity.get_instance("preset") == "preset-1"

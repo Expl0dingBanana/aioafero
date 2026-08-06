@@ -1,5 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `lock`."""
 
+from dataclasses import replace
+
 from aioafero.device import AferoDevice
 from aioafero.v1.models import features
 from aioafero.v1.models.lock import Lock, LockPut
@@ -14,7 +16,6 @@ class LockController(BaseResourcesController[Lock]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.LOCK]
     ITEM_CLS = Lock
-    ITEM_MAPPING = {"position": "lock-control"}
 
     async def lock(self, device_id: str) -> None:
         """Engage the lock.
@@ -52,7 +53,9 @@ class LockController(BaseResourcesController[Lock]):
         for state in afero_device.states:
             if state.functionClass == "lock-control":
                 current_position = features.CurrentPositionFeature(
-                    position=features.CurrentPositionEnum(state.value)
+                    position=features.CurrentPositionEnum(state.value),
+                    function_class=state.functionClass,
+                    function_instance=state.functionInstance,
                 )
             elif state.functionClass == "available":
                 available = state.value
@@ -113,7 +116,6 @@ class LockController(BaseResourcesController[Lock]):
         """
         update_obj = LockPut()
         if lock_position is not None:
-            update_obj.position = features.CurrentPositionFeature(
-                position=lock_position
-            )
+            cur_item = self.get_device(device_id)
+            update_obj.position = replace(cur_item.position, position=lock_position)
         await self.update(device_id, obj_in=update_obj)

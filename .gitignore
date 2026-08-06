@@ -54,7 +54,9 @@ MANIFEST
 
 
 .ruff_cache
+.pre-commit-home/
 uv.lock
+.aioafero-session.json
 
 # MITM test bed — WireGuard client config contains a private key
 docker/mitmweb/emulator-wireguard.conf

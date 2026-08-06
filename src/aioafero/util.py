@@ -1,6 +1,7 @@
 """Generic utils for interacting with Afero IoT API or the responses."""
 
 from datetime import UTC, datetime
+from types import EllipsisType
 from typing import Any
 
 
@@ -93,19 +94,24 @@ def float_range(start, stop, step):
 
 
 def process_function(
-    functions: list[dict], func_class: str, func_instance: str | None = None
+    functions: list[dict],
+    function_class: str,
+    function_instance: str | None | EllipsisType = ...,
 ) -> list[Any]:
     """Generate a list of whatever you are searching for.
 
     :param functions: List of functions for the given device
-    :param func_class: functionClass to search
-    :param func_instance: functionInstance to search
+    :param function_class: functionClass to search
+    :param function_instance: Exact functionInstance to search. Omit to match any instance.
     """
     results = []
     for function in functions:
-        if function["functionClass"] != func_class:
+        if function["functionClass"] != function_class:
             continue
-        if func_instance and function.get("functionInstance") != func_instance:
+        if (
+            function_instance is not ...
+            and function.get("functionInstance") != function_instance
+        ):
             continue
         if function["type"] == "numeric":
             results = process_range(function["values"][0])

@@ -5,6 +5,32 @@ from typing import Any
 from aioafero.device import AferoCapability, AferoDevice, AferoState
 
 current_path = Path(__file__).parent
+_DEFAULT_UPDATE_RESPONSE = object()
+
+
+def create_update_response(mocker, device_id: str, states: list[dict]):
+    """Create a successful API response that echoes updated states."""
+    response = mocker.AsyncMock()
+    response.status = 200
+    response.json.return_value = {"metadeviceId": device_id, "values": states}
+    return response
+
+
+def mock_update_api(mocked_controller, mocker, return_value=_DEFAULT_UPDATE_RESPONSE):
+    """Patch a controller update API with an assertable echo mock."""
+    if return_value is not _DEFAULT_UPDATE_RESPONSE:
+        return mocker.patch.object(
+            mocked_controller, "update_afero_api", return_value=return_value
+        )
+
+    async def update(device_id, states):
+        return create_update_response(mocker, device_id, states)
+
+    return mocker.patch.object(
+        mocked_controller,
+        "update_afero_api",
+        side_effect=update,
+    )
 
 
 def get_device_dump(file_name: str) -> Any:

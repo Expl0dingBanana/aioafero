@@ -23,19 +23,33 @@ async def test_initialize(mocked_controller):
     dev = mocked_controller.items[0]
     assert dev.id == "698e8a63-e8cb-4335-ba6b-83ca69d378f2"
     assert dev.position == features.CurrentPositionFeature(
-        position=features.CurrentPositionEnum.LOCKED
+        position=features.CurrentPositionEnum.LOCKED,
+        function_class="lock-control",
+        function_instance=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_lock(mocked_controller):
+async def test_lock(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(lock)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.lock(lock.id)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        lock.id,
+        [
+            {
+                "functionClass": "lock-control",
+                "functionInstance": None,
+                "value": "locking",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert (
         mocked_controller.items[0].position.position
         == features.CurrentPositionEnum.LOCKING
@@ -43,14 +57,26 @@ async def test_lock(mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_unlock(mocked_controller):
+async def test_unlock(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(lock)]
     )
     await mocked_controller._bridge.async_block_until_done()
     assert len(mocked_controller.items) == 1
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.unlock(lock.id)
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        lock.id,
+        [
+            {
+                "functionClass": "lock-control",
+                "functionInstance": None,
+                "value": "unlocking",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
     assert (
         mocked_controller.items[0].position.position
         == features.CurrentPositionEnum.UNLOCKING
@@ -111,12 +137,14 @@ async def test_update_elem(value, expected, expected_updates, mocked_controller)
 
 
 @pytest.mark.asyncio
-async def test_set_state_empty(mocked_controller):
+async def test_set_state_empty(mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(lock)]
     )
     await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(lock.id)
+    update_afero_api.assert_not_awaited()
 
 
 @pytest.mark.asyncio

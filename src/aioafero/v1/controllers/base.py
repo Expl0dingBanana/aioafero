@@ -63,8 +63,6 @@ class BaseResourcesController[AferoResource]:
     ITEM_TYPE_ID: ResourceTypes | None = None
     ITEM_TYPES: list[ResourceTypes] | None = None
     ITEM_CLS = None
-    # functionClass map between controller -> Afero IoT Cloud
-    ITEM_MAPPING: dict = {}
     # Sensors map functionClass -> Unit
     ITEM_SENSORS: dict[str, str] = {}
     # Binary sensors map key -> alerting value
@@ -252,6 +250,8 @@ class BaseResourcesController[AferoResource]:
                 step=working_def["range"]["step"],
                 name=primary_name,
                 unit=self.ITEM_NUMBERS[key].unit,
+                function_class=state.functionClass,
+                function_instance=state.functionInstance,
             )
         return None
 
@@ -269,6 +269,8 @@ class BaseResourcesController[AferoResource]:
                     )
                 ),
                 name=self.ITEM_SELECTS[key],
+                function_class=state.functionClass,
+                function_instance=state.functionInstance,
             )
         return None
 
@@ -311,8 +313,9 @@ class BaseResourcesController[AferoResource]:
         """
         key = (state.functionClass, state.functionInstance)
         if key in self.ITEM_NUMBERS:
-            if cur_item.numbers[key].value != state.value:
-                cur_item.numbers[key].value = state.value
+            number = cur_item.numbers.get(key)
+            if number is not None and number.value != state.value:
+                number.value = state.value
                 return f"number-{key}"
         return None
 
@@ -327,8 +330,9 @@ class BaseResourcesController[AferoResource]:
         """
         key = (state.functionClass, state.functionInstance)
         if key in self.ITEM_SELECTS:
-            if cur_item.selects[key].selected != state.value:
-                cur_item.selects[key].selected = state.value
+            select = cur_item.selects.get(key)
+            if select is not None and select.selected != state.value:
+                select.selected = state.value
                 return f"select-{key}"
         return None
 
@@ -510,9 +514,7 @@ class BaseResourcesController[AferoResource]:
         with contextlib.suppress(AttributeError):
             update_id = cur_item.update_id
         if obj_in:
-            device_states = dataclass_to_afero(
-                cur_item, obj_in, self.ITEM_MAPPING, send_duplicate_states
-            )
+            device_states = dataclass_to_afero(cur_item, obj_in, send_duplicate_states)
             if not device_states:
                 self._logger.debug("No states to send. Skipping")
                 return None
@@ -572,119 +574,78 @@ class BaseResourcesController[AferoResource]:
 
 
 def dataclass_to_afero(
-    elem: AferoResource, cls: dataclass, mapping: dict, send_duplicate_states: bool
+    elem: AferoResource, cls: dataclass, send_duplicate_states: bool
 ) -> list[dict]:
-    """Convert the current state to be consumed by Afero IoT."""
+    """Convert Put features into Afero IoT states.
+
+    Each feature owns its ``function_class`` / ``function_instance`` identity.
+    """
     states = []
     for f in fields(cls):
         put_feature = getattr(cls, f.name, None)
         if put_feature is None:
             continue
-        api_key = mapping.get(f.name, f.name)
-        # There is probably a better way to approach this
-        field_is_dict = str(f.type).startswith("dict")
-        is_tuple_key = False
-        if field_is_dict and put_feature and put_feature.keys():
-            is_tuple_key = isinstance(list(put_feature.keys())[0], tuple)
-        # Tuple keys signify (func_class / func_instance).
-        if field_is_dict and is_tuple_key:
-            states.extend(
-                get_afero_states_from_mapped(
-                    elem, f.name, put_feature, send_duplicate_states
-                )
-            )
-        elif field_is_dict and not put_feature:
-            continue
-        else:
-            # We need to determine funcClass / funcInstance when we dump our data
-            cached = resolve_feature_for_update_comparison(elem, f.name, put_feature)
-            if (
-                features_equivalent_for_update(put_feature, cached)
-                and not send_duplicate_states
-            ):
+        if isinstance(put_feature, dict):
+            if not put_feature:
                 continue
-            put_feature_value = put_feature
-            if hasattr(put_feature, "api_value"):
-                put_feature_value = put_feature.api_value
-            if not isinstance(put_feature_value, list):
-                func_instance = get_afero_instance_for_state(elem, put_feature, api_key)
-                states.append(
-                    get_afero_state_from_feature(
-                        api_key, func_instance, put_feature_value
-                    )
-                )
-            else:
-                states.extend(get_afero_states_from_list(put_feature_value))
-    return states
-
-
-def get_afero_states_from_mapped(
-    element: AferoResource,
-    field_name: str,
-    update_vals: dict,
-    send_duplicate_states: bool,
-) -> list[dict]:
-    """Convert an update element to dict to be consumed by Afero API."""
-    states = []
-    current_elems = getattr(element, field_name, None) or {}
-    for key, val in update_vals.items():
-        cached = current_elems.get(key)
-        if features_equivalent_for_update(val, cached) and not send_duplicate_states:
+            current_elems = getattr(elem, f.name, None) or {}
+            for key, val in put_feature.items():
+                cached = current_elems.get(key)
+                if (
+                    features_equivalent_for_update(val, cached)
+                    and not send_duplicate_states
+                ):
+                    continue
+                states.extend(_states_from_feature(val))
             continue
-        states.append(get_afero_state_from_feature(key[0], key[1], val.api_value))
+        cached = resolve_feature_for_update_comparison(elem, f.name, put_feature)
+        if (
+            features_equivalent_for_update(put_feature, cached)
+            and not send_duplicate_states
+        ):
+            continue
+        states.extend(_states_from_feature(put_feature))
     return states
 
 
-def get_afero_instance_for_state(
-    elem: AferoResource, feature, mapped_afero_key: str | None
-) -> str | None:
-    """Determine the function instance based on the field data or device.
-
-    Features that declare ``func_instance`` (including an explicit ``None``) win
-    over split-id suffixes. Portable AC power is split as ``…-portable-ac-power``
-    while the live ``power`` state uses ``functionInstance: null``; treating a
-    falsy ``func_instance`` as unset wrongly sent ``functionInstance: "power"``.
-    """
-    if hasattr(feature, "func_instance"):
-        return getattr(feature, "func_instance", None)
-    if getattr(elem, "split_identifier", None) and getattr(elem, "instance", None):
-        return elem.instance
-    if (
-        mapped_afero_key
-        and hasattr(elem, "get_instance")
-        and elem.get_instance(mapped_afero_key)
-    ):
-        return elem.get_instance(mapped_afero_key)
-    return None
+def _states_from_feature(feature) -> list[dict]:
+    """Serialize one feature into Afero state dictionaries."""
+    if not hasattr(feature, "iter_afero_values"):
+        raise TypeError(f"Unsupported Put feature type: {type(feature)!r}")
+    return [
+        get_afero_state_from_feature(
+            emission.function_class,
+            emission.function_instance,
+            emission.value,
+        )
+        for emission in feature.iter_afero_values()
+    ]
 
 
 def get_afero_state_from_feature(
-    func_class: str, func_instance: str | None, current_val: Any
+    function_class: str,
+    function_instance: str | None,
+    current_value: Any,
 ) -> dict:
-    """Generate a single state from the current data."""
-    new_state = {
-        "functionClass": func_class,
-        "functionInstance": func_instance,
-        "value": None,
+    """Generate a single state from feature-owned identity and value."""
+    return {
+        "functionClass": function_class,
+        "functionInstance": function_instance,
+        "value": current_value,
+        "lastUpdateTime": get_afero_base_time_ms(),
     }
-    if isinstance(current_val, dict):
-        new_state.update(current_val)
-    else:
-        new_state["value"] = current_val
-    new_state["lastUpdateTime"] = get_afero_base_time_ms()
-    return new_state
 
 
 def get_afero_states_from_list(states: list[dict]) -> list[dict]:
-    """Add timestamp to the states.
+    """Add timestamp to manually supplied states.
 
-    Assume the state already has functionClass, functionInstance, and value
+    Assume each state already has functionClass, functionInstance, and value.
     """
     return [
-        get_afero_state_from_feature(
-            state["functionClass"],
-            state.get("functionInstance"),
-            state,
-        )
+        {
+            **state,
+            "functionInstance": state.get("functionInstance"),
+            "lastUpdateTime": get_afero_base_time_ms(),
+        }
         for state in states
     ]

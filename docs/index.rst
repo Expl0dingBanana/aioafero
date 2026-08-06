@@ -21,6 +21,7 @@ Quick links
    user/overview
    user/installation
    user/bridge
+   user/features
    user/controllers/index
    user/examples
    user/troubleshooting

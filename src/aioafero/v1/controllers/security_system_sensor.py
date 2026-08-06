@@ -20,7 +20,6 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.SECURITY_SYSTEM_SENSOR]
     ITEM_CLS = SecuritySystemSensor
-    ITEM_MAPPING = {}
 
     SENSOR_TYPES = {
         1: "Motion Sensor",
@@ -109,7 +108,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
         self,
         device_id: str,
         *,
-        selects: dict[tuple[str, int | None], str] | None = None,
+        selects: dict[tuple[str, str | None], str] | None = None,
     ) -> None:
         """Update security sensor selects in the cloud.
 
@@ -152,6 +151,10 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 else:
                     continue
             update_obj.sensor_config = features.SecuritySensorConfigFeature(
-                sensor_id=cur_item.instance, key_name=cur_item.config_key, **select_vals
+                sensor_id=cur_item.instance,
+                key_name=cur_item.config_key,
+                function_class="sensor-config",
+                function_instance=f"sensor-{cur_item.instance}",
+                **select_vals,
             )
             await self.update(cur_item.id, obj_in=update_obj)

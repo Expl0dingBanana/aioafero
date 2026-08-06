@@ -277,7 +277,7 @@ async def test_send_service_request(mocked_bridge, mocker):
         zandra_light.id,
         states,
     )
-    update_afero_api.assert_called_once_with(zandra_light.id, expected_states)
+    update_afero_api.assert_awaited_once_with(zandra_light.id, expected_states)
     await mocked_bridge.async_block_until_done()
     assert controller[zandra_light.id].on.on is False
 

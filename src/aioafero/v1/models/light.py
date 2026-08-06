@@ -38,7 +38,6 @@ class Light(StandardMixin):
 
     def __post_init__(self):
         """Determine if white only is supported."""
-        super().__post_init__()
         model = getattr(getattr(self, "device_information", None), "model", None)
         if model is not None and rgbw_name_search.search(model):
             self.supports_white = True
@@ -116,22 +115,25 @@ class Light(StandardMixin):
         self, field_name: str, put_feature: object | None
     ) -> object | None:
         """Compare channel toggles/dimming against ``channels``, not primary."""
-        instance = getattr(put_feature, "func_instance", None) if put_feature else None
-        # Primary power/dimming often use func_instance=None; never treat that as a channel.
+        instance = (
+            getattr(put_feature, "function_instance", None) if put_feature else None
+        )
+        # Primary power/dimming often use function_instance=None; never treat that
+        # as a channel.
         if not instance or instance not in self.channels:
             return super().feature_for_update_comparison(field_name, put_feature)
         channel = self.channels[instance]
         if field_name == "on":
             # Dual-channel power uses toggle/<color|white>, not primary power.
-            if getattr(put_feature, "func_class", None) != "toggle":
+            if getattr(put_feature, "function_class", None) != "toggle":
                 return super().feature_for_update_comparison(field_name, put_feature)
             if channel.on is None:
                 # Unknown channel state: do not suppress (caller may still PUT).
                 return None
             return features.OnFeature(
                 on=channel.on,
-                func_class="toggle",
-                func_instance=instance,
+                function_class="toggle",
+                function_instance=instance,
             )
         if field_name == "dimming":
             if channel.brightness is None or self.dimming is None:
@@ -141,7 +143,8 @@ class Light(StandardMixin):
                 brightness=channel.brightness,
                 # Required by the dataclass; features_equivalent_for_update ignores it.
                 supported=self.dimming.supported,
-                func_instance=instance,
+                function_class=self.dimming.function_class,
+                function_instance=instance,
             )
         return super().feature_for_update_comparison(field_name, put_feature)
 

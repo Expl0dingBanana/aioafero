@@ -1,7 +1,7 @@
 """Handle connecting to Afero IoT and distribute events."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 import contextlib
 import datetime
 from enum import Enum
@@ -33,7 +33,7 @@ class CallbackResponse(NamedTuple):
     :param remove_original: Remove the original device from the list of devices
     """
 
-    split_devices: list[AferoDevice] = []
+    split_devices: Sequence[AferoDevice] = ()
     remove_original: bool = False
 
 

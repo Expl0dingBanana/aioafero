@@ -25,21 +25,6 @@ class StandardMixin:
     )
     sensors: dict[str, AferoSensor] = field(default_factory=dict)
     binary_sensors: dict[str, AferoBinarySensor] = field(default_factory=dict)
-    # Defined at initialization
-    instances: dict = field(default_factory=dict, repr=False, init=False)
-
-    def __post_init__(self):
-        """Configure the available instances."""
-        instances = {}
-        for function in self.device_information.functions or []:
-            instances[function["functionClass"]] = function.get(
-                "functionInstance", None
-            )
-        self.instances = instances
-
-    def get_instance(self, elem):
-        """Lookup the instance associated with the elem."""
-        return self.instances.get(elem, None)
 
     def feature_for_update_comparison(
         self, field_name: str, put_feature: object | None
