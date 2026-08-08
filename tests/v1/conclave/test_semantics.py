@@ -16,6 +16,29 @@ def _device(functions: list[dict]) -> AferoDevice:
     )
 
 
+def test_build_attribute_index_skips_non_dict_functions():
+    device = _device(
+        [
+            None,  # type: ignore[list-item]
+            "bad",  # type: ignore[list-item]
+            {
+                "functionClass": "power",
+                "values": [
+                    {
+                        "name": "on",
+                        "deviceValues": [
+                            {"type": "attribute", "key": "1", "value": "01"}
+                        ],
+                    }
+                ],
+            },
+        ]
+    )
+    index = semantics.build_attribute_index(device)
+    assert list(index) == ["1"]
+    assert index["1"][0].function_class == "power"
+
+
 def test_build_attribute_index_groups_by_key():
     device = _device(
         [
