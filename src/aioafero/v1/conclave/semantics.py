@@ -57,6 +57,8 @@ def build_attribute_index(device: AferoDevice) -> AttributeIndex:
     """
     index: AttributeIndex = {}
     for func in device.functions or []:
+        if not isinstance(func, dict):
+            continue
         function_class = func.get("functionClass")
         if not function_class:
             continue

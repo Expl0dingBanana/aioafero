@@ -4,12 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .access import ConclaveAccess
-
-if TYPE_CHECKING:  # pragma: no cover
-    from aioafero.v1 import AferoBridgeV1
 
 # Server may greet with either key after the opening ``{}``.
 HANDSHAKE_FRAME_KEYS: frozenset[str] = frozenset({"hello", "tunnel"})
@@ -19,7 +16,7 @@ CONCLAVE_CLIENT_TYPE = "aioafero"
 CONCLAVE_CLIENT_VERSION = "1.0.0"
 CONCLAVE_PROTOCOL = 2
 
-PrivateEventHandler = Callable[["AferoBridgeV1", dict[str, Any]], Awaitable[bool]]
+PrivateEventHandler = Callable[[Any, dict[str, Any]], Awaitable[bool]]
 
 
 @dataclass(frozen=True)

@@ -67,9 +67,6 @@ async def test_connection_open_login_and_dispatch_loop(conclave_bridge):
     async def fake_connect(_access):
         return reader, writer
 
-    async def fake_request(_bridge, **_kwargs):
-        return ACCESS
-
     conclave = client_module.ConclaveClient(
         bridge, connect=fake_connect, initial_backoff=0, max_backoff=0
     )

@@ -272,10 +272,12 @@ class ConclaveClient:
         if connection is not None:
             await connection.close()
         if self._task is not None:
-            self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await self._task
+            task = self._task
             self._task = None
+            task.cancel()
+            # Await cancellation so the reconnect loop finishes teardown.
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
         self._reconnect_pending = False
         self._set_status(ConclaveStatus.DISCONNECTED, reconnect=False)
 
