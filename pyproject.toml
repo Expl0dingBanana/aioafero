@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aioafero"
-version = "9.0.0"
+version = "9.1.0"
 dependencies = [
   "aiohttp>=3.14.3",
   "beautifulsoup4>=4.12.0",
@@ -261,6 +261,7 @@ combine-as-imports = true
 split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
+"scripts/**/*.py" = ["D", "INP001", "T201", "PLC0415", "ASYNC240", "ASYNC250", "SLF001", "PTH101"]
 "tests/**/*.py" = ["D", "SLF001", "PLR0917"]
 [tool.ruff.lint.mccabe]
 max-complexity = 25

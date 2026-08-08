@@ -100,13 +100,13 @@ State continues to refresh in the background while the bridge is open (every
 Subscribe to updates
 --------------------
 
-aioafero does **not** receive live pushes from Afero. After
-``initialize()``, ``EventStream`` runs a background poll every ``polling_interval``
-seconds (default 30). When a poll returns new state, the bridge updates its in-memory
-models and invokes your callback **locally** — a push onto your asyncio loop, not from
-the cloud.
+By default aioafero does **not** receive live pushes from Afero — after
+``initialize()``, ``EventStream`` polls every ``polling_interval`` seconds (default 30).
+When a poll returns new state, the bridge updates its in-memory models and invokes your
+callback **locally**. With ``enable_conclave=True`` (:doc:`conclave`), the same callbacks
+also run when push events arrive.
 
-Typical sequence:
+Typical sequence (REST poll):
 
 1. Poll completes and changed devices are queued on ``bridge.events``.
 2. The matching controller merges API state into the cached model.
@@ -194,5 +194,50 @@ bearer token):
    # After a successful session (refresh token may rotate):
    saved_refresh_token = bridge.refresh_token
 
+   await bridge.close()
+   await session.close()
+
+Conclave push (optional)
+------------------------
+
+For live updates without waiting for the REST poll interval, enable Conclave on
+the bridge. Setup, lifecycle, and the ``conclave_watch`` debug script are in
+:doc:`conclave`. The subscribe pattern above is unchanged — pass
+``enable_conclave=True`` and use the same ``bridge.subscribe`` / controller
+callbacks:
+
+.. code-block:: python
+
+   from aioafero.types import EventType
+
+   bridge = v1.AferoBridgeV1(
+       "user@example.com",
+       token_data.refresh_token,
+       session=session,
+       enable_conclave=True,
+   )
+   await bridge.initialize()
+   await bridge.async_block_until_done()
+   # bridge.conclave is set once the first discovery poll and login complete.
+
+   def on_event(event_type, _data):
+       if event_type in (
+           EventType.CONCLAVE_CONNECTED,
+           EventType.CONCLAVE_DISCONNECTED,
+       ):
+           print(event_type)
+
+   bridge.events.subscribe(
+       on_event,
+       event_filter=(
+           EventType.CONCLAVE_CONNECTING,
+           EventType.CONCLAVE_CONNECTED,
+           EventType.CONCLAVE_DISCONNECTED,
+           EventType.CONCLAVE_RECONNECTED,
+       ),
+   )
+   unsub = bridge.subscribe(on_update)
+   # ...
+   unsub()
    await bridge.close()
    await session.close()

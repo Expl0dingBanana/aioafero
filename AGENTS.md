@@ -1,6 +1,6 @@
 # AI agent guide — aioafero
 
-Async Python library for the Afero IoT cloud API (**9.0.0**). **Device and protocol logic belongs here**, not in downstream integrations (e.g. [Hubspace-Homeassistant](https://github.com/jdeath/Hubspace-Homeassistant)).
+Async Python library for the Afero IoT cloud API. **Device and protocol logic belongs here**, not in downstream integrations (e.g. [Hubspace-Homeassistant](https://github.com/jdeath/Hubspace-Homeassistant)). Package version is in `pyproject.toml`.
 
 ## Commands and quality gate
 
@@ -21,10 +21,10 @@ All of the above must pass before a PR: **lint**, **audit**, **tests** (3.12–3
 Before pushing, run the quality gate above, then review the diff:
 
 ```bash
-git diff api-break/9.0.0...HEAD -- src/ tests/
+git diff origin/main...HEAD -- src/ tests/
 ```
 
-In Cursor, ask: _Review this diff like Copilot would — secrets/redaction, None paths, API JSON validation, typing vs runtime, 9.0 auth/session rules._
+In Cursor, ask: _Review this diff like Copilot would — secrets/redaction, None paths, API JSON validation, typing vs runtime, auth/session rules, Conclave push paths when touched._
 
 GitHub Copilot PR review reads [.github/copilot-instructions.md](.github/copilot-instructions.md) (≤4k chars). Re-request after push:
 
@@ -38,9 +38,9 @@ The GraphQL “Projects (classic)” warning from `gh pr edit` is harmless.
 
 Rules live in `pyproject.toml` and `.pre-commit-config.yaml` — fix what `tox -e lint` reports. Match surrounding code. Library is **fully async** (`async def`, no blocking I/O; use `asyncio.timeout`, not `async_timeout`). Public code needs docstrings; tests are exempt. **`TC001`–`TC003` ignored in tests** — do not use `TYPE_CHECKING` imports in tests (breaks `pytest.patch()`).
 
-## Architecture (9.0)
+## Architecture
 
-`AferoAuth` (login/OTP/refresh) → `AferoBridgeV1` (session, polling, controllers) → models (cached state) + `EventStream` (REST polls, in-process callbacks). Models are **read-only snapshots**; writes go through controller methods / `set_state`.
+`AferoAuth` (login/OTP/refresh) → `AferoBridgeV1` (session, polling, controllers) → models (cached state) + `EventStream` (REST polls, in-process callbacks). Optional Conclave push (`enable_conclave=True`) updates the same cached models; REST stays source of truth for discovery/writes. Models are **read-only snapshots**; writes go through controller methods / `set_state`.
 
 **Auth:** Bridge takes `username` + `refresh_token` (optional `token` / `token_expiration`), not a password. **`AferoAuth` and `AferoBridgeV1` require `aiohttp.ClientSession` at construction.** `for_login(session, user, password)` for credentials; runtime uses `AferoAuth(session, user, refresh_token, …)`. `AferoBridgeV1.open(...)` may create a session when omitted (only path without an upfront session). `bridge.close()` does **not** close a session you passed in.
 
@@ -54,11 +54,11 @@ await bridge.close()
 await session.close()
 ```
 
-More: [docs/user/auth.rst](docs/user/auth.rst), [docs/user/overview.rst](docs/user/overview.rst).
+More: [docs/user/auth.rst](docs/user/auth.rst), [docs/user/overview.rst](docs/user/overview.rst), [docs/user/conclave.rst](docs/user/conclave.rst).
 
 ## Layout
 
-`src/aioafero/v1/` — `__init__.py` (bridge), `auth.py`, `controllers/`, `models/`, `controllers/event.py` (polling). `tests/` mirrors `src/`. Cloud I/O via controllers — do not bypass `BaseResourcesController.set_state` / `update_afero_api`.
+`src/aioafero/v1/` — `__init__.py` (bridge), `auth.py`, `conclave/`, `controllers/`, `models/`, `controllers/event.py` (polling). `tests/` mirrors `src/`. Cloud I/O via controllers — do not bypass `BaseResourcesController.set_state` / `update_afero_api`.
 
 ## Adding a device type
 
@@ -66,4 +66,4 @@ Follow an existing controller (e.g. fan, switch). Model in `v1/models/` → cont
 
 ## Further reading
 
-[CHANGELOG.rst](CHANGELOG.rst) (9.0 breaks) · [README.rst](README.rst) · [docs/user/examples.rst](docs/user/examples.rst) · [docs/user/bridge.rst](docs/user/bridge.rst) · [docs/contributing.rst](docs/contributing.rst) · [CONTRIBUTING.md](CONTRIBUTING.md)
+[CHANGELOG.rst](CHANGELOG.rst) · [README.rst](README.rst) · [docs/user/examples.rst](docs/user/examples.rst) · [docs/user/bridge.rst](docs/user/bridge.rst) · [docs/contributing.rst](docs/contributing.rst) · [CONTRIBUTING.md](CONTRIBUTING.md)
