@@ -2,10 +2,12 @@
 aioafero
 ========
 
-Async Python library for the Afero / Hubspace cloud API.
+Async Python library for the Afero IoT cloud API.
 
-This package enables async access to Hubspace (Afero cloud) accounts. It is
-library-only — Home Assistant integrations such as
+This package enables async access to Afero accounts. Credential login
+lives in :doc:`user/auth`; runtime access uses ``AferoBridgeV1`` with a refresh token.
+
+The library is **library-only** — Home Assistant integrations such as
 `Hubspace-Homeassistant <https://github.com/jdeath/Hubspace-Homeassistant>`_ consume
 it from PyPI.
 
@@ -20,6 +22,7 @@ Quick links
 
    user/overview
    user/installation
+   user/auth
    user/bridge
    user/features
    user/controllers/index

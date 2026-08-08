@@ -41,7 +41,7 @@ into Switch resources.
 See ``is_dual_channel_rgb_fixture``. True multi-zone fixtures (main/trim) still
 split into separate lights; see ``get_split_instances``.
 
-**Color modes:** Hubspace exposes ``color-mode`` values such as ``color``,
+**Color modes:** Afero exposes ``color-mode`` values such as ``color``,
 ``white``, ``sequence``, and (on these fixtures) ``mixed``.
 ``mixed`` is a single color-mode controller that keeps both the RGB and white
 drivers active together — not a separate HA entity, and not the same idea as

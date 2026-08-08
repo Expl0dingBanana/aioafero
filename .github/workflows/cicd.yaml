@@ -3,6 +3,8 @@ name: Execute tests and linting
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
   push:
     branches:
       - main
