@@ -89,7 +89,7 @@ async def request_conclave_access(
     return _parse_conclave_access(data)
 
 
-def _parse_conclave_access(data: dict) -> ConclaveAccess:
+def _parse_conclave_access(data: object) -> ConclaveAccess:
     """Validate and parse the ``conclaveAccess`` JSON payload."""
     if not isinstance(data, dict):
         raise AferoError("conclaveAccess response is not a JSON object")
