@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero import AferoState, get_afero_device
+from aioafero import AferoDevice, AferoState, get_afero_device
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.models.resource import DeviceInformation
@@ -460,6 +460,44 @@ async def test_process_resource_lifecycle_add_skips_non_parent(
         ),
     )
     assert a21_light.id not in mocked_controller
+
+
+@pytest.mark.asyncio
+async def test_process_resource_lifecycle_add_skips_split_clone(mocked_controller):
+    """Conclave inventory must not key ``_known_parents`` to a split clone id."""
+    clone = AferoDevice(
+        id=f"{a21_light.id}-light-trim",
+        device_id=a21_light.device_id,
+        model=a21_light.model,
+        device_class="light",
+        default_name=a21_light.default_name,
+        default_image=a21_light.default_image,
+        friendly_name="Trim",
+        functions=a21_light.functions,
+        states=[],
+        split_identifier="light",
+    )
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=clone.id,
+            device=clone,
+        ),
+    )
+    assert clone.device_id not in mocked_controller._known_parents
+    assert clone.id not in mocked_controller
+
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=a21_light.id,
+            device=a21_light,
+        ),
+    )
+    assert mocked_controller._known_parents[a21_light.device_id] == a21_light.id
+    assert a21_light.id in mocked_controller
 
 
 @pytest.mark.asyncio

@@ -202,6 +202,7 @@ class AferoBridgeV1:
         self.add_controller("thermostats", ThermostatController)
         self.add_controller("valves", ValveController)
         self._enable_conclave = enable_conclave
+        self._closed = False
         self._conclave: ConclaveClient | None = None
 
     @property
@@ -217,6 +218,11 @@ class AferoBridgeV1:
     def refresh_token(self) -> str | None:
         """Get the current sessions refresh token."""
         return self._auth.refresh_token
+
+    @property
+    def token_data(self) -> TokenData | None:
+        """Return the live OAuth token bundle from auth, if any."""
+        return self._auth.token_data
 
     @property
     def events(self) -> EventStream:
@@ -451,11 +457,18 @@ class AferoBridgeV1:
 
     async def close(self) -> None:
         """Close connection and clean up resources."""
+        self._closed = True
+        # Cancel ad-hoc work first (includes ``_start_conclave_after_poll``) so
+        # a racing start cannot recreate Conclave after we stop it.
+        await self._cancel_adhoc_tasks()
         if self._conclave is not None:
             try:
                 await self._conclave.stop()
             finally:
                 self._conclave = None
+            # ``stop()`` may emit lifecycle events that schedule async
+            # subscribers onto ``_adhoc_tasks`` — cancel those before teardown.
+            await self._cancel_adhoc_tasks()
         for task in self._scheduled_tasks:
             task.cancel()
             await task
@@ -464,6 +477,15 @@ class AferoBridgeV1:
         if self._close_session and self._web_session:
             await self._web_session.close()
         self.logger.info("Connection to bridge closed.")
+
+    async def _cancel_adhoc_tasks(self) -> None:
+        """Cancel and await all bridge ad-hoc tasks."""
+        adhoc = list(self._adhoc_tasks)
+        self._adhoc_tasks = []
+        for task in adhoc:
+            task.cancel()
+        if adhoc:
+            await asyncio.gather(*adhoc, return_exceptions=True)
 
     async def __aenter__(self) -> Self:
         """Enter async context: ``await bridge.initialize()``."""
@@ -636,12 +658,23 @@ class AferoBridgeV1:
 
         Conclave pushes are keyed by physical ``deviceId`` and resolved through
         ``description.functions`` semantics; both arrive in the discovery poll,
-        so we never start the socket before that index is populated.
+        so we never start the socket before that index is populated. We also
+        drain the event queue so controller ``_items`` are ready before push
+        updates can arrive.
         """
         await self.events.wait_for_first_poll()
+        # Drain discovery events only — do not ``async_block_until_done`` on the
+        # bridge, which would ``gather`` this ad-hoc task and deadlock.
+        await self.events.async_block_until_done()
+        if self._closed:
+            return
         if self._conclave is None:
             self._conclave = ConclaveClient(self)
         await self._conclave.start()
+        if self._closed:
+            await self._conclave.stop()
+            self._conclave = None
+            return
         if not await self._conclave.wait_until_logged_in():
             self.logger.warning(
                 "Conclave login did not complete within 60s; push updates may be delayed"

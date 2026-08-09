@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
 import contextlib
 from enum import Enum
 import json
 import logging
 import ssl
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from aiohttp.client_exceptions import ClientError
 from securelogging import remove_secret
@@ -186,11 +186,13 @@ class ConclaveClient:
         """Attach a reconnecting Conclave consumer to ``bridge``.
 
         :param push_idle_timeout: When set, end the session if no ``private``
-            push arrives within this many seconds while the socket is still
-            receiving heartbeats. ``None`` disables (default). Use for zombie
-            sessions where ``welcome`` succeeds but state pushes stop.
+            push arrives within this many seconds after login while the socket
+            is still receiving heartbeats (idle clock starts at ``welcome``).
+            ``None`` disables (default). Use for zombie sessions where
+            ``welcome`` succeeds but state pushes never arrive or stop.
         :param reconcile_on_reconnect: After a failed session, run one REST
-            state poll once login succeeds again.
+            state poll once login succeeds again (in the background so the TLS
+            dispatch loop can keep acking heartbeats).
         """
         self._bridge = bridge
         self._connect = connect or _default_connect
@@ -201,6 +203,8 @@ class ConclaveClient:
         self._reconcile_on_reconnect = reconcile_on_reconnect
         self._logger = bridge.logger.getChild("conclave")
         self._task: asyncio.Task | None = None
+        self._session_tasks: set[asyncio.Task] = set()
+        self._frame_handler_lock = asyncio.Lock()
         self._stop_event = asyncio.Event()
         self._logged_in = asyncio.Event()
         self._connection: ConclaveConnection | None = None
@@ -264,18 +268,24 @@ class ConclaveClient:
         return True
 
     async def start(self) -> None:
-        """Schedule the background reconnect loop (idempotent)."""
+        """Schedule the background reconnect loop (idempotent).
+
+        The loop is owned by this client (``stop()`` / ``bridge.close()``), not
+        tracked as a bridge ad-hoc job — otherwise
+        :meth:`~aioafero.v1.AferoBridgeV1.async_block_until_done` would hang
+        while Conclave is running.
+        """
         if self._task is not None and not self._task.done():
             return
         self._stop_event.clear()
         self._task = asyncio.create_task(self._run_forever())
-        self._bridge.add_job(self._task)
 
     async def stop(self) -> None:
         """Stop the loop and close any open connection (idempotent)."""
         self._stop_event.set()
         self._logged_in.clear()
         self._last_private_at = None
+        await self._cancel_session_tasks()
         connection = self._connection
         self._connection = None
         if connection is not None:
@@ -289,6 +299,40 @@ class ConclaveClient:
                 await task
         self._reconnect_pending = False
         self._set_status(ConclaveStatus.DISCONNECTED, reconnect=False)
+
+    def _track_session_task(self, coro: Coroutine[Any, Any, Any]) -> asyncio.Task:
+        """Schedule work tied to the current Conclave session (cancelled on stop)."""
+        task = asyncio.create_task(coro)
+        self._session_tasks.add(task)
+        task.add_done_callback(self._session_tasks.discard)
+        return task
+
+    async def _cancel_session_tasks(self) -> None:
+        """Cancel background session work (reconcile / public invalidate)."""
+        tasks = list(self._session_tasks)
+        self._session_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _run_frame_handler(
+        self, handler: Callable[..., Awaitable[bool]], data: dict
+    ) -> None:
+        """Run a private/public frame handler off the TLS dispatch loop.
+
+        Handlers are serialized so inventory ``remove`` completes before a later
+        ``status_change`` / ``attr_change`` for the same device, and a slow
+        inventory ``add`` cannot finish after a later ``remove``.
+        """
+        async with self._frame_handler_lock:
+            try:
+                if await handler(self._bridge, data):
+                    self._last_private_at = time.monotonic()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                self._logger.exception("Conclave frame handler failed")
 
     def _set_status(self, status: ConclaveStatus, *, reconnect: bool = True) -> None:
         """Update status and emit the matching :class:`~aioafero.types.EventType`."""
@@ -361,15 +405,19 @@ class ConclaveClient:
                 max(self._read_timeout, heartbeat * WIRE_IDLE_HEARTBEAT_MULTIPLIER)
             )
             self._logged_in.set()
+            # Idle clock starts at welcome so push_idle_timeout can detect
+            # zombie sessions that never receive a private frame.
             self._last_private_at = time.monotonic()
             self._set_status(ConclaveStatus.CONNECTED)
             self._logger.info("Conclave session logged in; listening for push events")
             if self._reconcile_on_reconnect and self._needs_reconcile:
-                await self._reconcile_rest_state()
-                self._needs_reconcile = False
+                # Off the dispatch loop so heartbeats keep flowing during REST.
+                # Clear the flag only after a successful reconcile.
+                self._track_session_task(self._reconcile_after_reconnect())
             try:
                 await self._dispatch_loop(connection)
             finally:
+                await self._cancel_session_tasks()
                 self._logged_in.clear()
                 self._last_private_at = None
                 self._set_status(ConclaveStatus.DISCONNECTED)
@@ -386,20 +434,36 @@ class ConclaveClient:
             if access is not None:
                 remove_secret(access.token)
 
-    async def _reconcile_rest_state(self) -> None:
-        """Run one REST state poll after a failed Conclave session."""
+    async def _reconcile_after_reconnect(self) -> None:
+        """Run REST reconcile and clear the retry flag only on success."""
+        if await self._reconcile_rest_state():
+            self._needs_reconcile = False
+
+    async def _reconcile_rest_state(self) -> bool:
+        """Run one REST state poll after a failed Conclave session.
+
+        Failures are logged; they must not tear down the TLS dispatch loop.
+
+        :return: ``True`` when device states were fetched and applied.
+        """
         self._logger.info(
             "Reconciling device state over REST after Conclave disconnect"
         )
         try:
             devices = await self._bridge.fetch_all_device_states()
+            split = await self._bridge.events.split_devices(devices)
         except (ClientError, TimeoutError, OSError, InvalidAuth, AferoError):
             self._logger.warning(
                 "REST reconcile after Conclave disconnect failed",
                 exc_info=True,
             )
-            return
-        for device in await self._bridge.events.split_devices(devices):
+            return False
+        except Exception:
+            self._logger.exception(
+                "REST reconcile after Conclave disconnect failed unexpectedly"
+            )
+            return False
+        for device in split:
             try:
                 await self._bridge.events.generate_events_from_update(device)
             except (TypeError, ValueError, KeyError, AttributeError):
@@ -408,6 +472,7 @@ class ConclaveClient:
                     device.id,
                     exc_info=True,
                 )
+        return True
 
     async def _dispatch_loop(self, connection: ConclaveConnection) -> None:
         async for frame in connection.iter_frames():
@@ -443,8 +508,7 @@ class ConclaveClient:
                     "Unhandled Conclave private event: %s", private.event
                 )
                 return
-            if await handler(self._bridge, private.data):
-                self._last_private_at = time.monotonic()
+            self._track_session_task(self._run_frame_handler(handler, private.data))
             return
 
         public = parse_public_frame(frame)
@@ -453,8 +517,8 @@ class ConclaveClient:
             if handler is None:
                 self._logger.debug("Unhandled Conclave public event: %s", public.event)
                 return
-            if await handler(self._bridge, public.data):
-                self._last_private_at = time.monotonic()
+            # Inventory add may REST; keep heartbeats moving on this loop.
+            self._track_session_task(self._run_frame_handler(handler, public.data))
             return
 
         self._logger.debug(

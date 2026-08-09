@@ -526,6 +526,7 @@ def test_set_token_data(mocked_bridge):
     )
     mocked_bridge.set_token_data(data)
     assert mocked_bridge.refresh_token == "refresh_token"
+    assert mocked_bridge.token_data == data
 
 
 @pytest.mark.asyncio

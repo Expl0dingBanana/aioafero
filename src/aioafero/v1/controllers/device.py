@@ -121,6 +121,12 @@ class DeviceController(BaseResourcesController[Device]):
             device = evt_data.get("device")
             if device is None:
                 return
+            # Split clones share a physical radio with their parent. Registering
+            # them via per-entity ADDED (Conclave inventory) would key
+            # ``_known_parents`` to the clone id when the clone is processed
+            # before the parent / parent-device row.
+            if device.split_identifier:
+                return
             parents = self.get_filtered_devices([device])
             if not parents:
                 return
