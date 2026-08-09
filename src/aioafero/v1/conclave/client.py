@@ -6,6 +6,8 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 import contextlib
 from enum import Enum
+import json
+import logging
 import ssl
 import time
 from typing import TYPE_CHECKING
@@ -46,6 +48,12 @@ DEFAULT_INITIAL_BACKOFF = 1.0
 DEFAULT_MAX_BACKOFF = 60.0
 READ_CHUNK_SIZE = 65536
 WIRE_IDLE_HEARTBEAT_MULTIPLIER = 2.0
+
+# Fixed name under ``aioafero`` so integrations only need to raise the parent
+# (or this logger) to DEBUG — e.g. HA ``loggers: ["aioafero"]``. No special
+# handlers required; optional :class:`~aioafero.v1.conclave.ConclaveFrameFileHandler`
+# for buffered NDJSON capture.
+FRAME_LOGGER = logging.getLogger("aioafero.v1.conclave.frames")
 
 
 class ConclaveStatus(Enum):
@@ -421,6 +429,11 @@ class ConclaveClient:
             )
 
     async def _handle_frame(self, frame: dict) -> None:
+        if FRAME_LOGGER.isEnabledFor(logging.DEBUG):
+            FRAME_LOGGER.debug(
+                "%s",
+                json.dumps(frame, separators=(",", ":"), sort_keys=True),
+            )
         private = parse_private_frame(frame)
         if private is None:
             self._logger.debug(
