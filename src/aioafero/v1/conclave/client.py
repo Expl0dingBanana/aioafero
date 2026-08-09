@@ -19,7 +19,7 @@ from aioafero.errors import AferoError, InvalidAuth
 from aioafero.types import EventType
 
 from .access import ConclaveAccess, request_conclave_access
-from .events import PRIVATE_EVENT_HANDLERS
+from .events import PRIVATE_EVENT_HANDLERS, PUBLIC_EVENT_HANDLERS
 from .frames import (
     HEARTBEAT_FRAME,
     ConclaveFrameDecoder,
@@ -31,6 +31,7 @@ from .protocol import (
     WELCOME_FRAME_KEY,
     build_login_frame,
     parse_private_frame,
+    parse_public_frame,
     server_heartbeat_seconds,
 )
 
@@ -435,18 +436,31 @@ class ConclaveClient:
                 json.dumps(frame, separators=(",", ":"), sort_keys=True),
             )
         private = parse_private_frame(frame)
-        if private is None:
-            self._logger.debug(
-                "Ignoring non-private Conclave frame keys: %s",
-                sorted(frame),
-            )
+        if private is not None:
+            handler = PRIVATE_EVENT_HANDLERS.get(private.event)
+            if handler is None:
+                self._logger.debug(
+                    "Unhandled Conclave private event: %s", private.event
+                )
+                return
+            if await handler(self._bridge, private.data):
+                self._last_private_at = time.monotonic()
             return
-        handler = PRIVATE_EVENT_HANDLERS.get(private.event)
-        if handler is None:
-            self._logger.debug("Unhandled Conclave private event: %s", private.event)
+
+        public = parse_public_frame(frame)
+        if public is not None:
+            handler = PUBLIC_EVENT_HANDLERS.get(public.event)
+            if handler is None:
+                self._logger.debug("Unhandled Conclave public event: %s", public.event)
+                return
+            if await handler(self._bridge, public.data):
+                self._last_private_at = time.monotonic()
             return
-        if await handler(self._bridge, private.data):
-            self._last_private_at = time.monotonic()
+
+        self._logger.debug(
+            "Ignoring Conclave frame keys: %s",
+            sorted(frame),
+        )
 
 
 async def _default_connect(

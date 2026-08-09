@@ -32,6 +32,21 @@ def get_conclave_dump(file_name: str) -> Any:
         return json.load(handle)
 
 
+def get_conclave_frames(file_name: str) -> list[dict[str, Any]]:
+    """Return Conclave frames from a dump.
+
+    Accepts either a bare list of payloads/frames (e.g. brightness dumps) or a
+    scenario object with a ``frames`` list (inventory add/remove).
+    """
+    dump = get_conclave_dump(file_name)
+    if isinstance(dump, list):
+        return dump
+    frames = dump.get("frames")
+    if not isinstance(frames, list):
+        raise TypeError(f"{file_name} is missing a frames list")
+    return frames
+
+
 class FakeWriter:
     """Minimal ``asyncio.StreamWriter`` substitute for handshake tests."""
 

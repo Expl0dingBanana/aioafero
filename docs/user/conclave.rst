@@ -119,6 +119,17 @@ clones are refreshed from the parent before events fire. ``status_change`` updat
 Unknown attribute keys or unknown devices are logged at DEBUG and skipped; the
 next discovery poll still reconciles state.
 
+Inventory changes arrive on a separate ``public`` / ``invalidate`` envelope:
+
+* ``kind: "remove"`` with ``target: "metadevices"`` or ``"devices"`` emits
+  ``RESOURCE_DELETED`` for the matching metadevice and any split clones.
+* ``kind: "add"`` with ``target: "metadevices"`` fetches that metadevice over REST
+  (:meth:`~aioafero.v1.AferoBridgeV1.fetch_metadevice`) and emits
+  ``RESOURCE_ADDED`` without treating other devices as deleted. A
+  ``target: "devices"`` add is a no-op when the physical device is already
+  cached; otherwise it triggers a discovery poll.
+* Other invalidate kinds (``update``, …) are ignored for now.
+
 Library layout
 --------------
 
@@ -126,7 +137,7 @@ The ``aioafero.v1.conclave`` subpackage splits wire handling from bridge
 integration:
 
 * ``access`` — mint ``conclaveAccess`` tokens over REST
-* ``protocol`` — login frame builder and ``private`` envelope parsing
+* ``protocol`` — login frame builder and ``private`` / ``public`` envelope parsing
 * ``frames`` — incremental decoder (zlib prefix, JSON objects, ``\n`` heartbeats)
 * ``semantics`` — per-device attribute index and REST value coercion
 * ``events`` — apply pushes to the bridge cache and fan out controller events
@@ -143,6 +154,8 @@ Limitations
   ``description.functions`` semantics; unknown attribute IDs are ignored. A
   subsequent discovery poll picks up the missing semantic without user
   intervention.
+* ``public`` / ``invalidate`` currently handles inventory ``add`` and ``remove``
+  only; other kinds are ignored until modeled.
 * The channel is best-effort. REST polling on ``polling_interval`` continues so
   any missed pushes are reconciled at the configured interval.
 * After ``ConclaveClient.start()``, login must complete within 60 seconds or the

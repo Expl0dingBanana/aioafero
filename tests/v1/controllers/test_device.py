@@ -371,3 +371,115 @@ def test_instanced_known_devs(mocked_bridge):
     c1 = DeviceController(mocked_bridge)
     c2 = DeviceController(mocked_bridge)
     assert id(c1._known_parents) != id(c2._known_parents)
+
+
+@pytest.mark.asyncio
+async def test_process_resource_lifecycle_add_and_delete(mocked_controller):
+    # Direct ADDED (e.g. Conclave invalidate) should track the parent.
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=a21_light.id,
+            device=a21_light,
+        ),
+    )
+    assert a21_light.device_id in mocked_controller._known_parents
+    assert a21_light.id in mocked_controller
+
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=a21_light.id,
+            device=a21_light,
+        ),
+    )
+    assert a21_light.id in mocked_controller
+
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_DELETED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_DELETED,
+            device_id=a21_light.id,
+        ),
+    )
+    assert a21_light.device_id not in mocked_controller._known_parents
+    assert a21_light.id not in mocked_controller
+
+
+@pytest.mark.asyncio
+async def test_process_resource_lifecycle_delete_item_without_known_parent(
+    mocked_controller,
+):
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=a21_light.id,
+            device=a21_light,
+        ),
+    )
+    mocked_controller._known_parents.clear()
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_DELETED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_DELETED,
+            device_id=a21_light.id,
+        ),
+    )
+    assert a21_light.id not in mocked_controller
+
+
+@pytest.mark.asyncio
+async def test_process_resource_lifecycle_none_and_missing(mocked_controller):
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED, None
+    )
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(type=event.EventType.RESOURCE_ADDED, device_id="x"),
+    )
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_DELETED,
+        event.AferoEvent(type=event.EventType.RESOURCE_DELETED, device_id=""),
+    )
+
+
+@pytest.mark.asyncio
+async def test_process_resource_lifecycle_add_skips_non_parent(
+    mocked_controller, mocker
+):
+    mocker.patch.object(mocked_controller, "get_filtered_devices", return_value=[])
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=a21_light.id,
+            device=a21_light,
+        ),
+    )
+    assert a21_light.id not in mocked_controller
+
+
+@pytest.mark.asyncio
+async def test_process_resource_lifecycle_delete_skips_unrelated_parent(
+    mocked_controller,
+):
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_ADDED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_ADDED,
+            device_id=a21_light.id,
+            device=a21_light,
+        ),
+    )
+    await mocked_controller._process_resource_lifecycle(
+        event.EventType.RESOURCE_DELETED,
+        event.AferoEvent(
+            type=event.EventType.RESOURCE_DELETED,
+            device_id="not-this-device",
+        ),
+    )
+    assert a21_light.id in mocked_controller
+    assert a21_light.device_id in mocked_controller._known_parents

@@ -211,6 +211,30 @@ async def test_dispatch_loop_handles_non_private_and_non_dict_private(conclave_b
     await conclave._handle_frame({"private": "not-a-dict"})
     await conclave._handle_frame({"private": {"event": "attr_change", "data": "x"}})
     await conclave._handle_frame({"private": {"event": "mystery", "data": {}}})
+    await conclave._handle_frame({"public": "not-a-dict"})
+    await conclave._handle_frame({"public": {"event": "mystery", "data": {}}})
+
+
+@pytest.mark.asyncio
+async def test_handle_frame_applies_public_invalidate_remove(conclave_bridge):
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.add_afero_dev(device)
+    bridge.add_device(device.id, bridge.lights)
+    conclave = client_module.ConclaveClient(bridge)
+    await conclave._handle_frame(
+        {
+            "public": {
+                "event": "invalidate",
+                "data": {
+                    "kind": "remove",
+                    "target": "metadevices",
+                    "values": [{"metadeviceId": device.id}],
+                },
+            }
+        }
+    )
+    assert device.id not in bridge._known_afero_devices
 
 
 @pytest.mark.asyncio
