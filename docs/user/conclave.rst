@@ -127,8 +127,14 @@ Inventory changes arrive on a separate ``public`` / ``invalidate`` envelope:
   (:meth:`~aioafero.v1.AferoBridgeV1.fetch_metadevice`) and emits
   ``RESOURCE_ADDED`` without treating other devices as deleted. A
   ``target: "devices"`` add is a no-op when the physical device is already
-  cached; otherwise it triggers a discovery poll.
+  cached; otherwise it triggers a discovery poll (and clears discovery
+  tombstones so a prior remove cannot block the import).
 * Other invalidate kinds (``update``, …) are ignored for now.
+
+Conclave ``remove`` also records short-lived discovery tombstones (about two
+discovery intervals, minimum two minutes) so an in-flight or slightly stale
+REST discovery body cannot immediately revive a deleted device. Tombstones
+expire, and intentional adds clear them (including split-clone ids).
 
 Library layout
 --------------
@@ -163,12 +169,17 @@ Limitations
 * A closed or stalled **wire** is detected automatically: EOF on read, failed
   heartbeat writes, or no server bytes for roughly **two heartbeat intervals**
   (from ``hello`` / ``welcome``, typically ~120s). The client reconnects with a
-  fresh ``conclaveAccess`` token and, by default, runs one REST state poll to
-  heal gaps.
+  fresh ``conclaveAccess`` token and, by default, schedules one REST state poll
+  in the background so the TLS loop can keep acking heartbeats.
+* Inventory ``public`` / ``invalidate`` handlers that need REST (metadevice
+  fetch / discovery) are also scheduled off the TLS dispatch loop for the same
+  reason.
 * A **zombie** session (``welcome`` OK, heartbeats continue, but no ``private``
   pushes) is not visible from socket-closed checks alone. Pass
   ``push_idle_timeout=…`` to :class:`~aioafero.v1.conclave.client.ConclaveClient`
-  when you need that case (e.g. long reconcile-only REST intervals in HA).
-  :attr:`~aioafero.v1.conclave.client.ConclaveClient.push_stale` and
+  when you need that case (e.g. long reconcile-only REST intervals in HA). The
+  idle clock starts at ``welcome`` so a session that never receives a private
+  push is detected. :attr:`~aioafero.v1.conclave.client.ConclaveClient.push_stale`
+  and
   :attr:`~aioafero.v1.conclave.client.ConclaveClient.seconds_since_last_push`
   expose push health for diagnostics.

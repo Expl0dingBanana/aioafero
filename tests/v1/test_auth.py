@@ -18,6 +18,13 @@ def hs_auth(aio_sess):
     return auth.AferoAuth(aio_sess, "username", "mock-refresh-token")
 
 
+def test_token_data_property(hs_auth):
+    assert hs_auth.token_data is not None
+    assert hs_auth.token_data.refresh_token == "mock-refresh-token"
+    hs_auth._token_data = None
+    assert hs_auth.token_data is None
+
+
 @pytest.fixture
 def hs_auth_login(aio_sess):
     return auth.AferoAuth.for_login(aio_sess, "username", "password")

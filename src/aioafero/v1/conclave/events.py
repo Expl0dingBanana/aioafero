@@ -146,9 +146,17 @@ async def _apply_to_conclave_devices(
     device_id: str,
     handler: Callable[[AferoDevice], Awaitable[bool]],
 ) -> bool:
-    """Run ``handler(device)`` for each cached metadevice with this ``deviceId``."""
+    """Run ``handler(device)`` for each cached *parent* with this ``deviceId``.
+
+    Split clones share the physical Conclave ``deviceId`` with their parent.
+    Patches must land on the parent only; ``_dispatch_conclave_device_update``
+    refreshes clones afterward. Applying to clones as well would duplicate
+    ``RESOURCE_UPDATE_RESPONSE`` events and corrupt filtered clone state.
+    """
     applied = False
     for afero_device in bridge.find_afero_devices_by_conclave_id(device_id):
+        if afero_device.split_identifier:
+            continue
         if await handler(afero_device):
             applied = True
     if not applied:
@@ -215,13 +223,27 @@ async def apply_status_change(bridge: AferoBridgeV1, payload: dict) -> bool:
 async def _dispatch_conclave_device_update(
     bridge: AferoBridgeV1, parent: AferoDevice
 ) -> None:
-    """Route a patched metadevice through split clones and the event queue."""
+    """Route a patched metadevice through split clones and the event queue.
+
+    Split clones are refreshed once, then each unique device is enqueued as a
+    ``RESOURCE_UPDATE_RESPONSE``. We intentionally do **not** call
+    :meth:`~aioafero.v1.controllers.event.EventStream.generate_events_from_update`
+    per clone — that helper re-runs ``split_devices`` and would emit duplicate
+    updates for every zone on a multi-split device.
+    """
     clones = await bridge.events.split_devices([parent])
     for clone in _unique_devices(clones):
         if clone.split_identifier:
             refresh_split_clone_states(parent, clone)
             bridge.add_afero_dev(clone, clone.id)
-        await bridge.events.generate_events_from_update(clone)
+        bridge.events.add_job(
+            AferoEvent(
+                type=EventType.RESOURCE_UPDATE_RESPONSE,
+                device_id=clone.id,
+                device=clone,
+                force_forward=False,
+            )
+        )
 
 
 def _unique_ids(ids: list[str]) -> list[str]:
@@ -237,7 +259,13 @@ def _unique_ids(ids: list[str]) -> list[str]:
 
 
 def _cached_ids_for_parents(bridge: AferoBridgeV1, parent_ids: set[str]) -> list[str]:
-    """Return tracked/cache ids that belong to any parent in ``parent_ids``."""
+    """Return tracked/cache ids that belong to any parent in ``parent_ids``.
+
+    Only ids still present in the bridge are returned. Re-adding requested
+    parent UUIDs after the cache is empty would enqueue duplicate
+    ``RESOURCE_DELETED`` events when Conclave sends both ``devices`` and
+    ``metadevices`` remove frames for the same inventory change.
+    """
     if not parent_ids:
         return []
     known_ids = set(bridge.tracked_devices) | bridge.known_afero_device_ids
@@ -248,9 +276,6 @@ def _cached_ids_for_parents(bridge: AferoBridgeV1, parent_ids: set[str]) -> list
             continue
         if bridge.resolve_metadevice_id(known_id) in parent_ids:
             matched.append(known_id)
-    for parent_id in parent_ids:
-        if parent_id not in matched:
-            matched.append(parent_id)
     return _unique_ids(matched)
 
 
@@ -286,7 +311,18 @@ async def _emit_resource_deleted(bridge: AferoBridgeV1, device_ids: list[str]) -
     """Queue ``RESOURCE_DELETED`` and drop cache entries for ``device_ids``."""
     emitted = False
     for device_id in _unique_ids(device_ids):
+        still_known = (
+            device_id in bridge.tracked_devices
+            or device_id in bridge.known_afero_device_ids
+        )
+        if not still_known:
+            logger.debug(
+                "Skipping Conclave RESOURCE_DELETED for already-removed %s",
+                device_id,
+            )
+            continue
         logger.debug("Conclave invalidate remove → RESOURCE_DELETED %s", device_id)
+        bridge.events.tombstone_device(device_id)
         bridge.events.add_job(
             AferoEvent(type=EventType.RESOURCE_DELETED, device_id=device_id)
         )
@@ -338,6 +374,9 @@ async def apply_invalidate_add(bridge: AferoBridgeV1, payload: dict) -> bool:
     if target == "metadevices":
         applied = False
         for metadevice_id in _metadevice_ids_from_values(values):
+            # Conclave says this id is back in inventory — stop blocking discovery
+            # even if the immediate REST fetch fails / returns empty.
+            bridge.events.clear_discovery_tombstone(metadevice_id)
             try:
                 raw = await bridge.fetch_metadevice(metadevice_id)
             except (ClientResponseError, TimeoutError, OSError, AferoError) as err:
@@ -378,7 +417,20 @@ async def apply_invalidate_add(bridge: AferoBridgeV1, payload: dict) -> bool:
             "Conclave invalidate add for unknown device(s) %s; running discovery",
             unknown,
         )
+        # Full rediscovery is intentional; do not let prior removes block import.
+        bridge.events.clear_all_discovery_tombstones()
         await bridge.events.perform_discovery_poll()
+        imported = [
+            physical_id
+            for physical_id in unknown
+            if bridge.find_afero_devices_by_conclave_id(physical_id)
+        ]
+        if not imported:
+            logger.warning(
+                "Discovery after Conclave devices add did not import %s",
+                unknown,
+            )
+            return False
         return True
     logger.debug("Ignoring Conclave invalidate add target=%r", target)
     return False

@@ -118,11 +118,21 @@ async def _run(config: dict) -> None:
             FRAME_LOGGER.removeHandler(capture)
             capture.close()
         if bridge is not None:
-            rotated = TokenData(
-                token=tokens.token,
-                access_token=tokens.access_token,
-                refresh_token=bridge.refresh_token or tokens.refresh_token,
-                expiration=tokens.expiration,
+            live = bridge.token_data
+            rotated = (
+                TokenData(
+                    token=live.token,
+                    access_token=live.access_token,
+                    refresh_token=live.refresh_token,
+                    expiration=live.expiration,
+                )
+                if live is not None
+                else TokenData(
+                    token=tokens.token,
+                    access_token=tokens.access_token,
+                    refresh_token=bridge.refresh_token or tokens.refresh_token,
+                    expiration=tokens.expiration,
+                )
             )
             save_session(path, username, rotated)
             await bridge.close()

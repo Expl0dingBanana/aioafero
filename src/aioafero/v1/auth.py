@@ -273,6 +273,11 @@ class AferoAuth:
             return None
         return self._token_data.refresh_token
 
+    @property
+    def token_data(self) -> TokenData | None:
+        """Return the current OAuth token bundle, if any."""
+        return self._token_data
+
     def generate_auth_url(self, endpoint: str) -> str:
         """Generate an auth URL for the Afero API."""
         endpoint = endpoint.removeprefix("/")

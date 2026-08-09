@@ -14,6 +14,8 @@ from tests.v1.utils import create_devices_from_data, create_hs_raw_from_device
 @pytest.mark.asyncio
 async def test_apply_attr_change_patches_state_and_dispatches(conclave_bridge):
     bridge, device, generate = conclave_bridge
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     payload = {
         "id": device.device_id,
         "attribute": {
@@ -24,7 +26,10 @@ async def test_apply_attr_change_patches_state_and_dispatches(conclave_bridge):
         },
     }
     assert await events.apply_attr_change(bridge, payload) is True
-    generate.assert_awaited_once_with(device)
+    assert len(jobs) == 1
+    assert jobs[0]["type"] == EventType.RESOURCE_UPDATE_RESPONSE
+    assert jobs[0]["device_id"] == device.id
+    generate.assert_not_called()
     state = next(s for s in device.states if s.functionClass == "power")
     assert state.value == "on"
     assert state.lastUpdateTime == 1780876821586
@@ -33,6 +38,8 @@ async def test_apply_attr_change_patches_state_and_dispatches(conclave_bridge):
 @pytest.mark.asyncio
 async def test_apply_attr_change_brightness_writes_numeric_value(conclave_bridge):
     bridge, device, generate = conclave_bridge
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     payload = {
         "id": device.device_id,
         "attribute": {"id": 2, "data": "28", "value": "40"},
@@ -40,7 +47,8 @@ async def test_apply_attr_change_brightness_writes_numeric_value(conclave_bridge
     assert await events.apply_attr_change(bridge, payload) is True
     state = next(s for s in device.states if s.functionClass == "brightness")
     assert state.value == 40
-    generate.assert_awaited_once()
+    assert len(jobs) == 1
+    generate.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -87,6 +95,8 @@ async def test_apply_attr_change_malformed_payload_is_false(conclave_bridge, pay
 @pytest.mark.asyncio
 async def test_apply_status_change_patches_available_visible_direct(conclave_bridge):
     bridge, device, generate = conclave_bridge
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     payload = {
         "id": device.device_id,
         "status": {
@@ -100,7 +110,9 @@ async def test_apply_status_change_patches_available_visible_direct(conclave_bri
         },
     }
     assert await events.apply_status_change(bridge, payload) is True
-    generate.assert_awaited_once_with(device)
+    assert len(jobs) == 1
+    assert jobs[0]["device_id"] == device.id
+    generate.assert_not_called()
     fcs = {s.functionClass: s.value for s in device.states}
     assert fcs == {"available": False, "visible": False, "direct": False}
     # status_change must not touch `linked` / `connected` / `rssi`.
@@ -111,12 +123,15 @@ async def test_apply_status_change_patches_available_visible_direct(conclave_bri
 @pytest.mark.asyncio
 async def test_apply_status_change_partial_fields(conclave_bridge):
     bridge, device, generate = conclave_bridge
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     payload = {"id": device.device_id, "status": {"available": True}}
     assert await events.apply_status_change(bridge, payload) is True
     assert any(
         s.functionClass == "available" and s.value is True for s in device.states
     )
-    generate.assert_awaited_once_with(device)
+    assert len(jobs) == 1
+    generate.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -159,6 +174,8 @@ async def test_apply_status_change_malformed_payload(conclave_bridge, payload):
 async def test_apply_attr_change_finds_device_cached_by_metadevice_id(conclave_bridge):
     """Production caches by metadevice UUID; Conclave pushes physical deviceId."""
     bridge, device, generate = conclave_bridge
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     bridge._known_afero_devices.clear()
     bridge.add_afero_dev(device)
     payload = {
@@ -166,7 +183,9 @@ async def test_apply_attr_change_finds_device_cached_by_metadevice_id(conclave_b
         "attribute": {"id": 1, "data": "01", "value": "1"},
     }
     assert await events.apply_attr_change(bridge, payload) is True
-    generate.assert_awaited_once_with(device)
+    assert len(jobs) == 1
+    assert jobs[0]["device_id"] == device.id
+    generate.assert_not_called()
     state = next(s for s in device.states if s.functionClass == "power")
     assert state.value == "on"
 
@@ -179,9 +198,40 @@ def test_translate_attr_change_brightness(conclave_bridge):
     assert state.value == 40
 
 
-def test_translate_attr_change_unknown_attribute_returns_none(conclave_bridge):
-    _, device, _ = conclave_bridge
-    assert events.translate_attr_change(device, {"id": 999}) is None
+@pytest.mark.asyncio
+async def test_apply_attr_change_skips_split_clones_sharing_device_id(
+    conclave_bridge, mocker
+):
+    """Parent + split clones share Conclave deviceId; only the parent is patched."""
+    bridge, parent, generate = conclave_bridge
+    jobs: list = []
+    bridge.events.add_job = jobs.append
+    clone = AferoDevice(
+        id=f"{parent.id}-light-trim",
+        device_id=parent.device_id,
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="Trim",
+        functions=parent.functions,
+        states=[],
+        split_identifier="light",
+    )
+    bridge.add_afero_dev(clone, clone.id)
+    dispatch = mocker.spy(events, "_dispatch_conclave_device_update")
+    payload = {
+        "id": parent.device_id,
+        "attribute": {"id": 1, "data": "01", "value": "1"},
+    }
+    assert await events.apply_attr_change(bridge, payload) is True
+    assert dispatch.await_count == 1
+    assert dispatch.await_args.args[1] is parent
+    assert len(jobs) == 1
+    assert jobs[0]["device_id"] == parent.id
+    generate.assert_not_called()
+    # Clone must not receive the raw parent-level power patch.
+    assert clone.states == []
 
 
 def test_translate_status_change_maps_availability_fields():
@@ -259,7 +309,7 @@ async def test_dispatch_refreshes_light_split_clone_from_parent(
     conclave_bridge, mocker
 ):
     """Split-light clones must be refreshed from the parent before events fire."""
-    bridge, parent, generate = conclave_bridge
+    bridge, parent, _ = conclave_bridge
     parent.id = "8866648e-ef12-47b1-a7af-16c86214933e"
     parent.states = [
         AferoState(functionClass="power", functionInstance="trim", value="on"),
@@ -279,8 +329,12 @@ async def test_dispatch_refreshes_light_split_clone_from_parent(
     )
     bridge.events.split_devices = AsyncMock(return_value=[parent, clone, clone])
     add_dev = mocker.patch.object(bridge, "add_afero_dev")
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     await events._dispatch_conclave_device_update(bridge, parent)
-    assert generate.await_count == 2
+    assert len(jobs) == 2
+    assert {job["device_id"] for job in jobs} == {parent.id, clone.id}
+    assert all(job["type"] == EventType.RESOURCE_UPDATE_RESPONSE for job in jobs)
     assert len(clone.states) == 1
     assert clone.states[0].functionInstance == "trim"
     add_dev.assert_called_once_with(clone, clone.id)
@@ -291,7 +345,7 @@ async def test_dispatch_refreshes_security_sensor_split_clone_from_parent(
     conclave_bridge, mocker
 ):
     """Security sensor splits use security_system state filtering, not light rules."""
-    bridge, parent, generate = conclave_bridge
+    bridge, parent, _ = conclave_bridge
     parent.id = "7f4e4c01-e799-45c5-9b1a-385433a78edc"
     parent.states = [
         AferoState(
@@ -334,8 +388,11 @@ async def test_dispatch_refreshes_security_sensor_split_clone_from_parent(
         split_identifier="sensor",
     )
     bridge.events.split_devices = AsyncMock(return_value=[parent, clone])
+    jobs: list = []
+    bridge.events.add_job = jobs.append
     await events._dispatch_conclave_device_update(bridge, parent)
-    assert generate.await_count == 2
+    assert len(jobs) == 2
+    assert {job["device_id"] for job in jobs} == {parent.id, clone.id}
     triggered = next(
         (state for state in clone.states if state.functionClass == "triggered"),
         None,
@@ -516,9 +573,15 @@ async def test_apply_invalidate_add_devices_already_cached_is_false(conclave_bri
 async def test_apply_invalidate_add_devices_unknown_triggers_discovery(
     conclave_bridge, mocker
 ):
-    bridge, _, _ = conclave_bridge
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.events.tombstone_device("stale-meta")
+
+    async def poll_imports():
+        bridge.add_afero_dev(device, device.device_id)
+
     poll = mocker.patch.object(
-        bridge.events, "perform_discovery_poll", new_callable=AsyncMock
+        bridge.events, "perform_discovery_poll", side_effect=poll_imports
     )
     assert (
         await events.apply_invalidate_add(
@@ -526,17 +589,40 @@ async def test_apply_invalidate_add_devices_unknown_triggers_discovery(
             {
                 "kind": "add",
                 "target": "devices",
-                "values": [{"deviceId": "ffffffffffffffff"}],
+                "values": [{"deviceId": device.device_id}],
             },
         )
         is True
     )
     poll.assert_awaited_once()
+    assert bridge.events._discovery_tombstones == {}
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_devices_unknown_discovery_miss_is_false(
+    conclave_bridge, mocker, caplog
+):
+    bridge, _, _ = conclave_bridge
+    mocker.patch.object(bridge.events, "perform_discovery_poll", new_callable=AsyncMock)
+    with caplog.at_level("WARNING"):
+        assert (
+            await events.apply_invalidate_add(
+                bridge,
+                {
+                    "kind": "add",
+                    "target": "devices",
+                    "values": [{"deviceId": "ffffffffffffffff"}],
+                },
+            )
+            is False
+        )
+    assert "did not import" in caplog.text
 
 
 @pytest.mark.asyncio
 async def test_apply_invalidate_add_fetch_failure(conclave_bridge, mocker, caplog):
     bridge, device, _ = conclave_bridge
+    bridge.events.tombstone_device(device.id)
     mocker.patch.object(
         bridge,
         "fetch_metadevice",
@@ -556,11 +642,13 @@ async def test_apply_invalidate_add_fetch_failure(conclave_bridge, mocker, caplo
             is False
         )
     assert "failed fetching metadevice" in caplog.text
+    assert device.id not in bridge.events._discovery_tombstones
 
 
 @pytest.mark.asyncio
 async def test_apply_invalidate_add_empty_metadevice(conclave_bridge, mocker, caplog):
     bridge, device, _ = conclave_bridge
+    bridge.events.tombstone_device(device.id)
     mocker.patch.object(
         bridge, "fetch_metadevice", new_callable=AsyncMock, return_value=None
     )
@@ -577,6 +665,7 @@ async def test_apply_invalidate_add_empty_metadevice(conclave_bridge, mocker, ca
             is False
         )
     assert "skipped empty metadevice" in caplog.text
+    assert device.id not in bridge.events._discovery_tombstones
 
 
 @pytest.mark.asyncio
@@ -670,7 +759,9 @@ def test_cached_ids_for_parents_empty():
     assert events._cached_ids_for_parents(_Bridge(), set()) == []
 
 
-def test_cached_ids_for_parents_includes_untracked_parent():
+def test_cached_ids_for_parents_ignores_untracked_parent():
+    """Already-cleared parents must not reappear as delete targets."""
+
     class _Bridge:
         tracked_devices = set()
         known_afero_device_ids = set()
@@ -678,9 +769,53 @@ def test_cached_ids_for_parents_includes_untracked_parent():
         def resolve_metadevice_id(self, device_id):
             return device_id
 
-    assert events._cached_ids_for_parents(_Bridge(), {"orphan-parent"}) == [
-        "orphan-parent"
-    ]
+    assert events._cached_ids_for_parents(_Bridge(), {"orphan-parent"}) == []
+
+
+@pytest.mark.asyncio
+async def test_emit_resource_deleted_skips_already_gone(conclave_bridge):
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    jobs: list = []
+    bridge.events.add_job = jobs.append
+    assert await events._emit_resource_deleted(bridge, [device.id]) is False
+    assert jobs == []
+    """Conclave often sends devices + metadevices remove; only one DELETED batch."""
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.add_afero_dev(device)
+    bridge.add_device(device.id, bridge.lights)
+    jobs: list = []
+    bridge.events.add_job = jobs.append
+
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "devices",
+                "values": [{"deviceId": device.device_id}],
+            },
+        )
+        is True
+    )
+    first_deletes = [job for job in jobs if job["type"] == EventType.RESOURCE_DELETED]
+    assert first_deletes
+
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "metadevices",
+                "values": [{"metadeviceId": device.id}],
+            },
+        )
+        is False
+    )
+    assert [
+        job for job in jobs if job["type"] == EventType.RESOURCE_DELETED
+    ] == first_deletes
 
 
 def test_value_helpers_skip_non_dicts():

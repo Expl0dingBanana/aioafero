@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from aioafero.types import EventType
 from aioafero.v1 import AferoBridgeV1, ConclaveClient
 
 
@@ -65,10 +66,30 @@ async def test_start_conclave_after_poll_warns_when_login_times_out(
 async def test_start_conclave_after_poll_waits_for_login(mocked_bridge, mocker):
     mocked_bridge._enable_conclave = True
     fake_wait = AsyncMock(return_value=True)
+    fake_block = mocker.patch.object(
+        mocked_bridge.events, "async_block_until_done", AsyncMock()
+    )
     mocker.patch.object(ConclaveClient, "wait_until_logged_in", fake_wait)
     mocker.patch.object(ConclaveClient, "start", AsyncMock())
     await mocked_bridge._start_conclave_after_poll()
+    fake_block.assert_awaited_once()
     fake_wait.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_start_conclave_after_poll_does_not_deadlock_as_adhoc_job(
+    mocked_bridge, mocker
+):
+    """Starting Conclave from ``add_job`` must not gather itself forever."""
+    mocked_bridge._enable_conclave = True
+    mocker.patch.object(ConclaveClient, "start", AsyncMock())
+    mocker.patch.object(
+        ConclaveClient, "wait_until_logged_in", AsyncMock(return_value=True)
+    )
+    task = asyncio.create_task(mocked_bridge._start_conclave_after_poll())
+    mocked_bridge.add_job(task)
+    await asyncio.wait_for(task, timeout=2)
+    assert mocked_bridge.conclave is not None
 
 
 @pytest.mark.asyncio
@@ -111,6 +132,87 @@ async def test_initialize_schedules_conclave_when_enabled(mocked_bridge, mocker)
 
 
 @pytest.mark.asyncio
+async def test_close_cancels_adhoc_before_conclave_stop(mocked_bridge):
+    """``close`` must cancel ``_start_conclave_after_poll`` and mark the bridge closed."""
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stuck_start():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    stop = AsyncMock()
+    client = Mock(spec=ConclaveClient)
+    client.stop = stop
+    mocked_bridge._conclave = client
+    task = asyncio.create_task(stuck_start())
+    mocked_bridge.add_job(task)
+    await started.wait()
+    await mocked_bridge.close()
+    assert mocked_bridge._closed is True
+    assert cancelled.is_set()
+    assert mocked_bridge._adhoc_tasks == []
+    stop.assert_awaited_once()
+    assert mocked_bridge.conclave is None
+
+
+@pytest.mark.asyncio
+async def test_close_cancels_adhoc_spawned_by_conclave_stop(mocked_bridge):
+    """Lifecycle emits during ``stop`` must not leave dangling ad-hoc tasks."""
+
+    async def stop_emits_async_subscriber():
+        async def _cb(_event_type, _data=None):
+            await asyncio.Event().wait()
+
+        mocked_bridge.events.subscribe(_cb, event_filter=None)
+        mocked_bridge.events.emit(EventType.CONCLAVE_DISCONNECTED)
+
+    client = Mock(spec=ConclaveClient)
+    client.stop = AsyncMock(side_effect=stop_emits_async_subscriber)
+    mocked_bridge._conclave = client
+    await mocked_bridge.close()
+    assert mocked_bridge._adhoc_tasks == []
+    assert mocked_bridge.conclave is None
+
+
+@pytest.mark.asyncio
+async def test_start_conclave_after_poll_skips_when_closed(mocked_bridge, mocker):
+    """A closed bridge must not create or start Conclave after the first poll."""
+    mocked_bridge._closed = True
+    create = mocker.patch.object(ConclaveClient, "start", AsyncMock())
+    await mocked_bridge._start_conclave_after_poll()
+    assert mocked_bridge.conclave is None
+    create.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_start_conclave_after_poll_stops_if_closed_during_start(
+    mocked_bridge, mocker
+):
+    """If close races after start(), tear down the client immediately."""
+    mocked_bridge._enable_conclave = True
+    start = AsyncMock()
+
+    async def start_and_close(_self=None):
+        mocked_bridge._closed = True
+
+    start.side_effect = start_and_close
+    stop = AsyncMock()
+    mocker.patch.object(ConclaveClient, "start", start)
+    mocker.patch.object(ConclaveClient, "stop", stop)
+    mocker.patch.object(
+        ConclaveClient, "wait_until_logged_in", AsyncMock(return_value=True)
+    )
+    await mocked_bridge._start_conclave_after_poll()
+    stop.assert_awaited_once()
+    assert mocked_bridge.conclave is None
+
+
+@pytest.mark.asyncio
 async def test_close_stops_conclave_and_clears_reference(mocked_bridge):
     """``bridge.close()`` must stop the running Conclave client and clear it."""
     stop = AsyncMock()
@@ -120,6 +222,7 @@ async def test_close_stops_conclave_and_clears_reference(mocked_bridge):
     await mocked_bridge.close()
     stop.assert_awaited_once()
     assert mocked_bridge.conclave is None
+    assert mocked_bridge._closed is True
 
 
 @pytest.mark.asyncio

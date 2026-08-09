@@ -6,6 +6,7 @@ import contextlib
 import datetime
 from enum import Enum
 from inspect import iscoroutinefunction
+import time
 from types import NoneType
 from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
 
@@ -92,6 +93,8 @@ class EventStream:
         self._version_poll_time: datetime.datetime | None = None
         self._version_poll_enabled: bool = poll_version
         self._first_poll_completed: bool = False
+        # Metadevice / tracked ids removed by Conclave → expiry (monotonic).
+        self._discovery_tombstones: dict[str, float] = {}
 
     @property
     def connected(self) -> bool:
@@ -133,6 +136,35 @@ class EventStream:
             self._version_poll_time = now
             return True
         return False
+
+    def tombstone_device(self, device_id: str) -> None:
+        """Remember a Conclave removal so stale discovery cannot revive it.
+
+        Entries expire after ``max(120, 2 * discovery_interval)`` seconds so a
+        missed Conclave ``add`` cannot block REST rediscovery forever.
+        """
+        ttl = max(120.0, float(self._discovery_interval) * 2.0)
+        self._discovery_tombstones[device_id] = time.monotonic() + ttl
+
+    def clear_discovery_tombstone(self, device_id: str) -> None:
+        """Clear tombstones for ``device_id``, its parent, and split clones."""
+        parent_id = self._bridge.resolve_metadevice_id(device_id)
+        prefix = f"{parent_id}-"
+        for tid in list(self._discovery_tombstones):
+            if tid in (device_id, parent_id) or tid.startswith(prefix):
+                self._discovery_tombstones.pop(tid, None)
+
+    def clear_all_discovery_tombstones(self) -> None:
+        """Drop every discovery tombstone (intentional full rediscovery)."""
+        self._discovery_tombstones.clear()
+
+    def active_discovery_tombstones(self) -> set[str]:
+        """Return non-expired Conclave-removal tombstones (prunes expired)."""
+        now = time.monotonic()
+        for tid, expires_at in list(self._discovery_tombstones.items()):
+            if expires_at <= now:
+                self._discovery_tombstones.pop(tid, None)
+        return set(self._discovery_tombstones)
 
     async def wait_for_first_poll(self) -> None:
         """Wait until the first poll has completed."""
@@ -380,6 +412,7 @@ class EventStream:
             event_type = EventType.RESOURCE_UPDATED
             if device.id not in self._bridge.tracked_devices:
                 event_type = EventType.RESOURCE_ADDED
+            self.clear_discovery_tombstone(device.id)
             self._event_queue.put_nowait(
                 AferoEvent(
                     type=event_type,
@@ -390,14 +423,41 @@ class EventStream:
             )
         return devices
 
-    async def generate_events_from_data(self, data: list[dict[Any, str]]) -> None:
+    async def generate_events_from_data(
+        self,
+        data: list[dict[Any, str]],
+        *,
+        reconcile_deletes_from: set[str] | None = None,
+        skip_readd_ids: set[str] | None = None,
+    ) -> None:
         """Process the raw Afero IoT data for emitting.
 
         :param data: Raw data from Afero IoT
+        :param reconcile_deletes_from: When set (discovery polls), only emit
+            ``RESOURCE_DELETED`` for ids that were already tracked when the poll
+            started. Devices added concurrently (e.g. Conclave inventory add)
+            are kept until a later poll that still omits them.
+        :param skip_readd_ids: Device ids removed while a discovery poll was
+            in flight. Stale REST bodies that still list them must not revive
+            the cache / emit ``RESOURCE_ADDED``.
         """
         processed_ids = []
         skipped_ids = []
         devices = await self.generate_devices_from_data(data)
+        if skip_readd_ids:
+            kept: list[AferoDevice] = []
+            for device in devices:
+                parent_id = self._bridge.resolve_metadevice_id(device.id)
+                if device.id in skip_readd_ids or parent_id in skip_readd_ids:
+                    self._logger.debug(
+                        "Skipping stale discovery re-add for %s removed during poll",
+                        device.id,
+                    )
+                    with contextlib.suppress(KeyError):
+                        self._bridge.remove_device(device.id)
+                    continue
+                kept.append(device)
+            devices = kept
         self._event_queue.put_nowait(
             AferoEvent(
                 type=EventType.POLLED_DATA,
@@ -426,23 +486,45 @@ class EventStream:
             )
             processed_ids.append(device.id)
         # Handle devices that did not report in from the API
-        for dev_id in self._bridge.tracked_devices:
-            if dev_id not in processed_ids + skipped_ids:
-                self._event_queue.put_nowait(
-                    AferoEvent(type=EventType.RESOURCE_DELETED, device_id=dev_id)
+        for dev_id in list(self._bridge.tracked_devices):
+            if dev_id in processed_ids or dev_id in skipped_ids:
+                continue
+            if (
+                reconcile_deletes_from is not None
+                and dev_id not in reconcile_deletes_from
+            ):
+                self._logger.debug(
+                    "Keeping %s added during discovery poll; deferring delete",
+                    dev_id,
                 )
-                self._bridge.remove_device(dev_id)
+                continue
+            self._event_queue.put_nowait(
+                AferoEvent(type=EventType.RESOURCE_DELETED, device_id=dev_id)
+            )
+            self._bridge.remove_device(dev_id)
 
     async def perform_discovery_poll(self) -> None:
         """Poll Afero IoT and generate the required events."""
         try:
+            # Snapshot before REST so Conclave inventory adds that land while
+            # we wait are not immediately deleted from a stale discovery body,
+            # and Conclave removes are not revived by that same body.
+            tracked_at_start = set(self._bridge.tracked_devices)
             data = await self.gather_discovery_data()
         except Exception:  # noqa: BLE001
             self._status = EventStreamStatus.DISCONNECTED
             self.emit(EventType.DISCONNECTED)
         else:
             try:
-                await self.generate_events_from_data(data)
+                removed_during_poll = tracked_at_start - set(
+                    self._bridge.tracked_devices
+                )
+                skip_readd = removed_during_poll | self.active_discovery_tombstones()
+                await self.generate_events_from_data(
+                    data,
+                    reconcile_deletes_from=tracked_at_start,
+                    skip_readd_ids=skip_readd,
+                )
             except Exception:
                 self._logger.exception("Unable to process Afero IoT data. %s", data)
             else:

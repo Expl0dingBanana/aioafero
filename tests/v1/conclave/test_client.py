@@ -101,11 +101,14 @@ async def test_connection_open_login_and_dispatch_loop(conclave_bridge):
 
 
 @pytest.mark.asyncio
-async def test_start_registers_task_on_bridge(conclave_bridge):
+async def test_start_keeps_task_off_bridge_jobs(conclave_bridge):
+    """Conclave's reconnect loop must not block async_block_until_done."""
     bridge, _, _ = conclave_bridge
     conclave = client_module.ConclaveClient(bridge, initial_backoff=0, max_backoff=0)
     await conclave.start()
-    assert conclave._task in bridge._adhoc_tasks
+    assert conclave._task is not None
+    assert conclave._task not in bridge._adhoc_tasks
+    await asyncio.wait_for(bridge.async_block_until_done(), timeout=1)
     await conclave.stop()
 
 
@@ -222,6 +225,7 @@ async def test_handle_frame_applies_public_invalidate_remove(conclave_bridge):
     bridge.add_afero_dev(device)
     bridge.add_device(device.id, bridge.lights)
     conclave = client_module.ConclaveClient(bridge)
+    conclave._last_private_at = 1.0
     await conclave._handle_frame(
         {
             "public": {
@@ -234,7 +238,121 @@ async def test_handle_frame_applies_public_invalidate_remove(conclave_bridge):
             }
         }
     )
+    assert conclave._session_tasks
+    await asyncio.gather(*conclave._session_tasks)
     assert device.id not in bridge._known_afero_devices
+    assert conclave._last_private_at > 1.0
+
+
+@pytest.mark.asyncio
+async def test_run_public_handler_logs_failures(conclave_bridge, caplog):
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+
+    async def boom(_bridge, _data):
+        raise RuntimeError("inventory failed")
+
+    with caplog.at_level("ERROR"):
+        await conclave._run_frame_handler(boom, {})
+    assert "Conclave frame handler failed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_run_public_handler_propagates_cancellation(conclave_bridge):
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+    started = asyncio.Event()
+
+    async def slow(_bridge, _data):
+        started.set()
+        await asyncio.Event().wait()
+        return True
+
+    task = asyncio.create_task(conclave._run_frame_handler(slow, {}))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_public_handlers_run_serially(conclave_bridge):
+    """Inventory add/remove must not overlap (remove cannot race a late add)."""
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+    order: list[str] = []
+    release_first = asyncio.Event()
+    second_started = asyncio.Event()
+
+    async def first(_bridge, _data):
+        order.append("first-enter")
+        await release_first.wait()
+        order.append("first-exit")
+        return True
+
+    async def second(_bridge, _data):
+        second_started.set()
+        order.append("second")
+        return True
+
+    t1 = asyncio.create_task(conclave._run_frame_handler(first, {}))
+    await asyncio.sleep(0)
+    t2 = asyncio.create_task(conclave._run_frame_handler(second, {}))
+    await asyncio.sleep(0)
+    assert not second_started.is_set()
+    release_first.set()
+    await asyncio.gather(t1, t2)
+    assert order == ["first-enter", "first-exit", "second"]
+
+
+@pytest.mark.asyncio
+async def test_private_and_public_handlers_share_serial_lock(conclave_bridge):
+    """Remove must finish before a following status_change can run."""
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+    order: list[str] = []
+    release_public = asyncio.Event()
+
+    async def public_remove(_bridge, _data):
+        order.append("remove-enter")
+        await release_public.wait()
+        order.append("remove-exit")
+        return True
+
+    async def private_status(_bridge, _data):
+        order.append("status")
+        return True
+
+    t1 = asyncio.create_task(conclave._run_frame_handler(public_remove, {}))
+    await asyncio.sleep(0)
+    t2 = asyncio.create_task(conclave._run_frame_handler(private_status, {}))
+    await asyncio.sleep(0)
+    assert order == ["remove-enter"]
+    release_public.set()
+    await asyncio.gather(t1, t2)
+    assert order == ["remove-enter", "remove-exit", "status"]
+
+
+@pytest.mark.asyncio
+async def test_stop_cancels_pending_session_tasks(conclave_bridge):
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+    started = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def stuck():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    conclave._track_session_task(stuck())
+    await started.wait()
+    await conclave.stop()
+    assert cancelled.is_set()
+    assert not conclave._session_tasks
 
 
 @pytest.mark.asyncio
@@ -489,8 +607,13 @@ async def test_reconcile_runs_after_failed_session(conclave_bridge, mocker):
     conclave._connect = fake_connect
     await conclave.start()
     await asyncio.wait_for(conclave.wait_until_logged_in(), timeout=2)
+    for _ in range(50):
+        if bridge.fetch_all_device_states.await_count:
+            break
+        await asyncio.sleep(0.02)
     bridge.fetch_all_device_states.assert_awaited_once()
     generate.assert_awaited()
+    assert conclave._needs_reconcile is False
     await conclave.stop()
 
 
@@ -678,9 +801,10 @@ async def test_reconcile_per_device_update_failure_is_logged(
 
 
 @pytest.mark.asyncio
-async def test_connection_status_disconnected_when_reconcile_raises(
-    conclave_bridge, mocker
+async def test_reconcile_failure_does_not_tear_down_session(
+    conclave_bridge, mocker, caplog
 ):
+    """Background REST reconcile errors must leave the TLS session running."""
     bridge, device, _ = conclave_bridge
     emit = mocker.spy(bridge.events, "emit")
     bridge.fetch_all_device_states = mocker.AsyncMock(return_value=[device])
@@ -704,15 +828,27 @@ async def test_connection_status_disconnected_when_reconcile_raises(
         max_backoff=0,
     )
     conclave._needs_reconcile = True
-    with pytest.raises(RuntimeError, match="split failed"):
-        await conclave._connect_and_serve()
-
+    with caplog.at_level("ERROR"):
+        await conclave.start()
+        assert await conclave.wait_until_logged_in(timeout=2) is True
+        for _ in range(50):
+            if any(
+                "REST reconcile after Conclave disconnect failed unexpectedly"
+                in r.message
+                for r in caplog.records
+            ):
+                break
+            await asyncio.sleep(0.02)
+    assert any(
+        "REST reconcile after Conclave disconnect failed unexpectedly" in r.message
+        for r in caplog.records
+    )
+    assert conclave.status == ConclaveStatus.CONNECTED
+    assert conclave._needs_reconcile is True
     emitted = [call.args[0] for call in emit.call_args_list]
-    assert emitted == [
-        EventType.CONCLAVE_CONNECTING,
-        EventType.CONCLAVE_CONNECTED,
-        EventType.CONCLAVE_DISCONNECTED,
-    ]
+    assert EventType.CONCLAVE_CONNECTED in emitted
+    assert emitted.count(EventType.CONCLAVE_DISCONNECTED) == 0
+    await conclave.stop()
 
 
 @pytest.mark.asyncio
