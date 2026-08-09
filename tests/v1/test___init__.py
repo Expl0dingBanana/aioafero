@@ -864,6 +864,19 @@ async def test_fetch_all_device_states_forbidden_tracking(
     assert "dev1" not in mocked_bridge._state_fetch_paused
 
 
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_reraises_cancelled(mocked_bridge, mocker):
+    """Cancelled state-fetch tasks are re-raised, not treated as successes."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=asyncio.CancelledError()),
+    )
+    with pytest.raises(asyncio.CancelledError):
+        await mocked_bridge.fetch_all_device_states()
+
+
 @pytest.mark.parametrize(
     ("device_id", "seed_in_cache"),
     [

@@ -474,8 +474,8 @@ async def test_generate_events_from_data_multi(bridge):
         ),
         # Issue collecting data — discovery failed; leave Forbidden pause in place.
         (None, KeyError, None, [event.EventType.DISCONNECTED], [], False),
-        # Issue processing collected data — gather succeeded, so clear pauses first.
-        (None, None, KeyError, [], [], True),
+        # Issue processing collected data — cache not refreshed; keep pauses.
+        (None, None, KeyError, [], [], False),
     ],
 )
 async def test_perform_discovery_poll(

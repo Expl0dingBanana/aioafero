@@ -316,7 +316,7 @@ class AferoBridgeV1:
         self._state_fetch_paused.add(metadevice_id)
         self.logger.warning(
             "Pausing state polls for %s after repeated Forbidden "
-            "(resumes on discovery or successful fetch)",
+            "(resumes on successful discovery)",
             metadevice_id,
         )
 
@@ -664,7 +664,9 @@ class AferoBridgeV1:
 
         updated_devices: list[AferoDevice] = []
         for metadevice_id, result in zip(active_ids, results, strict=True):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
+                if isinstance(result, asyncio.CancelledError):
+                    raise result
                 await self._handle_state_fetch_exception(metadevice_id, result)
                 continue
             device_id, states = result

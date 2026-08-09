@@ -9,8 +9,9 @@ Version 9.0.1
    when a device was removed but is still cached until the next discovery). Mark
    all tracked resources for that parent (including split entities) unavailable,
    stop requesting updates after three consecutive failures until the next
-   successful discovery poll (or a successful state fetch), and clear tracking
-   when the device is removed.
+   successful discovery poll, and clear tracking when the device is removed.
+   Consecutive Forbidden counts still reset on a successful state fetch before
+   the pause threshold.
 
 Version 9.0.0
 =============
