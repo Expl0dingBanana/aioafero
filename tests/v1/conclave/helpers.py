@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
+from typing import Any
 import zlib
 
 from aioafero.v1.conclave.access import ConclaveAccess
@@ -16,6 +18,18 @@ ACCESS = ConclaveAccess(
     token="conclave-token",
     channel_id="account-uuid",
 )
+
+_DUMPS = Path(__file__).resolve().parent / "dumps"
+
+
+def get_conclave_dump(file_name: str) -> Any:
+    """Load a JSON fixture from ``tests/v1/conclave/dumps/``.
+
+    Same pattern as :func:`tests.v1.utils.get_device_dump` — tests pass a
+    filename; IDs and payloads live in the fixture, not in test code.
+    """
+    with (_DUMPS / file_name).open(encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 class FakeWriter:

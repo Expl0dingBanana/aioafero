@@ -4,6 +4,8 @@ import pytest
 
 from aioafero.device import AferoDevice, AferoState
 from aioafero.v1.conclave import events
+from tests.v1 import utils
+from tests.v1.conclave.helpers import get_conclave_dump
 
 
 @pytest.mark.asyncio
@@ -335,3 +337,32 @@ async def test_dispatch_refreshes_security_sensor_split_clone_from_parent(
     )
     assert triggered is not None
     assert triggered.value == "On"
+
+
+@pytest.mark.asyncio
+async def test_captured_attr_change_updates_live_light_brightness(mocked_bridge):
+    """Captured brightness payloads update a light seeded from device_dumps."""
+    a21 = utils.create_devices_from_data("light-a21.json")[0]
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-a21.json")
+    )
+    await mocked_bridge.async_block_until_done()
+
+    light = mocked_bridge.lights[a21.id]
+    cached = mocked_bridge.get_afero_device(a21.id)
+    assert light.brightness == 50
+
+    payloads = get_conclave_dump("brightness_attr_change.json")
+    assert len(payloads) == 2
+
+    assert await events.apply_attr_change(mocked_bridge, payloads[0])
+    await mocked_bridge.async_block_until_done()
+    assert light.brightness == 28
+
+    assert await events.apply_attr_change(mocked_bridge, payloads[1])
+    await mocked_bridge.async_block_until_done()
+    assert light.brightness == 100
+
+    brightness = next(s for s in cached.states if s.functionClass == "brightness")
+    assert brightness.value == 100
+    assert brightness.lastUpdateTime == 1786298006828

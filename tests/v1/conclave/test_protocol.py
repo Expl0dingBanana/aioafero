@@ -49,6 +49,9 @@ def test_server_heartbeat_seconds_reads_welcome_then_handshake():
     )
     assert server_heartbeat_seconds({"tunnel": {"heartbeat": 90}}, {}) == 90.0
     assert server_heartbeat_seconds({}, {}) == 60.0
+    assert server_heartbeat_seconds({"hello": {"version": "x"}}, {}) == 60.0
+    assert server_heartbeat_seconds({"hello": {"heartbeat": None}}, {}) == 60.0
+    assert server_heartbeat_seconds({"hello": "not-a-dict"}, {}) == 60.0
 
 
 @pytest.mark.parametrize(
