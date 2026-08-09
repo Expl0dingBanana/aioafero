@@ -337,6 +337,26 @@ async def test_generate_events_from_data(bridge, mocker):
     }
 
 
+@pytest.mark.asyncio
+async def test_generate_events_from_added_data_does_not_delete(bridge):
+    stream = bridge.events
+    await stream.stop()
+    bridge._known_devs = {"stale-device": bridge.lights}
+    raw_data = utils.create_hs_raw_from_dump("light-a21.json")
+    devices = await stream.generate_events_from_added_data(raw_data)
+    assert len(devices) == 1
+    assert devices[0].id == a21_light.id
+    # Only ADDED for the new light — stale tracked ids are left alone.
+    assert stream._event_queue.qsize() == 1
+    assert await stream._event_queue.get() == {
+        "type": event.EventType.RESOURCE_ADDED,
+        "device_id": a21_light.id,
+        "device": a21_light,
+        "force_forward": False,
+    }
+    assert "stale-device" in bridge.tracked_devices
+
+
 def get_sensor_ids(device) -> set[int]:
     """Determine available sensors from the states"""
     sensor_ids = set()

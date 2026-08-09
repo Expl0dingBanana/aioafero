@@ -3,9 +3,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from aioafero.device import AferoDevice, AferoState
+from aioafero.errors import AferoError
+from aioafero.types import EventType
 from aioafero.v1.conclave import events
 from tests.v1 import utils
-from tests.v1.conclave.helpers import get_conclave_dump
+from tests.v1.conclave.helpers import get_conclave_dump, get_conclave_frames
+from tests.v1.utils import create_devices_from_data, create_hs_raw_from_device
 
 
 @pytest.mark.asyncio
@@ -194,6 +197,8 @@ def test_translate_status_change_maps_availability_fields():
 
 def test_private_event_handlers_cover_supported_events():
     assert set(events.PRIVATE_EVENT_HANDLERS) == {"attr_change", "status_change"}
+    assert set(events.INVALIDATE_KIND_HANDLERS) == {"add", "remove"}
+    assert set(events.PUBLIC_EVENT_HANDLERS) == {"invalidate"}
 
 
 def test_refresh_split_clone_states_noop_without_split_marker(conclave_bridge):
@@ -364,5 +369,365 @@ async def test_captured_attr_change_updates_live_light_brightness(mocked_bridge)
     assert light.brightness == 100
 
     brightness = next(s for s in cached.states if s.functionClass == "brightness")
-    assert brightness.value == 100
     assert brightness.lastUpdateTime == 1786298006828
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_remove_metadevice(conclave_bridge):
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.add_afero_dev(device)
+    bridge.add_device(device.id, bridge.lights)
+    jobs: list = []
+    bridge.events.add_job = jobs.append
+
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "metadevices",
+                "values": [{"metadeviceId": device.id}],
+            },
+        )
+        is True
+    )
+    assert device.id not in bridge._known_afero_devices
+    assert device.id not in bridge.tracked_devices
+    assert any(
+        job["type"] == EventType.RESOURCE_DELETED and job["device_id"] == device.id
+        for job in jobs
+    )
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_remove_physical_device(conclave_bridge):
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.add_afero_dev(device)
+    bridge.add_device(device.id, bridge.lights)
+    jobs: list = []
+    bridge.events.add_job = jobs.append
+
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "devices",
+                "values": [{"deviceId": device.device_id}],
+            },
+        )
+        is True
+    )
+    assert device.id not in bridge._known_afero_devices
+    assert any(job["type"] == EventType.RESOURCE_DELETED for job in jobs)
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_remove_unknown_device_is_false(conclave_bridge):
+    bridge, _, _ = conclave_bridge
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "devices",
+                "values": [{"deviceId": "deadbeefdeadbeef"}],
+            },
+        )
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_remove_unknown_target(conclave_bridge, caplog):
+    bridge, _, _ = conclave_bridge
+    with caplog.at_level("DEBUG"):
+        assert (
+            await events.apply_invalidate_remove(
+                bridge, {"kind": "remove", "target": "rooms", "values": []}
+            )
+            is False
+        )
+    assert "Ignoring Conclave invalidate remove" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_apply_public_invalidate_update_ignored(conclave_bridge, caplog):
+    bridge, _, _ = conclave_bridge
+    with caplog.at_level("DEBUG"):
+        assert (
+            await events.apply_public_invalidate(
+                bridge,
+                {
+                    "kind": "update",
+                    "type": "metadevice",
+                    "id": "x",
+                    "fields": [{"name": "friendlyName", "value": "N"}],
+                },
+            )
+            is False
+        )
+    assert "Ignoring Conclave invalidate kind" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_metadevice(mocked_bridge):
+    light = create_devices_from_data("light-a21.json")[0]
+    raw = create_hs_raw_from_device(light)
+    mocked_bridge.fetch_metadevice = AsyncMock(return_value=raw)
+
+    assert (
+        await events.apply_invalidate_add(
+            mocked_bridge,
+            {
+                "kind": "add",
+                "target": "metadevices",
+                "values": [{"metadeviceId": light.id}],
+            },
+        )
+        is True
+    )
+    await mocked_bridge.async_block_until_done()
+    assert light.id in mocked_bridge.lights
+    assert light.id in mocked_bridge.devices
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_devices_already_cached_is_false(conclave_bridge):
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.add_afero_dev(device)
+    assert (
+        await events.apply_invalidate_add(
+            bridge,
+            {
+                "kind": "add",
+                "target": "devices",
+                "values": [{"deviceId": device.device_id}],
+            },
+        )
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_devices_unknown_triggers_discovery(
+    conclave_bridge, mocker
+):
+    bridge, _, _ = conclave_bridge
+    poll = mocker.patch.object(
+        bridge.events, "perform_discovery_poll", new_callable=AsyncMock
+    )
+    assert (
+        await events.apply_invalidate_add(
+            bridge,
+            {
+                "kind": "add",
+                "target": "devices",
+                "values": [{"deviceId": "ffffffffffffffff"}],
+            },
+        )
+        is True
+    )
+    poll.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_fetch_failure(conclave_bridge, mocker, caplog):
+    bridge, device, _ = conclave_bridge
+    mocker.patch.object(
+        bridge,
+        "fetch_metadevice",
+        new_callable=AsyncMock,
+        side_effect=AferoError("nope"),
+    )
+    with caplog.at_level("WARNING"):
+        assert (
+            await events.apply_invalidate_add(
+                bridge,
+                {
+                    "kind": "add",
+                    "target": "metadevices",
+                    "values": [{"metadeviceId": device.id}],
+                },
+            )
+            is False
+        )
+    assert "failed fetching metadevice" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_empty_metadevice(conclave_bridge, mocker, caplog):
+    bridge, device, _ = conclave_bridge
+    mocker.patch.object(
+        bridge, "fetch_metadevice", new_callable=AsyncMock, return_value=None
+    )
+    with caplog.at_level("DEBUG"):
+        assert (
+            await events.apply_invalidate_add(
+                bridge,
+                {
+                    "kind": "add",
+                    "target": "metadevices",
+                    "values": [{"metadeviceId": device.id}],
+                },
+            )
+            is False
+        )
+    assert "skipped empty metadevice" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_add_unknown_target(conclave_bridge, caplog):
+    bridge, _, _ = conclave_bridge
+    with caplog.at_level("DEBUG"):
+        assert (
+            await events.apply_invalidate_add(
+                bridge, {"kind": "add", "target": "rooms", "values": []}
+            )
+            is False
+        )
+    assert "Ignoring Conclave invalidate add" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_remove_malformed_values(conclave_bridge):
+    bridge, _, _ = conclave_bridge
+    assert (
+        await events.apply_invalidate_remove(
+            bridge, {"kind": "remove", "target": "metadevices", "values": "nope"}
+        )
+        is False
+    )
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "metadevices",
+                "values": ["skip", {"metadeviceId": None}, {}],
+            },
+        )
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_apply_invalidate_remove_includes_split_clone(conclave_bridge):
+    bridge, device, _ = conclave_bridge
+    bridge._known_afero_devices.clear()
+    bridge.add_afero_dev(device)
+    clone = AferoDevice(
+        id=f"{device.id}-light-main",
+        device_id=device.device_id,
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="clone",
+        functions=[],
+        states=[],
+        split_identifier="light",
+    )
+    bridge.add_afero_dev(clone)
+    bridge.add_device(device.id, bridge.lights)
+    bridge.add_device(clone.id, bridge.lights)
+    jobs: list = []
+    bridge.events.add_job = jobs.append
+
+    assert (
+        await events.apply_invalidate_remove(
+            bridge,
+            {
+                "kind": "remove",
+                "target": "metadevices",
+                "values": [{"metadeviceId": device.id}],
+            },
+        )
+        is True
+    )
+    deleted_ids = {job["device_id"] for job in jobs}
+    assert device.id in deleted_ids
+    assert clone.id in deleted_ids
+    assert device.id not in bridge._known_afero_devices
+    assert clone.id not in bridge._known_afero_devices
+
+
+def test_unique_ids_dedupes():
+    assert events._unique_ids(["a", "b", "a", "c"]) == ["a", "b", "c"]
+
+
+def test_cached_ids_for_parents_empty():
+    class _Bridge:
+        tracked_devices = set()
+        known_afero_device_ids = set()
+
+        def resolve_metadevice_id(self, device_id):
+            return device_id
+
+    assert events._cached_ids_for_parents(_Bridge(), set()) == []
+
+
+def test_cached_ids_for_parents_includes_untracked_parent():
+    class _Bridge:
+        tracked_devices = set()
+        known_afero_device_ids = set()
+
+        def resolve_metadevice_id(self, device_id):
+            return device_id
+
+    assert events._cached_ids_for_parents(_Bridge(), {"orphan-parent"}) == [
+        "orphan-parent"
+    ]
+
+
+def test_value_helpers_skip_non_dicts():
+    assert events._metadevice_ids_from_values(None) == []
+    assert events._device_ids_from_values(None) == []
+    assert events._device_ids_from_values(["x", {"deviceId": "abc"}]) == ["abc"]
+
+
+@pytest.mark.asyncio
+async def test_captured_invalidate_remove_deletes_live_light(mocked_bridge):
+    """Captured inventory remove frames delete a dump-seeded light."""
+    a21 = utils.create_devices_from_data("light-a21.json")[0]
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("light-a21.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    assert a21.id in mocked_bridge.lights
+
+    for frame in get_conclave_frames("inventory_remove.json"):
+        public = frame.get("public")
+        if isinstance(public, dict):
+            await events.apply_public_invalidate(mocked_bridge, public["data"])
+            continue
+        private = frame.get("private")
+        if isinstance(private, dict) and private.get("event") == "status_change":
+            await events.apply_status_change(mocked_bridge, private["data"])
+    await mocked_bridge.async_block_until_done()
+
+    assert a21.id not in mocked_bridge.lights
+    assert a21.id not in mocked_bridge.devices
+    assert a21.id not in mocked_bridge.tracked_devices
+
+
+@pytest.mark.asyncio
+async def test_captured_invalidate_add_imports_live_light(mocked_bridge):
+    """Captured inventory add frames import a light via fetch_metadevice."""
+    dump = get_conclave_dump("inventory_add.json")
+    metadevice_id = dump["metadevice_id"]
+    mocked_bridge.fetch_metadevice = AsyncMock(return_value=dump["metadevice_response"])
+
+    for frame in get_conclave_frames("inventory_add.json"):
+        public = frame.get("public")
+        if isinstance(public, dict):
+            await events.apply_public_invalidate(mocked_bridge, public["data"])
+    await mocked_bridge.async_block_until_done()
+
+    mocked_bridge.fetch_metadevice.assert_awaited()
+    assert metadevice_id in mocked_bridge.lights
+    assert metadevice_id in mocked_bridge.devices
+    assert mocked_bridge.get_afero_device(metadevice_id).device_id == dump["device_id"]

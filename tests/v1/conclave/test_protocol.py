@@ -4,6 +4,7 @@ from aioafero.v1.conclave.access import ConclaveAccess
 from aioafero.v1.conclave.protocol import (
     build_login_frame,
     parse_private_frame,
+    parse_public_frame,
     server_heartbeat_seconds,
 )
 
@@ -66,3 +67,22 @@ def test_parse_private_frame_rejects_malformed():
     assert parse_private_frame({}) is None
     assert parse_private_frame({"private": None}) is None
     assert parse_private_frame({"private": {"event": "x", "data": "nope"}}) is None
+
+
+def test_parse_public_frame_invalidate():
+    frame = {
+        "public": {
+            "event": "invalidate",
+            "data": {"kind": "remove", "target": "metadevices", "values": []},
+        }
+    }
+    parsed = parse_public_frame(frame)
+    assert parsed is not None
+    assert parsed.event == "invalidate"
+    assert parsed.data["kind"] == "remove"
+
+
+def test_parse_public_frame_rejects_malformed():
+    assert parse_public_frame({}) is None
+    assert parse_public_frame({"public": None}) is None
+    assert parse_public_frame({"public": {"event": "x", "data": "nope"}}) is None

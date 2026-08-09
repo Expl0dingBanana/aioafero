@@ -237,6 +237,11 @@ class AferoBridgeV1:
         """Get all tracked devices."""
         return set(self._known_devs.keys())
 
+    @property
+    def known_afero_device_ids(self) -> set[str]:
+        """Return ids present in the raw :class:`~aioafero.device.AferoDevice` cache."""
+        return set(self._known_afero_devices)
+
     def add_device(
         self, device_id: str, controller: BaseResourcesController[AferoResource]
     ) -> None:
@@ -690,6 +695,48 @@ class AferoBridgeV1:
                 dev["version_data"] = await self.get_device_version(dev_id)
                 devs[dev_id] = dev["version_data"]
 
+        return data
+
+    async def fetch_metadevice(self, metadevice_id: str) -> dict[Any, str] | None:
+        """Fetch one metadevice with state/capabilities/semantics expansions.
+
+        Used by Conclave ``public`` / ``invalidate`` add handling when the push
+        only carries a ``metadeviceId``.
+
+        :param metadevice_id: Metadevice UUID to fetch.
+
+        :return: The metadevice JSON object, or ``None`` when the API returns an
+            empty/non-object body.
+        :raises ClientResponseError: On non-success HTTP responses (including 404).
+        """
+        task = asyncio.create_task(self._fetch_metadevice(metadevice_id))
+        self.add_job(task)
+        await task
+        return task.result()
+
+    async def _fetch_metadevice(self, metadevice_id: str) -> dict[Any, str] | None:
+        """Query the API for a single metadevice."""
+        self.logger.debug("Querying API for metadevice %s", metadevice_id)
+        headers = {
+            "host": v1_const.AFERO_CLIENTS[self._afero_client]["API_DATA_HOST"],
+        }
+        params = {"expansions": "state,capabilities,semantics"}
+        if self.temperature_unit == TemperatureUnit.FAHRENHEIT:
+            params["units"] = self.temperature_unit.value
+        url = self.generate_api_url(
+            v1_const.AFERO_GENERICS["API_DEVICE_ENDPOINT"].format(self.account_id)
+            + f"/{metadevice_id}"
+        )
+        res = await self.request(
+            "get",
+            url,
+            headers=headers,
+            params=params,
+        )
+        res.raise_for_status()
+        data = await res.json()
+        if not isinstance(data, dict):
+            return None
         return data
 
     async def fetch_device_states(self, device_id) -> list[dict[Any, str]]:

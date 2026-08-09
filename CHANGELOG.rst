@@ -10,6 +10,11 @@ Version 9.1.0
    REST discovery poll. ``attr_change`` and ``status_change`` events update the
    same cached models REST polling uses; REST remains the source of truth for
    discovery, writes, and slow reconciliation.
+ * Handle Conclave ``public`` / ``invalidate`` inventory frames: ``kind=remove``
+   emits ``RESOURCE_DELETED`` for the matching metadevice (and split clones);
+   ``kind=add`` with ``target=metadevices`` fetches the metadevice over REST and
+   emits ``RESOURCE_ADDED``. Other invalidate kinds (``update``, …) are ignored
+   for now.
  * ``TokenData.to_session_dict`` / ``from_session_dict`` serialize tokens for
    local tooling. ``scripts/afero_login.py`` and ``scripts/afero_bridge.py``
    (with ``scripts/afero.yaml.example``) create and reuse a session file without

@@ -1,0 +1,96 @@
+{
+  "description": "Conclave public invalidate remove + status_change burst when deleting a light (mitm capture, anonymized).",
+  "metadevice_id": "dd883754-e9f2-4c48-b755-09bf6ce776be",
+  "device_id": "30a2df8c-109b-42c2-aed6-a6b30c565f8f",
+  "frames": [
+    {
+      "public": {
+        "seq": 1,
+        "sessionId": 0,
+        "event": "invalidate",
+        "data": {
+          "kind": "remove",
+          "target": "metadevices",
+          "values": [
+            {
+              "metadeviceId": "dd883754-e9f2-4c48-b755-09bf6ce776be"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "public": {
+        "seq": 2,
+        "sessionId": 0,
+        "event": "invalidate",
+        "data": {
+          "kind": "remove",
+          "target": "devices",
+          "values": [
+            {
+              "deviceId": "30a2df8c-109b-42c2-aed6-a6b30c565f8f",
+              "associationId": "00000000000030a2df8c-109b-42c2-aed6-a6b30c565f8f",
+              "profileId": "5ffab3f9-8edb-4036-8c43-612a00156a3f",
+              "updating": false,
+              "createdTimestamp": 1709413092369,
+              "deviceState": {
+                "deviceId": "30a2df8c-109b-42c2-aed6-a6b30c565f8f",
+                "available": false,
+                "visible": false,
+                "rebooted": false,
+                "connectable": false,
+                "connected": false,
+                "dirty": false,
+                "direct": false,
+                "rssi": 0,
+                "location": null,
+                "linked": false,
+                "updatedTimestamp": 1786293985617,
+                "deviceLocalityId": null
+              },
+              "profile": null,
+              "deviceTags": [],
+              "virtual": false,
+              "friendlyName": "",
+              "attributes": [
+                {
+                  "id": 1,
+                  "data": "00",
+                  "value": "0",
+                  "updatedTimestamp": 1786293864689
+                }
+              ],
+              "developerDevice": false,
+              "partnerId": "a96c26d9-c6a1-4bc4-beab-e582ca08b514",
+              "deviceTypeId": "a8652c58-fe1e-4341-8f09-0d5adf4ce90a",
+              "rootDeviceTypeId": "a8652c58-fe1e-4341-8f09-0d5adf4ce90a",
+              "accountId": null,
+              "quarantined": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "private": {
+        "sessionId": 0,
+        "event": "status_change",
+        "data": {
+          "id": "30a2df8c-109b-42c2-aed6-a6b30c565f8f",
+          "status": {
+            "available": false,
+            "connectable": false,
+            "connected": false,
+            "linked": false,
+            "visible": false,
+            "rssi": 0,
+            "direct": false,
+            "updatedTimestamp": 1786293985498
+          }
+        },
+        "xid": "00cccccccccccccccc"
+      }
+    }
+  ]
+}

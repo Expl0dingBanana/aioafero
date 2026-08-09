@@ -361,6 +361,35 @@ class EventStream:
                 )
             )
 
+    async def generate_events_from_added_data(
+        self, data: list[dict[Any, str]]
+    ) -> list[AferoDevice]:
+        """Process newly discovered metadevice payloads without reconciling removals.
+
+        Unlike :meth:`generate_events_from_data`, this does **not** emit
+        ``RESOURCE_DELETED`` for devices missing from ``data``. Used by Conclave
+        ``public`` / ``invalidate`` add handling where only the new ids are known.
+        """
+        devices = await self.generate_devices_from_data(data)
+        self._logger.debug(
+            "Received add for %d raw payload(s). Generating events for %d device(s)",
+            len(data),
+            len(devices),
+        )
+        for device in devices:
+            event_type = EventType.RESOURCE_UPDATED
+            if device.id not in self._bridge.tracked_devices:
+                event_type = EventType.RESOURCE_ADDED
+            self._event_queue.put_nowait(
+                AferoEvent(
+                    type=event_type,
+                    device_id=device.id,
+                    device=device,
+                    force_forward=False,
+                )
+            )
+        return devices
+
     async def generate_events_from_data(self, data: list[dict[Any, str]]) -> None:
         """Process the raw Afero IoT data for emitting.
 

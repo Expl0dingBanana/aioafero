@@ -1,4 +1,4 @@
-"""Conclave login and private-envelope helpers (no I/O)."""
+"""Conclave login and private/public-envelope helpers (no I/O)."""
 
 from __future__ import annotations
 
@@ -11,17 +11,32 @@ from .access import ConclaveAccess
 # Server may greet with either key after the opening ``{}``.
 HANDSHAKE_FRAME_KEYS: frozenset[str] = frozenset({"hello", "tunnel"})
 WELCOME_FRAME_KEY = "welcome"
+PUBLIC_INVALIDATE_EVENT = "invalidate"
 
 CONCLAVE_CLIENT_TYPE = "aioafero"
 CONCLAVE_CLIENT_VERSION = "1.0.0"
 CONCLAVE_PROTOCOL = 2
 
 PrivateEventHandler = Callable[[Any, dict[str, Any]], Awaitable[bool]]
+PublicEventHandler = Callable[[Any, dict[str, Any]], Awaitable[bool]]
 
 
 @dataclass(frozen=True)
 class PrivateEvent:
     """Parsed ``private`` envelope from a Conclave push frame."""
+
+    event: str
+    data: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class PublicEvent:
+    """Parsed ``public`` envelope from a Conclave push frame.
+
+    Inventory changes arrive as ``event="invalidate"`` with a ``data`` block
+    carrying ``kind`` (``add`` / ``remove`` / ``update`` / …) and usually a
+    ``target`` (``metadevices`` / ``devices``).
+    """
 
     event: str
     data: dict[str, Any]
@@ -85,3 +100,19 @@ def parse_private_frame(frame: dict[str, Any]) -> PrivateEvent | None:
     if not isinstance(event, str) or not isinstance(data, dict):
         return None
     return PrivateEvent(event=event, data=data)
+
+
+def parse_public_frame(frame: dict[str, Any]) -> PublicEvent | None:
+    """Extract a ``public`` event from a decoded Conclave frame.
+
+    :returns: :class:`PublicEvent` when ``frame`` carries a well-formed
+        ``public`` block; otherwise ``None``.
+    """
+    public = frame.get("public")
+    if not isinstance(public, dict):
+        return None
+    event = public.get("event")
+    data = public.get("data")
+    if not isinstance(event, str) or not isinstance(data, dict):
+        return None
+    return PublicEvent(event=event, data=data)
