@@ -433,6 +433,7 @@ async def test_generate_events_from_data_multi(bridge):
         "generate_events_from_data_side_effect",
         "expected_emits",
         "expected_queue",
+        "clears_state_fetch_failures",
     ),
     [
         # Happy path
@@ -469,11 +470,12 @@ async def test_generate_events_from_data_multi(bridge):
                     "device_id": "doesnt_exist_list",
                 },
             ],
+            True,
         ),
-        # Issue collecting data
-        (None, KeyError, None, [event.EventType.DISCONNECTED], []),
-        # Issue processing collected data
-        (None, None, KeyError, [], []),
+        # Issue collecting data — discovery failed; leave Forbidden pause in place.
+        (None, KeyError, None, [event.EventType.DISCONNECTED], [], False),
+        # Issue processing collected data — cache not refreshed; keep pauses.
+        (None, None, KeyError, [], [], False),
     ],
 )
 async def test_perform_discovery_poll(
@@ -482,6 +484,7 @@ async def test_perform_discovery_poll(
     generate_events_from_data_side_effect,
     expected_emits,
     expected_queue,
+    clears_state_fetch_failures,
     bridge,
     mocker,
 ):
@@ -506,6 +509,8 @@ async def test_perform_discovery_poll(
         switch.id: bridge.switches,
         "doesnt_exist_list": bridge.lights,
     }
+    bridge._state_fetch_forbidden["paused-dev"] = 3
+    bridge._state_fetch_paused.add("paused-dev")
     emit_calls = mocker.patch.object(stream, "emit")
     await stream.perform_discovery_poll()
     await stream._bridge.async_block_until_done()
@@ -521,6 +526,12 @@ async def test_perform_discovery_poll(
         assert await stream._event_queue.get() == event_to_process, (
             f"Issue at index {index}"
         )
+    if clears_state_fetch_failures:
+        assert "paused-dev" not in bridge._state_fetch_forbidden
+        assert "paused-dev" not in bridge._state_fetch_paused
+    else:
+        assert bridge._state_fetch_forbidden["paused-dev"] == 3
+        assert "paused-dev" in bridge._state_fetch_paused
 
 
 @pytest.mark.asyncio

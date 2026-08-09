@@ -416,6 +416,9 @@ class EventStream:
                 await self.generate_events_from_data(data)
             except Exception:
                 self._logger.exception("Unable to process Afero IoT data. %s", data)
+            else:
+                # Only resume paused state polls once the cache has been refreshed.
+                self._bridge.clear_state_fetch_failures()
             self._first_poll_completed = True
 
     async def __event_discovery(self) -> None:
