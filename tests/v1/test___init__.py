@@ -797,6 +797,176 @@ async def test_fetch_all_device_states_dedupes_split_ids(mocked_bridge, mocker):
     assert parent_dev.states == states
 
 
+def _seed_known_parent(mocked_bridge, mocker, device_id="dev1"):
+    """Wire a single parent into known-device maps for Forbidden state-fetch tests."""
+    item = mocker.Mock()
+    item.available = True
+    controller = mocker.Mock()
+    controller.get_device.return_value = item
+    controller.emit_to_subscribers = AsyncMock()
+    parent = mocker.Mock(spec=AferoDevice)
+    parent.id = device_id
+    parent.split_identifier = None
+    mocked_bridge._known_devs = {device_id: controller}
+    mocked_bridge._known_afero_devices = {device_id: parent}
+    return item, controller, parent
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("forbidden_calls", "resume"),
+    [
+        # Hit the pause limit, then resume via clear_state_fetch_failures().
+        (v1_const.STATE_FETCH_FORBIDDEN_LIMIT, "clear"),
+        # One Forbidden then a successful fetch clears tracking.
+        (1, "success"),
+    ],
+)
+async def test_fetch_all_device_states_forbidden_tracking(
+    mocked_bridge, mocker, forbidden_calls, resume
+):
+    """Forbidden state polls mark unavailable; pause or success clears tracking."""
+    item, controller, parent = _seed_known_parent(mocked_bridge, mocker)
+    states = [AferoState(functionClass="power", value="on")]
+    side_effects = [web_exceptions.HTTPForbidden()] * forbidden_calls
+    if resume == "success":
+        side_effects.append(("dev1", states))
+    fetch = mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=side_effects),
+    )
+
+    for _ in range(forbidden_calls):
+        assert await mocked_bridge.fetch_all_device_states() == []
+
+    assert item.available is False
+    assert controller.emit_to_subscribers.await_count == 1
+    assert mocked_bridge._state_fetch_forbidden["dev1"] == forbidden_calls
+
+    if resume == "clear":
+        assert "dev1" in mocked_bridge._state_fetch_paused
+        fetch.reset_mock()
+        assert await mocked_bridge.fetch_all_device_states() == []
+        fetch.assert_not_called()
+        mocked_bridge.clear_state_fetch_failures()
+        fetch.side_effect = None
+        fetch.return_value = ("dev1", states)
+        updated = await mocked_bridge.fetch_all_device_states()
+        fetch.assert_called_once_with("dev1")
+        assert updated == [parent]
+        assert parent.states == states
+    else:
+        await mocked_bridge.fetch_all_device_states()
+        assert fetch.await_count == forbidden_calls + 1
+
+    assert "dev1" not in mocked_bridge._state_fetch_forbidden
+    assert "dev1" not in mocked_bridge._state_fetch_paused
+
+
+@pytest.mark.parametrize(
+    ("device_id", "seed_in_cache"),
+    [
+        ("parent", True),
+        ("gone", False),
+    ],
+)
+def test_remove_device_clears_state_fetch_tracking(
+    mocked_bridge, mocker, device_id, seed_in_cache
+):
+    """remove_device clears Forbidden tracking for cached and uncached ids."""
+    if seed_in_cache:
+        controller = mocker.Mock()
+        parent = mocker.Mock(spec=AferoDevice)
+        parent.id = device_id
+        parent.split_identifier = None
+        mocked_bridge._known_devs = {device_id: controller}
+        mocked_bridge._known_afero_devices = {device_id: parent}
+    mocked_bridge._state_fetch_forbidden[device_id] = 3
+    mocked_bridge._state_fetch_paused.add(device_id)
+    mocked_bridge.remove_device(device_id)
+    assert device_id not in mocked_bridge._state_fetch_forbidden
+    assert device_id not in mocked_bridge._state_fetch_paused
+
+
+@pytest.mark.asyncio
+async def test_forbidden_state_fetch_marks_split_lights_unavailable(
+    mocked_bridge, mocker
+):
+    """A Forbidden parent state poll marks every split light unavailable."""
+    trim_parent = utils.create_devices_from_data("light-with-trim.json")[0]
+    for state in trim_parent.states:
+        if state.functionClass == "available":
+            state.value = True
+    main_id = f"{trim_parent.id}-light-main"
+    trim_id = f"{trim_parent.id}-light-trim"
+
+    await mocked_bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(trim_parent)]
+    )
+    await mocked_bridge.async_block_until_done()
+
+    main = mocked_bridge.lights[main_id]
+    trim = mocked_bridge.lights[trim_id]
+    parent_dev = mocked_bridge.devices[trim_parent.id]
+    assert parent_dev.available is True
+    assert main.available is True
+    assert trim.available is True
+
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=web_exceptions.HTTPForbidden()),
+    )
+    await mocked_bridge.fetch_all_device_states()
+
+    assert parent_dev.available is False
+    assert main.available is False
+    assert trim.available is False
+
+
+@pytest.mark.asyncio
+async def test_mark_metadevice_unavailable_skips_unrelated_and_missing(
+    mocked_bridge, mocker
+):
+    """Unavailable marking skips other parents and missing controller items."""
+    other = mocker.Mock(spec=AferoDevice)
+    other.id = "other"
+    other.split_identifier = None
+    target = mocker.Mock(spec=AferoDevice)
+    target.id = "target"
+    target.split_identifier = None
+    other_controller = mocker.Mock()
+    target_controller = mocker.Mock()
+    target_controller.get_device.side_effect = DeviceNotFound("missing")
+    target_controller.emit_to_subscribers = AsyncMock()
+    no_avail = mocker.Mock(spec=[])  # no available attribute
+    bare_controller = mocker.Mock()
+    bare_controller.get_device.return_value = no_avail
+    bare_controller.emit_to_subscribers = AsyncMock()
+    bare = mocker.Mock(spec=AferoDevice)
+    bare.id = "bare"
+    bare.split_identifier = None
+
+    mocked_bridge._known_devs = {
+        "other": other_controller,
+        "target": target_controller,
+        "bare": bare_controller,
+    }
+    mocked_bridge._known_afero_devices = {
+        "other": other,
+        "target": target,
+        "bare": bare,
+    }
+
+    await mocked_bridge._mark_metadevice_unavailable("target")
+    other_controller.get_device.assert_not_called()
+    target_controller.emit_to_subscribers.assert_not_called()
+
+    await mocked_bridge._mark_metadevice_unavailable("bare")
+    bare_controller.emit_to_subscribers.assert_not_called()
+
+
 def test_add_afero_dev_explicit_cache_key(mocked_bridge):
     """add_afero_dev may store under an id other than device.id."""
     device = AferoDevice(

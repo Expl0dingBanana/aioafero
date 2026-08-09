@@ -33,5 +33,9 @@ AFERO_GENERICS: Final[dict[str, str]] = {
 
 MAX_RETRIES: Final[int] = 3
 
+# Consecutive per-device state GET 403s before pausing polls for that metadevice
+# until the next successful discovery (or a successful state fetch).
+STATE_FETCH_FORBIDDEN_LIMIT: Final[int] = 3
+
 # Version polling interval in seconds (6 hours)
 VERSION_POLL_INTERVAL_SECONDS = 6 * 3600

@@ -2,6 +2,16 @@
 Changelog
 =========
 
+Version 9.0.1
+=============
+
+ * Pause per-device state polls after repeated ``HTTPForbidden`` responses (common
+   when a device was removed but is still cached until the next discovery). Mark
+   all tracked resources for that parent (including split entities) unavailable,
+   stop requesting updates after three consecutive failures until the next
+   successful discovery poll (or a successful state fetch), and clear tracking
+   when the device is removed.
+
 Version 9.0.0
 =============
 

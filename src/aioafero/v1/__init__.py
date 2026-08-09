@@ -167,7 +167,10 @@ class AferoBridgeV1:
         self.temperature_unit = temperature_unit
         self.logger = logging.getLogger(f"{__package__}-{afero_client}[{username}]")
         self._known_devs: dict[str, BaseResourcesController] = {}
-        self._known_afero_devices: dict[str, str] = {}
+        self._known_afero_devices: dict[str, AferoDevice] = {}
+        # Per-parent metadevice consecutive Forbidden counts / paused poll set.
+        self._state_fetch_forbidden: dict[str, int] = {}
+        self._state_fetch_paused: set[str] = set()
         # Known running tasks
         self._scheduled_tasks: list[asyncio.Task] = []
         self._adhoc_tasks: list[asyncio.Task] = []
@@ -236,10 +239,86 @@ class AferoBridgeV1:
 
         :param device_id: The unique identifier of the device to remove.
         """
+        metadevice_id = self.resolve_metadevice_id(device_id)
         with contextlib.suppress(KeyError):
             self._known_devs.pop(device_id)
         with contextlib.suppress(KeyError):
             self._known_afero_devices.pop(device_id)
+        if not any(
+            self.resolve_metadevice_id(known_id) == metadevice_id
+            for known_id in self._known_devs
+        ):
+            self._clear_state_fetch_tracking(metadevice_id)
+
+    def clear_state_fetch_failures(self) -> None:
+        """Clear per-device state-fetch Forbidden tracking (e.g. after discovery)."""
+        self._state_fetch_forbidden.clear()
+        self._state_fetch_paused.clear()
+
+    def _clear_state_fetch_tracking(self, metadevice_id: str) -> None:
+        """Clear Forbidden / pause tracking for one parent metadevice."""
+        self._state_fetch_forbidden.pop(metadevice_id, None)
+        self._state_fetch_paused.discard(metadevice_id)
+
+    def _state_fetch_is_paused(self, metadevice_id: str) -> bool:
+        """Return True if state polls for this parent are paused until discovery."""
+        return metadevice_id in self._state_fetch_paused
+
+    async def _mark_metadevice_unavailable(self, metadevice_id: str) -> None:
+        """Mark every tracked resource for a parent metadevice unavailable.
+
+        State GETs use the parent metadevice id, but integrations (and HA) bind to
+        controller items — including split clones with synthetic ids
+        (``{parent}-light-main``, etc.). Each of those models has its own
+        ``available`` flag that normally mirrors the parent's shared
+        ``functionClass: available`` state after a successful poll.
+
+        When the parent poll is Forbidden there is no state payload to fan out
+        through ``split_devices`` / ``update_elem``, so walk every tracked id
+        that resolves to this parent and clear ``available`` on each model.
+        Otherwise split entities can stay "available" while the parent is not
+        reachable.
+        """
+        for device_id in list(self._known_devs):
+            if self.resolve_metadevice_id(device_id) != metadevice_id:
+                continue
+            controller = self._known_devs[device_id]
+            try:
+                item = controller.get_device(device_id)
+            except DeviceNotFound:
+                continue
+            if getattr(item, "available", None) is False:
+                continue
+            if not hasattr(item, "available"):
+                continue
+            item.available = False
+            await controller.emit_to_subscribers(
+                EventType.RESOURCE_UPDATED, device_id, item
+            )
+
+    async def _handle_state_fetch_exception(
+        self, metadevice_id: str | None, exc: BaseException
+    ) -> None:
+        """Log a failed state fetch; track Forbidden and pause after repeated hits."""
+        if not isinstance(exc, web_exceptions.HTTPForbidden) or not metadevice_id:
+            self.logger.warning("Unable to fetch states: %s", exc)
+            return
+        count = self._state_fetch_forbidden.get(metadevice_id, 0) + 1
+        self._state_fetch_forbidden[metadevice_id] = count
+        self.logger.warning(
+            "Forbidden fetching states for %s (%s consecutive)",
+            metadevice_id,
+            count,
+        )
+        await self._mark_metadevice_unavailable(metadevice_id)
+        if count < v1_const.STATE_FETCH_FORBIDDEN_LIMIT:
+            return
+        self._state_fetch_paused.add(metadevice_id)
+        self.logger.warning(
+            "Pausing state polls for %s after repeated Forbidden "
+            "(resumes on discovery or successful fetch)",
+            metadevice_id,
+        )
 
     def add_afero_dev(self, device: AferoDevice, device_id: str | None = None) -> None:
         """Add a raw AferoDevice object to the internal cache.
@@ -575,17 +654,21 @@ class AferoBridgeV1:
         metadevice_ids = {
             self.resolve_metadevice_id(device_id) for device_id in self._known_devs
         }
+        active_ids = sorted(
+            mid for mid in metadevice_ids if not self._state_fetch_is_paused(mid)
+        )
         tasks = [
-            self._fetch_device_states(metadevice_id) for metadevice_id in metadevice_ids
+            self._fetch_device_states(metadevice_id) for metadevice_id in active_ids
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         updated_devices: list[AferoDevice] = []
-        for result in results:
+        for metadevice_id, result in zip(active_ids, results, strict=True):
             if isinstance(result, Exception):
-                self.logger.warning("Unable to fetch states: %s", result)
+                await self._handle_state_fetch_exception(metadevice_id, result)
                 continue
             device_id, states = result
+            self._clear_state_fetch_tracking(device_id)
             try:
                 device = self.get_afero_device(device_id)
             except DeviceNotFound:
@@ -700,7 +783,8 @@ class AferoBridgeV1:
                 # 429 means the bridge is rate limiting/overloaded, we should back off a bit.
                 if resp.status in [429, 503, 504]:
                     continue
-                # 403 is bad auth
+                # 403: credential failure on account endpoints, or no access to a
+                # specific resource (e.g. removed device state GET).
                 if resp.status == 403:
                     raise web_exceptions.HTTPForbidden
                 await resp.read()

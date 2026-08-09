@@ -412,6 +412,7 @@ class EventStream:
             self._status = EventStreamStatus.DISCONNECTED
             self.emit(EventType.DISCONNECTED)
         else:
+            self._bridge.clear_state_fetch_failures()
             try:
                 await self.generate_events_from_data(data)
             except Exception:
