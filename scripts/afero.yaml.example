@@ -1,0 +1,14 @@
+# Local tooling config for scripts/afero_login.py and scripts/afero_bridge.py.
+# Copy to afero.yaml (gitignored) and edit. Password: prompt or AFERO_PASSWORD.
+
+username: you@example.com
+session_file: .aioafero-session.json
+afero_client: hubspace
+enable_conclave: false
+polling_interval: 120
+log_level: INFO
+# Optional Conclave NDJSON capture (custom logging.Handler; flushed on exit).
+# capture_frames: conclave-frames.ndjson
+# capture_buffer: 32
+# Optional: still-valid bearer from a previous run is loaded from session_file.
+# password: set via env AFERO_PASSWORD or interactive prompt in afero_login.py

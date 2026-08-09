@@ -6,33 +6,39 @@ state updates over Afero's account-scoped TLS socket. REST polling stays the
 source of truth for discovery, writes, and slow reconciliation; Conclave is
 **subscribe-only** and updates the same cached models REST polling uses.
 
-Local testing
--------------
+Debug frame logging
+-------------------
 
-``scripts/conclave_watch.py`` is an end-to-end watcher: it logs in, enables
-Conclave, prints your device inventory, then prints human-readable diffs when
-anything changes (toggle a device in the Hubspace app to verify push updates).
+Decoded application frames are logged as JSON on
+``aioafero.v1.conclave.frames`` at ``DEBUG`` (one object per message; heartbeats
+are omitted). Raising that logger — or its parent ``aioafero`` — to ``DEBUG`` is
+enough; no special handlers are required. Home Assistant integrations that
+register ``aioafero`` under ``loggers`` pick this up when the user enables debug
+logging for the integration.
 
-.. code-block:: bash
+Messages may include account and device identifiers — treat debug logs as
+sensitive.
 
-   uv run python scripts/conclave_watch.py \\
-       --username you@example.com --password 'your-password'
+Buffered file capture
+---------------------
 
-On first login (password + OTP if required), the script saves tokens to
-``.aioafero-session.json`` in the current directory (gitignored). Later runs
-reuse that file and skip OTP. To log in again from scratch:
+:class:`~aioafero.v1.conclave.ConclaveFrameFileHandler` is a ``logging.Handler``
+that buffers frame lines in memory and appends them to an NDJSON file when the
+buffer fills (or on ``flush`` / ``close``):
 
-.. code-block:: bash
+.. code-block:: python
 
-   uv run python scripts/conclave_watch.py --clear-token-cache
-   uv run python scripts/conclave_watch.py --username you@example.com --password '…'
+   from aioafero.v1.conclave import FRAME_LOGGER, attach_frame_capture
 
-You can also pass ``--refresh-token`` explicitly, or set ``AFERO_USERNAME`` /
-``AFERO_PASSWORD`` / ``AFERO_REFRESH_TOKEN``. Use ``--no-token-cache`` to disable
-persistence. Add ``--debug`` for Conclave handshake logs (``aioafero`` loggers at
-DEBUG). Add ``--trace`` to print each pipeline stage — Conclave frame, cache
-patch, controller emit, subscriber callback — useful alongside mitm captures of
-the Hubspace app.
+   handler = attach_frame_capture("conclave-frames.ndjson", buffer_size=32)
+   # …run with enable_conclave=True…
+   frames = handler.read_frames()  # flushes first
+   FRAME_LOGGER.removeHandler(handler)
+   handler.close()
+
+With ``propagate=False`` (default in :func:`~aioafero.v1.conclave.attach_frame_capture`),
+lines stay off parent loggers. Local ``scripts/afero_bridge.py`` enables this via
+``capture_frames`` / ``capture_buffer`` in ``afero.yaml``.
 
 Enabling Conclave
 -----------------
