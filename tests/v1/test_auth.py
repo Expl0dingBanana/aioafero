@@ -683,6 +683,10 @@ def test_token_data_from_session_dict_accepts_expiration_alias():
         ({"username": "u"}, "refresh_token"),
         ({"username": "u", "refresh_token": "r", "token_expiration": "x"}, "number"),
         ({"username": "u", "refresh_token": "r", "token": 1}, "token must be"),
+        (
+            {"username": "u", "refresh_token": "r", "access_token": 1},
+            "access_token must be",
+        ),
     ],
 )
 def test_token_data_from_session_dict_errors(payload, match):
