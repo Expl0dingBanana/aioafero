@@ -173,6 +173,15 @@ def test_resolve_binding_returns_first_when_ambiguous():
     assert binding is bindings[0]
 
 
+def test_resolve_binding_falls_back_when_no_device_value_matches():
+    bindings = [
+        semantics.SemanticBinding("power", None, "off", "00"),
+        semantics.SemanticBinding("power", None, "on", "01"),
+    ]
+    binding = semantics.resolve_binding({"1": bindings}, "1", "99")
+    assert binding is bindings[0]
+
+
 def test_resolve_binding_unknown_key_returns_none():
     assert semantics.resolve_binding({}, "1", "1") is None
     assert semantics.resolve_binding({"1": []}, "1", "1") is None
