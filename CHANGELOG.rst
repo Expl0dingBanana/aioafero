@@ -10,6 +10,20 @@ Version 9.1.0
    REST discovery poll. ``attr_change`` and ``status_change`` events update the
    same cached models REST polling uses; REST remains the source of truth for
    discovery, writes, and slow reconciliation.
+ * ``TokenData.to_session_dict`` / ``from_session_dict`` serialize tokens for
+   local tooling. ``scripts/afero_login.py`` and ``scripts/afero_bridge.py``
+   (with ``scripts/afero.yaml.example``) create and reuse a session file without
+   baking filesystem paths into the bridge.
+ * ``aioafero.v1.conclave.ConclaveFrameFileHandler`` /
+   ``attach_frame_capture`` buffer Conclave frame JSON to an NDJSON file via a
+   custom ``logging.Handler`` (in-memory buffer, spill when full, flush on
+   harvest). ``afero_bridge.py`` wires this via ``capture_frames`` in
+   ``afero.yaml``.
+ * Decoded Conclave application frames are logged as JSON on
+   ``aioafero.v1.conclave.frames`` at ``DEBUG``. Enabling debug on ``aioafero``
+   (as Home Assistant does via the integration ``loggers`` entry) is enough;
+   optional file handlers are only for offline captures (see
+   ``docs/user/conclave.rst``).
  * New subpackage ``aioafero.v1.conclave`` (``access``, ``protocol``, ``frames``,
    ``semantics``, ``events``, ``client``) exposing ``ConclaveClient``,
    ``ConclaveAccess``, frame decoding, attribute semantics, and push-to-cache

@@ -224,6 +224,23 @@ Typical integration pattern (e.g. Home Assistant):
 
 See :doc:`bridge` for bridge construction options and lifecycle.
 
+Local session cache (scripts)
+-----------------------------
+
+For offline testing, ``TokenData.to_session_dict`` /
+``TokenData.from_session_dict`` serialize tokens without putting filesystem
+paths on the bridge. Helper scripts use a local ``afero.yaml``:
+
+.. code-block:: bash
+
+   cp scripts/afero.yaml.example afero.yaml
+   uv sync --extra cli
+   uv run --extra cli python scripts/afero_login.py    # writes session file
+   uv run --extra cli python scripts/afero_bridge.py   # opens the bridge
+
+``afero.yaml`` and ``.aioafero-session.json`` are gitignored. Password is never
+stored — use ``AFERO_PASSWORD`` or an interactive prompt for login.
+
 Configuration
 -------------
 

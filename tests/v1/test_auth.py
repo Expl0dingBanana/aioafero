@@ -648,6 +648,48 @@ async def test_login_clears_password_on_failure(aio_sess, mocker):
     remove_secret.assert_called_once_with("password")
 
 
+def test_token_data_session_dict_roundtrip():
+    tokens = auth.TokenData("bearer", "access", "refresh", 1234.5)
+    payload = tokens.to_session_dict("user@example.com")
+    assert payload == {
+        "username": "user@example.com",
+        "refresh_token": "refresh",
+        "token": "bearer",
+        "access_token": "access",
+        "token_expiration": 1234.5,
+    }
+    username, loaded = auth.TokenData.from_session_dict(payload)
+    assert username == "user@example.com"
+    assert loaded == tokens
+
+
+def test_token_data_from_session_dict_accepts_expiration_alias():
+    username, loaded = auth.TokenData.from_session_dict(
+        {
+            "username": "u",
+            "refresh_token": "r",
+            "expiration": 99,
+        }
+    )
+    assert username == "u"
+    assert loaded == auth.TokenData(None, None, "r", 99.0)
+
+
+@pytest.mark.parametrize(
+    ("payload", "match"),
+    [
+        ([], "mapping"),
+        ({}, "username"),
+        ({"username": "u"}, "refresh_token"),
+        ({"username": "u", "refresh_token": "r", "token_expiration": "x"}, "number"),
+        ({"username": "u", "refresh_token": "r", "token": 1}, "token must be"),
+    ],
+)
+def test_token_data_from_session_dict_errors(payload, match):
+    with pytest.raises((TypeError, ValueError), match=match):
+        auth.TokenData.from_session_dict(payload)
+
+
 def test_remove_secrets_not_in_skips_shared_values(mocker):
     remove_secret = mocker.patch("aioafero.v1.auth.remove_secret")
     old = auth.TokenData("old-bearer", "old-access", "shared-refresh", 0)

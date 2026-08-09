@@ -201,10 +201,9 @@ Conclave push (optional)
 ------------------------
 
 For live updates without waiting for the REST poll interval, enable Conclave on
-the bridge. Setup, lifecycle, and the ``conclave_watch`` debug script are in
-:doc:`conclave`. The subscribe pattern above is unchanged — pass
-``enable_conclave=True`` and use the same ``bridge.subscribe`` / controller
-callbacks:
+the bridge. Setup and lifecycle are in :doc:`conclave`. The subscribe pattern
+above is unchanged — pass ``enable_conclave=True`` and use the same
+``bridge.subscribe`` / controller callbacks:
 
 .. code-block:: python
 
