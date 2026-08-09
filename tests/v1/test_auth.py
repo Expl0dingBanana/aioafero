@@ -18,6 +18,13 @@ def hs_auth(aio_sess):
     return auth.AferoAuth(aio_sess, "username", "mock-refresh-token")
 
 
+def test_token_data_property(hs_auth):
+    assert hs_auth.token_data is not None
+    assert hs_auth.token_data.refresh_token == "mock-refresh-token"
+    hs_auth._token_data = None
+    assert hs_auth.token_data is None
+
+
 @pytest.fixture
 def hs_auth_login(aio_sess):
     return auth.AferoAuth.for_login(aio_sess, "username", "password")
@@ -646,6 +653,52 @@ async def test_login_clears_password_on_failure(aio_sess, mocker):
         await test_auth.login()
     assert test_auth._password is None
     remove_secret.assert_called_once_with("password")
+
+
+def test_token_data_session_dict_roundtrip():
+    tokens = auth.TokenData("bearer", "access", "refresh", 1234.5)
+    payload = tokens.to_session_dict("user@example.com")
+    assert payload == {
+        "username": "user@example.com",
+        "refresh_token": "refresh",
+        "token": "bearer",
+        "access_token": "access",
+        "token_expiration": 1234.5,
+    }
+    username, loaded = auth.TokenData.from_session_dict(payload)
+    assert username == "user@example.com"
+    assert loaded == tokens
+
+
+def test_token_data_from_session_dict_accepts_expiration_alias():
+    username, loaded = auth.TokenData.from_session_dict(
+        {
+            "username": "u",
+            "refresh_token": "r",
+            "expiration": 99,
+        }
+    )
+    assert username == "u"
+    assert loaded == auth.TokenData(None, None, "r", 99.0)
+
+
+@pytest.mark.parametrize(
+    ("payload", "match"),
+    [
+        ([], "mapping"),
+        ({}, "username"),
+        ({"username": "u"}, "refresh_token"),
+        ({"username": "u", "refresh_token": "r", "token_expiration": "x"}, "number"),
+        ({"username": "u", "refresh_token": "r", "token": 1}, "token must be"),
+        (
+            {"username": "u", "refresh_token": "r", "access_token": 1},
+            "access_token must be",
+        ),
+    ],
+)
+def test_token_data_from_session_dict_errors(payload, match):
+    with pytest.raises((TypeError, ValueError), match=match):
+        auth.TokenData.from_session_dict(payload)
 
 
 def test_remove_secrets_not_in_skips_shared_values(mocker):

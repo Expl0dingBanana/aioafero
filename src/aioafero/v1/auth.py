@@ -6,13 +6,14 @@ __all__ = ["AferoAuth", "TokenData", "passthrough"]
 
 import asyncio
 import base64
+from collections.abc import Mapping
 from contextlib import contextmanager
 import datetime
 import hashlib
 import logging
 import os
 import re
-from typing import Final, NamedTuple
+from typing import Any, Final, NamedTuple
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
@@ -45,6 +46,53 @@ class TokenData(NamedTuple):
     access_token: str | None
     refresh_token: str
     expiration: float
+
+    def to_session_dict(self, username: str) -> dict[str, Any]:
+        """Serialize tokens for a local session cache (scripts / tooling).
+
+        The bridge does not read or write session files; integrations and local
+        helpers own persistence. Field name ``token_expiration`` matches the
+        common on-disk cache shape.
+        """
+        return {
+            "username": username,
+            "refresh_token": self.refresh_token,
+            "token": self.token,
+            "access_token": self.access_token,
+            "token_expiration": self.expiration,
+        }
+
+    @classmethod
+    def from_session_dict(cls, data: Mapping[str, Any]) -> tuple[str, TokenData]:
+        """Load ``(username, TokenData)`` from a session cache mapping.
+
+        Accepts ``token_expiration`` (preferred) or ``expiration``.
+        """
+        if not isinstance(data, Mapping):
+            raise TypeError("session data must be a mapping")
+        username = data.get("username")
+        refresh_token = data.get("refresh_token")
+        if not isinstance(username, str) or not username:
+            raise ValueError("session data requires a non-empty username string")
+        if not isinstance(refresh_token, str) or not refresh_token:
+            raise ValueError("session data requires a non-empty refresh_token string")
+        raw_expiration = data.get("token_expiration", data.get("expiration", 0))
+        try:
+            expiration = float(raw_expiration) if raw_expiration is not None else 0.0
+        except (TypeError, ValueError) as err:
+            raise ValueError("token_expiration must be a number") from err
+        token = data.get("token")
+        access_token = data.get("access_token")
+        if token is not None and not isinstance(token, str):
+            raise ValueError("token must be a string or null")
+        if access_token is not None and not isinstance(access_token, str):
+            raise ValueError("access_token must be a string or null")
+        return username, cls(
+            token or None,
+            access_token or None,
+            refresh_token,
+            expiration,
+        )
 
 
 class AuthSessionData(NamedTuple):
@@ -224,6 +272,11 @@ class AferoAuth:
         if not self._token_data:
             return None
         return self._token_data.refresh_token
+
+    @property
+    def token_data(self) -> TokenData | None:
+        """Return the current OAuth token bundle, if any."""
+        return self._token_data
 
     def generate_auth_url(self, endpoint: str) -> str:
         """Generate an auth URL for the Afero API."""

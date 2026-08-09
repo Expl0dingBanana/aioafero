@@ -90,6 +90,12 @@ class DeviceController(BaseResourcesController[Device]):
             self._process_update_response,
             event_filter=EventType.RESOURCE_UPDATE_RESPONSE,
         )
+        # Conclave inventory pushes (and any direct ADDED/DELETED) keep parents
+        # aligned without waiting for the next full discovery poll.
+        self._bridge.events.subscribe(
+            self._process_resource_lifecycle,
+            event_filter=(EventType.RESOURCE_ADDED, EventType.RESOURCE_DELETED),
+        )
         self._initialized = True
 
     async def _process_update_response(
@@ -104,6 +110,54 @@ class DeviceController(BaseResourcesController[Device]):
                 device=dev,
             )
             await self._handle_event(evt["type"], evt)
+
+    async def _process_resource_lifecycle(
+        self, evt_type: EventType, evt_data: AferoEvent | None
+    ) -> None:
+        """Track parent devices from direct ADDED/DELETED events (e.g. Conclave)."""
+        if evt_data is None:
+            return
+        if evt_type == EventType.RESOURCE_ADDED:
+            device = evt_data.get("device")
+            if device is None:
+                return
+            # Split clones share a physical radio with their parent. Registering
+            # them via per-entity ADDED (Conclave inventory) would key
+            # ``_known_parents`` to the clone id when the clone is processed
+            # before the parent / parent-device row.
+            if device.split_identifier:
+                return
+            parents = self.get_filtered_devices([device])
+            if not parents:
+                return
+            parent = parents[0]
+            evt = AferoEvent(
+                type=EventType.RESOURCE_ADDED,
+                device_id=parent.id,
+                device=parent,
+            )
+            if parent.device_id in self._known_parents:
+                evt["type"] = EventType.RESOURCE_UPDATED
+            else:
+                self._known_parents[parent.device_id] = parent.id
+            await self._handle_event(evt["type"], evt)
+            return
+        if evt_type == EventType.RESOURCE_DELETED:
+            device_id = evt_data.get("device_id")
+            if not device_id:
+                return
+            for physical_id, parent_id in list(self._known_parents.items()):
+                if device_id not in (parent_id, physical_id):
+                    continue
+                self._known_parents.pop(physical_id, None)
+                evt = AferoEvent(
+                    type=EventType.RESOURCE_DELETED,
+                    device_id=parent_id,
+                )
+                await self._handle_event(evt["type"], evt)
+                return
+            if device_id in self._items:
+                await self._handle_event(evt_type, evt_data)
 
     async def _process_polled_devices(
         self, evt_type: EventType, evt_data: AferoEvent | None

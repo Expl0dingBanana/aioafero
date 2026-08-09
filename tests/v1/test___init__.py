@@ -233,6 +233,40 @@ async def test_fetch_discovery_data(
             await mocked_bridge_req.fetch_discovery_data()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("expected_val", "temperature_unit"),
+    [
+        ({"id": "meta-1"}, TemperatureUnit.FAHRENHEIT),
+        ({"id": "meta-1"}, TemperatureUnit.CELSIUS),
+        (["not-a-dict"], TemperatureUnit.CELSIUS),
+    ],
+)
+async def test_fetch_metadevice(
+    expected_val, temperature_unit, mocked_bridge_req, mocker
+):
+    expected = mocker.Mock()
+    mocked_bridge_req.temperature_unit = temperature_unit
+    mocker.patch.object(
+        expected, "json", side_effect=mocker.AsyncMock(return_value=expected_val)
+    )
+    mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
+    result = await mocked_bridge_req.fetch_metadevice("meta-1")
+    call = mocked_bridge_req.request.call_args
+    assert call[0][0] == "get"
+    assert call[0][1].endswith("/metadevices/meta-1")
+    params = call[1]["params"]
+    assert params["expansions"] == "state,capabilities,semantics"
+    if temperature_unit == TemperatureUnit.FAHRENHEIT:
+        assert params["units"] == TemperatureUnit.FAHRENHEIT.value
+    else:
+        assert "units" not in params
+    if isinstance(expected_val, dict):
+        assert result == expected_val
+    else:
+        assert result is None
+
+
 def fake_version_data(*args, **kwargs):
     yield {"version": "1.0.0"}
     yield {"version": "2.0.0"}
@@ -492,6 +526,7 @@ def test_set_token_data(mocked_bridge):
     )
     mocked_bridge.set_token_data(data)
     assert mocked_bridge.refresh_token == "refresh_token"
+    assert mocked_bridge.token_data == data
 
 
 @pytest.mark.asyncio
