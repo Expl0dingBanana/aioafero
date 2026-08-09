@@ -11,18 +11,22 @@ See ``docs/user/conclave.rst`` for setup, lifecycle, and limitations.
 """
 
 __all__ = [
+    "FRAME_LOGGER",
     "ConclaveAccess",
     "ConclaveClient",
     "ConclaveFrameDecoder",
+    "ConclaveFrameFileHandler",
     "ConclaveStatus",
     "apply_attr_change",
     "apply_status_change",
+    "attach_frame_capture",
     "build_attribute_index",
     "request_conclave_access",
 ]
 
 from .access import ConclaveAccess, request_conclave_access
-from .client import ConclaveClient, ConclaveStatus
+from .client import FRAME_LOGGER, ConclaveClient, ConclaveStatus
 from .events import apply_attr_change, apply_status_change
+from .frame_capture import ConclaveFrameFileHandler, attach_frame_capture
 from .frames import ConclaveFrameDecoder
 from .semantics import build_attribute_index

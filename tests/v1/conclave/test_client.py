@@ -214,6 +214,36 @@ async def test_dispatch_loop_handles_non_private_and_non_dict_private(conclave_b
 
 
 @pytest.mark.asyncio
+async def test_handle_frame_logs_json_when_frame_logger_debug(conclave_bridge, caplog):
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+    frame = {"private": {"event": "mystery", "data": {"deviceId": "abc"}}}
+    with caplog.at_level("DEBUG", logger="aioafero.v1.conclave.frames"):
+        await conclave._handle_frame(frame)
+    assert any(
+        '"deviceId":"abc"' in record.getMessage()
+        and record.name == "aioafero.v1.conclave.frames"
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_handle_frame_skips_frame_log_when_not_debug(
+    conclave_bridge, caplog, mocker
+):
+    bridge, _, _ = conclave_bridge
+    conclave = client_module.ConclaveClient(bridge)
+    frame = {"private": {"event": "mystery", "data": {"deviceId": "abc"}}}
+    dumps = mocker.patch.object(client_module.json, "dumps")
+    with caplog.at_level("INFO", logger="aioafero.v1.conclave.frames"):
+        await conclave._handle_frame(frame)
+    assert not any(
+        record.name == "aioafero.v1.conclave.frames" for record in caplog.records
+    )
+    dumps.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_run_forever_resets_backoff_after_clean_exit(
     conclave_bridge, monkeypatch
 ):
