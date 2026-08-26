@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice
 from aioafero.errors import AferoError
 from aioafero.types import EventType
 from aioafero.v1.conclave import events
@@ -14,8 +14,6 @@ from tests.v1.utils import create_devices_from_data, create_hs_raw_from_device
 @pytest.mark.asyncio
 async def test_apply_attr_change_patches_state_and_dispatches(conclave_bridge):
     bridge, device, generate = conclave_bridge
-    jobs: list = []
-    bridge.events.add_job = jobs.append
     payload = {
         "id": device.device_id,
         "attribute": {
@@ -26,10 +24,7 @@ async def test_apply_attr_change_patches_state_and_dispatches(conclave_bridge):
         },
     }
     assert await events.apply_attr_change(bridge, payload) is True
-    assert len(jobs) == 1
-    assert jobs[0]["type"] == EventType.RESOURCE_UPDATE_RESPONSE
-    assert jobs[0]["device_id"] == device.id
-    generate.assert_not_called()
+    generate.assert_awaited_once_with(device)
     state = next(s for s in device.states if s.functionClass == "power")
     assert state.value == "on"
     assert state.lastUpdateTime == 1780876821586
@@ -38,8 +33,6 @@ async def test_apply_attr_change_patches_state_and_dispatches(conclave_bridge):
 @pytest.mark.asyncio
 async def test_apply_attr_change_brightness_writes_numeric_value(conclave_bridge):
     bridge, device, generate = conclave_bridge
-    jobs: list = []
-    bridge.events.add_job = jobs.append
     payload = {
         "id": device.device_id,
         "attribute": {"id": 2, "data": "28", "value": "40"},
@@ -47,8 +40,7 @@ async def test_apply_attr_change_brightness_writes_numeric_value(conclave_bridge
     assert await events.apply_attr_change(bridge, payload) is True
     state = next(s for s in device.states if s.functionClass == "brightness")
     assert state.value == 40
-    assert len(jobs) == 1
-    generate.assert_not_called()
+    generate.assert_awaited_once_with(device)
 
 
 @pytest.mark.asyncio
@@ -95,8 +87,6 @@ async def test_apply_attr_change_malformed_payload_is_false(conclave_bridge, pay
 @pytest.mark.asyncio
 async def test_apply_status_change_patches_available_visible_direct(conclave_bridge):
     bridge, device, generate = conclave_bridge
-    jobs: list = []
-    bridge.events.add_job = jobs.append
     payload = {
         "id": device.device_id,
         "status": {
@@ -110,9 +100,7 @@ async def test_apply_status_change_patches_available_visible_direct(conclave_bri
         },
     }
     assert await events.apply_status_change(bridge, payload) is True
-    assert len(jobs) == 1
-    assert jobs[0]["device_id"] == device.id
-    generate.assert_not_called()
+    generate.assert_awaited_once_with(device)
     fcs = {s.functionClass: s.value for s in device.states}
     assert fcs == {"available": False, "visible": False, "direct": False}
     # status_change must not touch `linked` / `connected` / `rssi`.
@@ -123,15 +111,12 @@ async def test_apply_status_change_patches_available_visible_direct(conclave_bri
 @pytest.mark.asyncio
 async def test_apply_status_change_partial_fields(conclave_bridge):
     bridge, device, generate = conclave_bridge
-    jobs: list = []
-    bridge.events.add_job = jobs.append
     payload = {"id": device.device_id, "status": {"available": True}}
     assert await events.apply_status_change(bridge, payload) is True
     assert any(
         s.functionClass == "available" and s.value is True for s in device.states
     )
-    assert len(jobs) == 1
-    generate.assert_not_called()
+    generate.assert_awaited_once_with(device)
 
 
 @pytest.mark.asyncio
@@ -174,8 +159,6 @@ async def test_apply_status_change_malformed_payload(conclave_bridge, payload):
 async def test_apply_attr_change_finds_device_cached_by_metadevice_id(conclave_bridge):
     """Production caches by metadevice UUID; Conclave pushes physical deviceId."""
     bridge, device, generate = conclave_bridge
-    jobs: list = []
-    bridge.events.add_job = jobs.append
     bridge._known_afero_devices.clear()
     bridge.add_afero_dev(device)
     payload = {
@@ -183,9 +166,7 @@ async def test_apply_attr_change_finds_device_cached_by_metadevice_id(conclave_b
         "attribute": {"id": 1, "data": "01", "value": "1"},
     }
     assert await events.apply_attr_change(bridge, payload) is True
-    assert len(jobs) == 1
-    assert jobs[0]["device_id"] == device.id
-    generate.assert_not_called()
+    generate.assert_awaited_once_with(device)
     state = next(s for s in device.states if s.functionClass == "power")
     assert state.value == "on"
 
@@ -199,13 +180,9 @@ def test_translate_attr_change_brightness(conclave_bridge):
 
 
 @pytest.mark.asyncio
-async def test_apply_attr_change_skips_split_clones_sharing_device_id(
-    conclave_bridge, mocker
-):
+async def test_apply_attr_change_skips_split_clones_sharing_device_id(conclave_bridge):
     """Parent + split clones share Conclave deviceId; only the parent is patched."""
     bridge, parent, generate = conclave_bridge
-    jobs: list = []
-    bridge.events.add_job = jobs.append
     clone = AferoDevice(
         id=f"{parent.id}-light-trim",
         device_id=parent.device_id,
@@ -219,17 +196,12 @@ async def test_apply_attr_change_skips_split_clones_sharing_device_id(
         split_identifier="light",
     )
     bridge.add_afero_dev(clone, clone.id)
-    dispatch = mocker.spy(events, "_dispatch_conclave_device_update")
     payload = {
         "id": parent.device_id,
         "attribute": {"id": 1, "data": "01", "value": "1"},
     }
     assert await events.apply_attr_change(bridge, payload) is True
-    assert dispatch.await_count == 1
-    assert dispatch.await_args.args[1] is parent
-    assert len(jobs) == 1
-    assert jobs[0]["device_id"] == parent.id
-    generate.assert_not_called()
+    generate.assert_awaited_once_with(parent)
     # Clone must not receive the raw parent-level power patch.
     assert clone.states == []
 
@@ -249,156 +221,6 @@ def test_private_event_handlers_cover_supported_events():
     assert set(events.PRIVATE_EVENT_HANDLERS) == {"attr_change", "status_change"}
     assert set(events.INVALIDATE_KIND_HANDLERS) == {"add", "remove"}
     assert set(events.PUBLIC_EVENT_HANDLERS) == {"invalidate"}
-
-
-def test_refresh_split_clone_states_noop_without_split_marker(conclave_bridge):
-    _, parent, _ = conclave_bridge
-    clone = AferoDevice(
-        id="orphan-id",
-        device_id=parent.device_id,
-        model="m",
-        device_class="light",
-        default_name="n",
-        default_image="i",
-        friendly_name="n",
-        split_identifier="light",
-        states=[AferoState(functionClass="power", functionInstance=None, value="on")],
-    )
-    events.refresh_split_clone_states(parent, clone)
-    assert clone.states[0].value == "on"
-
-
-def test_refresh_split_clone_states_noop_for_unknown_split_type(conclave_bridge):
-    _, parent, _ = conclave_bridge
-    clone = AferoDevice(
-        id=f"{parent.id}-custom-zone",
-        device_id=parent.device_id,
-        model="m",
-        device_class="light",
-        default_name="n",
-        default_image="i",
-        friendly_name="n",
-        split_identifier="custom",
-        states=[],
-    )
-    events.refresh_split_clone_states(parent, clone)
-    assert clone.states == []
-
-
-def test_split_instance_from_device():
-    device = AferoDevice(
-        id="uuid-light-trim",
-        device_id="physical",
-        model="m",
-        device_class="light",
-        default_name="n",
-        default_image="i",
-        friendly_name="n",
-        split_identifier="light",
-    )
-    assert events.split_instance_from_device(device) == "trim"
-    device.split_identifier = None
-    assert events.split_instance_from_device(device) is None
-    device.split_identifier = "missing"
-    device.id = "uuid-without-marker"
-    assert events.split_instance_from_device(device) is None
-
-
-@pytest.mark.asyncio
-async def test_dispatch_refreshes_light_split_clone_from_parent(
-    conclave_bridge, mocker
-):
-    """Split-light clones must be refreshed from the parent before events fire."""
-    bridge, parent, _ = conclave_bridge
-    parent.id = "8866648e-ef12-47b1-a7af-16c86214933e"
-    parent.states = [
-        AferoState(functionClass="power", functionInstance="trim", value="on"),
-        AferoState(functionClass="power", functionInstance="other", value="off"),
-    ]
-    clone = AferoDevice(
-        id=f"{parent.id}-light-trim",
-        device_id=parent.device_id,
-        model="m",
-        device_class="light",
-        default_name="n",
-        default_image="i",
-        friendly_name="Split light",
-        functions=parent.functions,
-        states=[],
-        split_identifier="light",
-    )
-    bridge.events.split_devices = AsyncMock(return_value=[parent, clone, clone])
-    add_dev = mocker.patch.object(bridge, "add_afero_dev")
-    jobs: list = []
-    bridge.events.add_job = jobs.append
-    await events._dispatch_conclave_device_update(bridge, parent)
-    assert len(jobs) == 2
-    assert {job["device_id"] for job in jobs} == {parent.id, clone.id}
-    assert all(job["type"] == EventType.RESOURCE_UPDATE_RESPONSE for job in jobs)
-    assert len(clone.states) == 1
-    assert clone.states[0].functionInstance == "trim"
-    add_dev.assert_called_once_with(clone, clone.id)
-
-
-@pytest.mark.asyncio
-async def test_dispatch_refreshes_security_sensor_split_clone_from_parent(
-    conclave_bridge, mocker
-):
-    """Security sensor splits use security_system state filtering, not light rules."""
-    bridge, parent, _ = conclave_bridge
-    parent.id = "7f4e4c01-e799-45c5-9b1a-385433a78edc"
-    parent.states = [
-        AferoState(
-            functionClass="sensor-state",
-            functionInstance="sensor-12",
-            value={
-                "cfg-12": {
-                    "batteryLevel": 90,
-                    "tampered": 0,
-                    "triggered": 1,
-                    "missing": 0,
-                    "deviceType": 2,
-                }
-            },
-        ),
-        AferoState(
-            functionClass="sensor-state",
-            functionInstance="sensor-18",
-            value={
-                "cfg-18": {
-                    "batteryLevel": 80,
-                    "tampered": 0,
-                    "triggered": 0,
-                    "missing": 0,
-                    "deviceType": 1,
-                }
-            },
-        ),
-    ]
-    clone = AferoDevice(
-        id=f"{parent.id}-sensor-12",
-        device_id=f"{parent.id}-sensor-12",
-        model="m",
-        device_class="security-system-sensor",
-        default_name="n",
-        default_image="i",
-        friendly_name="Sensor 12",
-        functions=[],
-        states=[],
-        split_identifier="sensor",
-    )
-    bridge.events.split_devices = AsyncMock(return_value=[parent, clone])
-    jobs: list = []
-    bridge.events.add_job = jobs.append
-    await events._dispatch_conclave_device_update(bridge, parent)
-    assert len(jobs) == 2
-    assert {job["device_id"] for job in jobs} == {parent.id, clone.id}
-    triggered = next(
-        (state for state in clone.states if state.functionClass == "triggered"),
-        None,
-    )
-    assert triggered is not None
-    assert triggered.value == "On"
 
 
 @pytest.mark.asyncio

@@ -376,14 +376,28 @@ class EventStream:
         return devices
 
     async def generate_events_from_update(self, dev: AferoDevice) -> None:
-        """Generate updates for a single device update."""
+        """Fan out a patched **parent** metadevice through splits and the queue.
+
+        Call this once after merging new states into the parent (REST write
+        echo, state poll, or Conclave push). Split callbacks re-derive clones;
+        existing clones are also refreshed from ``dev`` so filtered zone state
+        matches the parent. Do **not** call once per clone — that re-runs
+        ``split_devices`` and duplicates ``RESOURCE_UPDATE_RESPONSE`` events.
+        """
         devices = await self.split_devices([dev])
         self._logger.debug(
             "Received update for device %s. Generating %d events",
             dev.device_class,
             len(devices),
         )
+        seen: set[str] = set()
         for device in devices:
+            if device.id in seen:
+                continue
+            seen.add(device.id)
+            if device.split_identifier:
+                refresh_split_clone_states(dev, device)
+                self._bridge.add_afero_dev(device, device.id)
             self._event_queue.put_nowait(
                 AferoEvent(
                     type=EventType.RESOURCE_UPDATE_RESPONSE,
@@ -572,3 +586,7 @@ class EventStream:
         """Process the Afero IoT devices."""
         while True:
             await self.process_event()
+
+
+# Imported after CallbackResponse so light/exhaust_fan can import event safely.
+from .split_refresh import refresh_split_clone_states  # noqa: E402

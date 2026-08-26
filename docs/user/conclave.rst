@@ -109,8 +109,9 @@ always the metadevice UUID used as the REST cache key.
 ``device.device_id``. Patches apply to the **parent** metadevice only (entries
 without ``split_identifier``). Split clones share that physical id but must not
 receive the raw merge — that would duplicate events and corrupt filtered clone
-state. After the parent is patched, clones are refreshed from the parent and
-each unique device is emitted as ``RESOURCE_UPDATE_RESPONSE``.
+state. After the parent is patched, :meth:`~aioafero.v1.controllers.event.EventStream.generate_events_from_update`
+refreshes clones from the parent and emits ``RESOURCE_UPDATE_RESPONSE`` for each
+unique device (the same path REST write echoes and state polls use).
 
 Each ``attr_change`` maps ``attribute.id`` through that device's
 ``description.functions`` semantics, coerces values into REST-shaped

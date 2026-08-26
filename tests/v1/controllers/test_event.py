@@ -9,6 +9,7 @@ from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 import pytest
 
 from aioafero import InvalidAuth
+from aioafero.device import AferoDevice, AferoState
 from aioafero.v1.controllers import (
     event,
     exhaust_fan,
@@ -990,3 +991,50 @@ async def test_device_polling_not_ready(bridge, mocker):
         await task
 
     mock_fetch.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_update_refreshes_clones_and_dedupes(bridge, mocker):
+    """Parent patch fans out once per unique id and refreshes split clone states."""
+    stream = bridge.events
+    parent = AferoDevice(
+        id="8866648e-ef12-47b1-a7af-16c86214933e",
+        device_id="aabbccddeeff0011",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="n",
+        states=[
+            AferoState(functionClass="power", functionInstance="trim", value="on"),
+            AferoState(functionClass="power", functionInstance="other", value="off"),
+        ],
+    )
+    clone = AferoDevice(
+        id=f"{parent.id}-light-trim",
+        device_id=parent.device_id,
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="Split light",
+        states=[],
+        split_identifier="light",
+    )
+    stream.split_devices = AsyncMock(return_value=[parent, clone, clone])
+    add_dev = mocker.patch.object(bridge, "add_afero_dev")
+    jobs: list = []
+
+    def _capture(event_msg):
+        jobs.append(event_msg)
+
+    stream._event_queue.put_nowait = _capture
+
+    await stream.generate_events_from_update(parent)
+
+    assert len(jobs) == 2
+    assert {job["device_id"] for job in jobs} == {parent.id, clone.id}
+    assert all(job["type"] == event.EventType.RESOURCE_UPDATE_RESPONSE for job in jobs)
+    assert len(clone.states) == 1
+    assert clone.states[0].functionInstance == "trim"
+    add_dev.assert_called_once_with(clone, clone.id)

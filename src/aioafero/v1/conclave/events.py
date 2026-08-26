@@ -13,22 +13,6 @@ from aioafero.errors import AferoError
 from aioafero.types import EventType
 from aioafero.util import normalize_afero_last_update_time_ms
 from aioafero.v1.controllers.event import AferoEvent
-from aioafero.v1.controllers.exhaust_fan import (
-    SPLIT_IDENTIFIER as EXHAUST_FAN_SPLIT,
-    get_valid_states as exhaust_fan_valid_states,
-)
-from aioafero.v1.controllers.light import (
-    SPLIT_IDENTIFIER as LIGHT_SPLIT,
-    get_valid_states as light_valid_states,
-)
-from aioafero.v1.controllers.portable_ac import (
-    SPLIT_IDENTIFIER as PORTABLE_AC_SPLIT,
-    get_valid_states as portable_ac_valid_states,
-)
-from aioafero.v1.controllers.security_system import (
-    SENSOR_SPLIT_IDENTIFIER,
-    get_valid_states as security_sensor_valid_states,
-)
 
 from .protocol import PUBLIC_INVALIDATE_EVENT, PrivateEventHandler, PublicEventHandler
 from .semantics import build_attribute_index, coerce_rest_state_value, resolve_binding
@@ -38,45 +22,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
-
 STATUS_FIELDS: tuple[str, ...] = ("available", "visible", "direct")
-
-SplitStateRefresher = Callable[[AferoDevice, str], list[AferoState]]
-
-
-def _refresh_security_sensor_states(
-    parent: AferoDevice, instance: str
-) -> list[AferoState]:
-    return security_sensor_valid_states(parent.states, int(instance))
-
-
-SPLIT_STATE_REFRESHERS: dict[str, SplitStateRefresher] = {
-    LIGHT_SPLIT: light_valid_states,
-    SENSOR_SPLIT_IDENTIFIER: _refresh_security_sensor_states,
-    EXHAUST_FAN_SPLIT: exhaust_fan_valid_states,
-    PORTABLE_AC_SPLIT: lambda parent, _instance: portable_ac_valid_states(parent),
-}
-
-
-def refresh_split_clone_states(parent: AferoDevice, clone: AferoDevice) -> None:
-    """Copy filtered parent states onto a split clone before emitting events."""
-    instance = split_instance_from_device(clone)
-    if instance is None or not clone.split_identifier:
-        return
-    refresher = SPLIT_STATE_REFRESHERS.get(clone.split_identifier)
-    if refresher is None:
-        return
-    clone.states = refresher(parent, instance)
-
-
-def split_instance_from_device(device: AferoDevice) -> str | None:
-    """Return the split-zone instance key encoded in a clone metadevice id."""
-    if not device.split_identifier:
-        return None
-    marker = f"-{device.split_identifier}-"
-    if marker not in device.id:
-        return None
-    return device.id.rsplit(marker, 1)[1]
 
 
 def translate_attr_change(
@@ -129,18 +75,6 @@ def _private_data_block(payload: dict, block_key: str) -> tuple[str, dict] | Non
     return str(device_id), block
 
 
-def _unique_devices(devices: list[AferoDevice]) -> list[AferoDevice]:
-    """Drop duplicate metadevices while preserving first-seen order."""
-    seen: set[str] = set()
-    unique: list[AferoDevice] = []
-    for device in devices:
-        if device.id in seen:
-            continue
-        seen.add(device.id)
-        unique.append(device)
-    return unique
-
-
 async def _apply_to_conclave_devices(
     bridge: AferoBridgeV1,
     device_id: str,
@@ -149,7 +83,8 @@ async def _apply_to_conclave_devices(
     """Run ``handler(device)`` for each cached *parent* with this ``deviceId``.
 
     Split clones share the physical Conclave ``deviceId`` with their parent.
-    Patches must land on the parent only; ``_dispatch_conclave_device_update``
+    Patches must land on the parent only;
+    :meth:`~aioafero.v1.controllers.event.EventStream.generate_events_from_update`
     refreshes clones afterward. Applying to clones as well would duplicate
     ``RESOURCE_UPDATE_RESPONSE`` events and corrupt filtered clone state.
     """
@@ -169,9 +104,9 @@ async def _patch_device_and_emit(
     device: AferoDevice,
     new_states: list[AferoState],
 ) -> None:
-    """Merge ``new_states`` into ``device`` and fan out through split clones."""
+    """Merge ``new_states`` into ``device`` and fan out via the shared update path."""
     device.states = merge_afero_states(device.states, new_states)
-    await _dispatch_conclave_device_update(bridge, device)
+    await bridge.events.generate_events_from_update(device)
 
 
 async def apply_attr_change(bridge: AferoBridgeV1, payload: dict) -> bool:
@@ -218,32 +153,6 @@ async def apply_status_change(bridge: AferoBridgeV1, payload: dict) -> bool:
         return True
 
     return await _apply_to_conclave_devices(bridge, device_id, _apply)
-
-
-async def _dispatch_conclave_device_update(
-    bridge: AferoBridgeV1, parent: AferoDevice
-) -> None:
-    """Route a patched metadevice through split clones and the event queue.
-
-    Split clones are refreshed once, then each unique device is enqueued as a
-    ``RESOURCE_UPDATE_RESPONSE``. We intentionally do **not** call
-    :meth:`~aioafero.v1.controllers.event.EventStream.generate_events_from_update`
-    per clone — that helper re-runs ``split_devices`` and would emit duplicate
-    updates for every zone on a multi-split device.
-    """
-    clones = await bridge.events.split_devices([parent])
-    for clone in _unique_devices(clones):
-        if clone.split_identifier:
-            refresh_split_clone_states(parent, clone)
-            bridge.add_afero_dev(clone, clone.id)
-        bridge.events.add_job(
-            AferoEvent(
-                type=EventType.RESOURCE_UPDATE_RESPONSE,
-                device_id=clone.id,
-                device=clone,
-                force_forward=False,
-            )
-        )
 
 
 def _unique_ids(ids: list[str]) -> list[str]:
