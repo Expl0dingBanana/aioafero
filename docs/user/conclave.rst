@@ -106,13 +106,15 @@ How pushes are applied
 Conclave ``deviceId`` values are the physical device id (16 hex characters), not
 always the metadevice UUID used as the REST cache key.
 :meth:`~aioafero.v1.AferoBridgeV1.find_afero_devices_by_conclave_id` matches
-``device.device_id`` so every cached metadevice on that radio receives the patch
-(including split clones).
+``device.device_id``. Patches apply to the **parent** metadevice only (entries
+without ``split_identifier``). Split clones share that physical id but must not
+receive the raw merge — that would duplicate events and corrupt filtered clone
+state. After the parent is patched, clones are refreshed from the parent and
+each unique device is emitted as ``RESOURCE_UPDATE_RESPONSE``.
 
 Each ``attr_change`` maps ``attribute.id`` through that device's
 ``description.functions`` semantics, coerces values into REST-shaped
-``AferoState`` rows, and merges them into the cache. Split-light (and similar)
-clones are refreshed from the parent before events fire. ``status_change`` updates
+``AferoState`` rows, and merges them into the parent. ``status_change`` updates
 ``available``, ``visible``, and ``direct`` only — not ``linked``, ``connected``, or
 ``rssi``.
 
