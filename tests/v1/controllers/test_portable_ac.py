@@ -116,6 +116,13 @@ async def test_initialize(mocked_controller):
             selects={"on", "off"},
             name="Sleep Mode",
         ),
+        ("eco-mode", None): features.SelectFeature(
+            function_class="eco-mode",
+            function_instance=None,
+            selected="off",
+            selects={"on", "off"},
+            name="Eco Mode",
+        ),
     }
     assert dev.target_temperature_heating is None
     assert dev.target_temperature_auto_heating is None
@@ -276,6 +283,12 @@ async def test_update_elem(mocked_controller):
             lastUpdateTime=0,
             value="celsius",
         ),
+        AferoState(
+            functionClass="eco-mode",
+            functionInstance=None,
+            lastUpdateTime=0,
+            value="on",
+        ),
     ]
     for state in new_states:
         utils.modify_state(dev_update, state)
@@ -291,12 +304,14 @@ async def test_update_elem(mocked_controller):
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
+    assert dev.selects[("eco-mode", None)].selected == "on"
     assert updates == {
         "available",
         "temperature-cooling-target",
         "temperature-current-temp",
         "mode",
         "select-('fan-speed', 'ac-fan-speed')",
+        "select-('eco-mode', None)",
     }
 
 
@@ -326,6 +341,7 @@ async def test_set_state(mocked_controller, mocker):
         target_temperature=22.5,
         selects={
             ("fan-speed", "ac-fan-speed"): "fan-speed-2-100",
+            ("eco-mode", None): "on",
             ("nope", "exist", None): "nope",
         },
     )
@@ -351,6 +367,12 @@ async def test_set_state(mocked_controller, mocker):
                 "value": "fan-speed-2-100",
                 "lastUpdateTime": mocker.ANY,
             },
+            {
+                "functionClass": "eco-mode",
+                "functionInstance": None,
+                "value": "on",
+                "lastUpdateTime": mocker.ANY,
+            },
         ],
     )
     dev = mocked_controller.items[0]
@@ -358,6 +380,7 @@ async def test_set_state(mocked_controller, mocker):
     assert dev.hvac_mode.mode == "cool"
     assert dev.hvac_mode.previous_mode == "auto-cool"
     assert dev.selects[("fan-speed", "ac-fan-speed")].selected == "fan-speed-2-100"
+    assert dev.selects[("eco-mode", None)].selected == "on"
 
 
 @pytest.mark.asyncio

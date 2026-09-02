@@ -61,6 +61,7 @@ class PortableACController(ClimateController[PortableAC]):
         ("fan-speed", "ac-fan-speed"): "Fan Speed",
         ("sleep", None): "Sleep Mode",
         ("air-swing", None): "Swing",
+        ("eco-mode", None): "Eco Mode",
     }
     DEVICE_SPLIT_CALLBACKS: dict[str, callable] = {
         ResourceTypes.PORTABLE_AC.value: portable_ac_callback

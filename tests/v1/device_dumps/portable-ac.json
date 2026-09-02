@@ -430,6 +430,50 @@
         ]
       },
       {
+        "id": "558a410a-e241-4fed-9687-46363c233cbe",
+        "createdTimestampMs": 1724889131389,
+        "updatedTimestampMs": 1724889131389,
+        "functionClass": "eco-mode",
+        "type": "category",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "afc541f5-bcfb-4ff6-9bbd-7004e2ca8b99",
+            "createdTimestampMs": 1724889131406,
+            "updatedTimestampMs": 1724889131406,
+            "name": "on",
+            "deviceValues": [
+              {
+                "id": "2cc2175a-2608-4a1f-81dc-24d02398bbec",
+                "createdTimestampMs": 1724889131412,
+                "updatedTimestampMs": 1724889131412,
+                "type": "attribute",
+                "key": "8",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "ceeed339-b152-495f-822d-76c4883db915",
+            "createdTimestampMs": 1724889131396,
+            "updatedTimestampMs": 1724889131396,
+            "name": "off",
+            "deviceValues": [
+              {
+                "id": "bc3a62c5-c147-4b6b-bbef-414343664614",
+                "createdTimestampMs": 1724889131402,
+                "updatedTimestampMs": 1724889131402,
+                "type": "attribute",
+                "key": "8",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
         "id": "c1a9de3d-0eed-45e7-9521-aebbc1bfddc8",
         "createdTimestampMs": 1724889131297,
         "updatedTimestampMs": 1724889131297,
@@ -609,6 +653,12 @@
       },
       {
         "functionClass": "sleep",
+        "value": "off",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "eco-mode",
         "value": "off",
         "lastUpdateTime": 0,
         "functionInstance": null
