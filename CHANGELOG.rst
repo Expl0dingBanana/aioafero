@@ -2,6 +2,14 @@
 Changelog
 =========
 
+Version 9.1.0
+=============
+
+ * ``PortableACController`` exposes ``eco-mode`` as a select (``Eco Mode``).
+   The unit already reported it; it was the only writable portable-AC function
+   with no mapping, and engaging it on the unit can stop the compressor with no
+   other state change.
+
 Version 9.0.1
 =============
 
