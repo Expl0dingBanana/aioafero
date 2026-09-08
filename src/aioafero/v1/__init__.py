@@ -6,6 +6,7 @@ __all__ = [
     "AferoController",
     "AferoModelResource",
     "BaseResourcesController",
+    "DehumidifierController",
     "DeviceController",
     "FanController",
     "LightController",
@@ -46,6 +47,7 @@ from aioafero.types import TemperatureUnit
 from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .controllers.dehumidifier import DehumidifierController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
 from .controllers.exhaust_fan import ExhaustFanController
@@ -62,6 +64,7 @@ from .controllers.valve import ValveController
 
 type AferoModelResource = (
     models.Device
+    | models.Dehumidifier
     | models.Fan
     | models.Light
     | models.Lock
@@ -78,6 +81,7 @@ type AferoModelResource = (
 
 type AferoController = (
     DeviceController
+    | DehumidifierController
     | FanController
     | LightController
     | LockController
@@ -180,6 +184,7 @@ class AferoBridgeV1:
         )
         # Data Controllers
         self._controllers: dict[str, BaseResourcesController] = {}
+        self.add_controller("dehumidifiers", DehumidifierController)
         self.add_controller("devices", DeviceController)
         self.add_controller("exhaust_fans", ExhaustFanController)
         self.add_controller("fans", FanController)
