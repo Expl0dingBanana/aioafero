@@ -14,13 +14,19 @@ How splitting works
 
 1. During discovery, a controller's ``DEVICE_SPLIT_CALLBACKS`` transforms one
    :class:`~aioafero.AferoDevice` into several clones with synthetic IDs.
-2. Each clone gets a unique ``_id`` (for example ``{parent}-light-{instance}``).
-3. ``split_identifier`` on the model enables
+2. Each clone stores a :class:`~aioafero.device.SplitDeviceId` on ``split``
+   (for example identifier ``light`` and instance ``main``). ``str(split)``
+   is the synthetic id ``{parent_id}-{identifier}-{instance}``. Polls and
+   writes use ``split.parent_id`` so names such as ``light-sensor-enabled``
+   do not collide with the split token.
+3. ``split`` on the model enables
    :class:`~aioafero.v1.models.standard_mixin.StandardMixin` properties:
 
-   * ``id`` — the synthetic ID (entity identity)
-   * ``update_id`` — parent metadevice ID used for API writes
-   * ``instance`` — split instance name parsed from the synthetic ID
+   * ``id`` — the synthetic ID (entity identity), same as ``str(split)``
+   * ``update_id`` — ``split.parent_id`` used for API writes
+   * ``instance`` — ``split.instance``
+   * ``split_identifier`` — ``split.identifier`` (integrations that still
+     key off the token)
 
 .. _dual-channel-lights:
 
@@ -59,7 +65,8 @@ On the **primary controller** (non-split class):
 On the **split model**:
 
 * Use a unique synthetic ``_id``, not the parent metadevice ID.
-* Set ``split_identifier`` consistently with the ID format.
+* Set ``split`` to a :class:`~aioafero.device.SplitDeviceId` (``AferoDevice.apply_split``)
+  and use ``str(split)`` as the synthetic ``_id``.
 * Inherit ``StandardMixin`` when the model needs ``update_id`` / ``instance``.
 
 Existing split patterns

@@ -3,11 +3,7 @@
 import pytest
 
 from aioafero.device import AferoState
-from aioafero.v1.controllers.portable_ac import (
-    generate_split_name,
-    get_valid_states,
-    portable_ac_callback,
-)
+from aioafero.v1.controllers.portable_ac import get_valid_states, portable_ac_callback
 from aioafero.v1.models import ResourceTypes, features
 from tests.v1 import utils
 
@@ -25,13 +21,6 @@ portable_ac_f_id = "67fc0e41-9e20-47b4-b015-cad08df65f7c"
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     return mocked_bridge.portable_acs
-
-
-def test_generate_split_name():
-    assert (
-        generate_split_name(portable_ac, "power")
-        == "8d0414d6-a7f7-4bdb-99d5-d866318ff559-portable-ac-power"
-    )
 
 
 def test_get_valid_states():

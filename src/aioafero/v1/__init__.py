@@ -354,9 +354,9 @@ class AferoBridgeV1:
             device = self.get_afero_device(device_id)
         except DeviceNotFound:
             return device_id
-        if device.split_identifier:
-            return device.id.rsplit(f"-{device.split_identifier}-", 1)[0]
-        return device_id
+        if device.split is None:
+            return device_id
+        return device.split.parent_id
 
     @property
     def account_id(self) -> str:

@@ -316,6 +316,49 @@ async def test_turn_on_split_device(mocked_bridge, mocker):
 
 
 @pytest.mark.asyncio
+async def test_turn_on_light_sensor_split_uses_parent(mocked_bridge, mocker):
+    """light-sensor-enabled clones must PUT the parent metadevice id."""
+    await mocked_bridge.generate_devices_from_data(
+        utils.create_devices_from_data("light-globe-flood-pir.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    parent_id = "c12e2c2c-c009-41bb-963f-d4f3a77d6928"
+    sensor_id = f"{parent_id}-light-light-sensor-enabled"
+    mocked_controller = mocked_bridge.switches
+    assert mocked_controller[sensor_id].update_id == parent_id
+    assert mocked_controller[sensor_id].instance == "light-sensor-enabled"
+    json_resp = mocker.AsyncMock()
+    json_resp.return_value = {
+        "metadeviceId": parent_id,
+        "values": [
+            {
+                "functionClass": "toggle",
+                "functionInstance": "light-sensor-enabled",
+                "value": "off",
+                "lastUpdateTime": 0,
+            },
+        ],
+    }
+    resp = mocker.AsyncMock()
+    resp.json = json_resp
+    resp.status = 200
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker, resp)
+    await mocked_controller.turn_off(sensor_id, instance="light-sensor-enabled")
+    await mocked_bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        parent_id,
+        [
+            {
+                "functionClass": "toggle",
+                "functionInstance": "light-sensor-enabled",
+                "value": "off",
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
+
+
+@pytest.mark.asyncio
 async def test_turn_on_split_device_response_metadevice_id(mocked_bridge, mocker):
     """PUT responses must merge parent cache even if metadeviceId echoes a split id."""
     await mocked_bridge.generate_devices_from_data(

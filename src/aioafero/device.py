@@ -4,6 +4,7 @@ __all__ = [
     "AferoDevice",
     "AferoResource",
     "AferoState",
+    "SplitDeviceId",
     "get_afero_device",
     "get_function_from_device",
 ]
@@ -14,6 +15,24 @@ from typing import Any, TypeVar
 from aioafero.util import normalize_afero_last_update_time_ms
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SplitDeviceId:
+    """Identity of a split clone: ``{parent_id}-{identifier}-{instance}``.
+
+    Parent IDs are Afero metadevice UUIDs. Instance names may contain the same
+    token as ``identifier`` (for example ``light-sensor-enabled``), so callers
+    must use ``parent_id`` / ``instance`` rather than parsing ``str(self)``.
+    """
+
+    parent_id: str
+    identifier: str
+    instance: str
+
+    def __str__(self) -> str:
+        """Return the synthetic clone id."""
+        return f"{self.parent_id}-{self.identifier}-{self.instance}"
 
 
 @dataclass
@@ -71,7 +90,7 @@ class AferoDevice:
     states: list[AferoState] = field(default_factory=list)
     children: list[str] = field(default_factory=list)
     manufacturerName: str | None = field(default=None)  # noqa: N815
-    split_identifier: str | None = field(default=None, repr=False)
+    split: SplitDeviceId | None = field(default=None, repr=False)
     version_data: dict[str, str] | None = field(default=None)
 
     def __hash__(self):
@@ -128,6 +147,25 @@ class AferoDevice:
         # Attempt to fix anything TBD
         if self.model == "TBD" and self.default_name:
             self.model = self.default_name
+
+    @property
+    def split_identifier(self) -> str | None:
+        """Token used in the synthetic split id, or ``None`` if not split."""
+        return None if self.split is None else self.split.identifier
+
+    def apply_split(self, identifier: str, instance: str) -> None:
+        """Turn this device into a split clone of its current metadevice id.
+
+        Raises ``ValueError`` if the device is already split so a second call
+        cannot treat the synthetic id as a parent.
+        """
+        if self.split is not None:
+            raise ValueError(
+                f"Device {self.id} is already split "
+                f"({self.split.identifier}/{self.split.instance})"
+            )
+        self.split = SplitDeviceId(self.id, identifier, str(instance))
+        self.id = str(self.split)
 
 
 def transform_capability(capability: dict[str, Any]) -> AferoCapability:
