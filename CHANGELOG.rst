@@ -2,6 +2,14 @@
 Changelog
 =========
 
+Version 9.2.0
+=============
+
+ * Add ``DehumidifierController`` (``bridge.dehumidifiers``) for the ``dehumidifier``
+   device class (Vissani ``VAD50PS1AWTS``). Exposes power, mode, current and target
+   humidity, plus ``Fan Speed`` and ``Pump`` selects. Error states remain on
+   ``bridge.devices``.
+
 Version 9.1.0
 =============
 
