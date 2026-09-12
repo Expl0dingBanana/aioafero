@@ -2,6 +2,16 @@
 Changelog
 =========
 
+Version 9.2.1
+=============
+
+ * Represent split clones with ``SplitDeviceId`` (``device.split`` /
+   ``resource.split``). ``str(split)`` is the synthetic id; polls and writes
+   use ``parent_id`` so names such as ``light-sensor-enabled`` (Defiant
+   17000046) do not hit a synthetic ``{id}-light`` path that Afero rejects
+   with HTTP 400
+   (`Hubspace-Homeassistant #254 <https://github.com/jdeath/Hubspace-Homeassistant/issues/254>`__)
+
 Version 9.2.0
 =============
 

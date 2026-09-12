@@ -628,3 +628,33 @@ def test_merge_afero_states():
     merged = merge_afero_states(existing, incoming)
     by_instance = {(s.functionInstance, s.value) for s in merged}
     assert by_instance == {("main", "off"), ("trim", "off")}
+
+
+def test_split_device_id_str():
+    parent = "c12e2c2c-c009-41bb-963f-d4f3a77d6928"
+    split = device.SplitDeviceId(parent, "light", "light-sensor-enabled")
+    assert str(split) == f"{parent}-light-light-sensor-enabled"
+    assert split.parent_id == parent
+    assert split.identifier == "light"
+    assert split.instance == "light-sensor-enabled"
+
+
+def test_apply_split_sets_id_from_parent():
+    dev = device.AferoDevice(
+        id="parent-id",
+        device_id="device",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+    )
+    assert dev.split_identifier is None
+    dev.apply_split("light", "light-sensor-enabled")
+    assert dev.split.parent_id == "parent-id"
+    assert dev.split.identifier == "light"
+    assert dev.split.instance == "light-sensor-enabled"
+    assert dev.id == "parent-id-light-light-sensor-enabled"
+    assert dev.split_identifier == "light"
+    with pytest.raises(ValueError, match="already split"):
+        dev.apply_split("light", "main")

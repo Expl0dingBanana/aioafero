@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass, field
 
+from aioafero.device import SplitDeviceId
+
 from . import features
 from .resource import DeviceInformation
 from .sensor import AferoBinarySensor, AferoSensor
@@ -15,7 +17,7 @@ class StandardMixin:
     _id: str  # ID used when interacting with Afero
     available: bool
     device_information: DeviceInformation = field(default_factory=DeviceInformation)
-    split_identifier: str | None = None
+    split: SplitDeviceId | None = None
 
     numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
         default_factory=dict
@@ -38,15 +40,16 @@ class StandardMixin:
         return self._id
 
     @property
+    def split_identifier(self) -> str | None:
+        """Token used in the synthetic split id, or ``None`` if not split."""
+        return None if self.split is None else self.split.identifier
+
+    @property
     def instance(self):
         """Instance for the split device."""
-        if self.split_identifier:
-            return self.id.rsplit(f"-{self.split_identifier}-", 1)[1]
-        return None
+        return None if self.split is None else self.split.instance
 
     @property
     def update_id(self) -> str:
         """ID used when sending updates to Afero API."""
-        if self.split_identifier:
-            return self.id.rsplit(f"-{self.split_identifier}-", 1)[0]
-        return self.id
+        return self.id if self.split is None else self.split.parent_id

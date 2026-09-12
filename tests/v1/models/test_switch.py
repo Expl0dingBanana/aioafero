@@ -1,5 +1,6 @@
 import pytest
 
+from aioafero.device import SplitDeviceId
 from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.switch import Switch
 
@@ -52,10 +53,17 @@ def test_init(populated_entity):
     assert populated_entity.on[None].on is True
     assert populated_entity.update_id == "entity-1"
     assert populated_entity.instance is None
-    populated_entity._id = "entity-beans-1"
-    populated_entity.split_identifier = "beans"
+    assert populated_entity.split_identifier is None
+    populated_entity.split = SplitDeviceId("entity", "beans", "1")
+    populated_entity._id = str(populated_entity.split)
     assert populated_entity.update_id == "entity"
     assert populated_entity.instance == "1"
+    populated_entity.split = SplitDeviceId(
+        "c12e2c2c-c009-41bb-963f-d4f3a77d6928", "light", "light-sensor-enabled"
+    )
+    populated_entity._id = str(populated_entity.split)
+    assert populated_entity.update_id == "c12e2c2c-c009-41bb-963f-d4f3a77d6928"
+    assert populated_entity.instance == "light-sensor-enabled"
 
 
 def test_init_empty(empty_entity):

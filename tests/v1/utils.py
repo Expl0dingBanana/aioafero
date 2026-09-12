@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from aioafero.device import AferoCapability, AferoDevice, AferoState
+from aioafero.device import AferoCapability, AferoDevice, AferoState, SplitDeviceId
 
 current_path = Path(__file__).parent
 _DEFAULT_UPDATE_RESPONSE = object()
@@ -67,6 +67,10 @@ def create_device_from_data(device: dict) -> AferoDevice:
     ]
     if "children" not in device:
         device["children"] = []
+    device.pop("split_identifier", None)
+    raw_split = device.get("split")
+    if isinstance(raw_split, dict):
+        device["split"] = SplitDeviceId(**raw_split)
     return AferoDevice(**device)
 
 

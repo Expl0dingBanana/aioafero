@@ -5,7 +5,7 @@ __all__ = ["anonymize_device", "anonymize_devices"]
 from dataclasses import asdict
 from uuid import uuid4
 
-from .device import AferoDevice, AferoState
+from .device import AferoDevice, AferoState, SplitDeviceId
 
 ANONYMIZE_STATES: set[str] = {"wifi-ssid", "wifi-mac-address", "ble-mac-address"}
 
@@ -22,7 +22,11 @@ def anonymize_devices(
     """
     parents = generate_parent_mapping(devices)
     device_links = {}
-    return [anonymize_device(dev, parents, device_links, anon_name) for dev in devices]
+    split_parents: dict[str, str] = {}
+    return [
+        anonymize_device(dev, parents, device_links, anon_name, split_parents)
+        for dev in devices
+    ]
 
 
 def generate_parent_mapping(devices: list[AferoDevice]) -> dict:
@@ -48,14 +52,28 @@ def anonymize_device(
     parent_mapping: dict,
     device_links: dict,
     anon_name: bool,
+    split_parents: dict[str, str] | None = None,
 ) -> dict:
     """Convert an AferoDevice into an anonymized dictionary."""
+    if split_parents is None:
+        split_parents = {}
     fake_dev = asdict(dev)
     if anon_name:
         global FNAME_IND  # noqa: PLW0603
         fake_dev["friendly_name"] = f"friendly-device-{FNAME_IND}"
         FNAME_IND += 1
-    if dev.id in parent_mapping:
+    if dev.split is not None:
+        orig_parent = dev.split.parent_id
+        if orig_parent not in split_parents:
+            split_parents[orig_parent] = str(uuid4())
+        anon_split = SplitDeviceId(
+            split_parents[orig_parent],
+            dev.split.identifier,
+            dev.split.instance,
+        )
+        fake_dev["split"] = asdict(anon_split)
+        fake_dev["id"] = str(anon_split)
+    elif dev.id in parent_mapping:
         fake_dev["id"] = parent_mapping[dev.id]["new"]
     else:
         fake_dev["id"] = str(uuid4())

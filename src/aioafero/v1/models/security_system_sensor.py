@@ -2,8 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from aioafero.v1.models import features
-
+from . import features
 from .resource import ResourceTypes
 from .standard_mixin import StandardMixin
 
@@ -20,7 +19,7 @@ class SecuritySystemSensor(StandardMixin):
     @property
     def instance(self):
         """Instance for the split device."""
-        return int(self._id.rsplit(f"-{self.split_identifier}-", 1)[1])
+        return int(self.split.instance)
 
 
 @dataclass

@@ -10,7 +10,7 @@ from aiohttp import web_exceptions
 from aiohttp.client_exceptions import ClientResponseError
 import pytest
 
-from aioafero import AferoDevice, AferoState, EventType, InvalidAuth
+from aioafero import AferoDevice, AferoState, EventType, InvalidAuth, SplitDeviceId
 from aioafero.errors import AferoError, DeviceNotFound, ExceededMaximumRetries
 from aioafero.v1 import (
     AferoBridgeV1,
@@ -731,8 +731,10 @@ async def test_adjust_temperature_unit(
 async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
     dev1 = mocker.Mock(spec=AferoDevice)
     dev1.id = "dev1"
+    dev1.split = None
     dev2 = mocker.Mock(spec=AferoDevice)
     dev2.id = "dev2"
+    dev2.split = None
     mocked_bridge._known_devs = {
         "dev1": mocker.Mock(),
         "dev2": mocker.Mock(),
@@ -767,16 +769,16 @@ async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
 
 @pytest.mark.asyncio
 async def test_fetch_all_device_states_dedupes_split_ids(mocked_bridge, mocker):
-    parent_id = "parent-light-id"
+    parent_id = "parent-device-id"
     parent_dev = mocker.Mock(spec=AferoDevice)
     parent_dev.id = parent_id
-    parent_dev.split_identifier = None
+    parent_dev.split = None
     trim_dev = mocker.Mock(spec=AferoDevice)
     trim_dev.id = f"{parent_id}-light-trim"
-    trim_dev.split_identifier = "light"
+    trim_dev.split = SplitDeviceId(parent_id, "light", "trim")
     main_dev = mocker.Mock(spec=AferoDevice)
     main_dev.id = f"{parent_id}-light-main"
-    main_dev.split_identifier = "light"
+    main_dev.split = SplitDeviceId(parent_id, "light", "main")
     mocked_bridge._known_devs = {
         f"{parent_id}-light-main": mocker.Mock(),
         f"{parent_id}-light-trim": mocker.Mock(),
@@ -798,6 +800,24 @@ async def test_fetch_all_device_states_dedupes_split_ids(mocked_bridge, mocker):
     assert parent_dev.states == states
 
 
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_light_sensor_toggle_uses_parent(
+    mocked_bridge, mocker
+):
+    """Toggle instances named light-* must poll the parent, not {id}-light."""
+    devices = utils.create_devices_from_data("light-globe-flood-pir.json")
+    await mocked_bridge.generate_devices_from_data(devices)
+    parent_id = devices[0].id
+    fetch = mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(return_value=(parent_id, devices[0].states)),
+    )
+    await mocked_bridge.fetch_all_device_states()
+    called_ids = [call.args[0] for call in fetch.call_args_list]
+    assert called_ids == [parent_id]
+
+
 def _seed_known_parent(mocked_bridge, mocker, device_id="dev1"):
     """Wire a single parent into known-device maps for Forbidden state-fetch tests."""
     item = mocker.Mock()
@@ -807,7 +827,7 @@ def _seed_known_parent(mocked_bridge, mocker, device_id="dev1"):
     controller.emit_to_subscribers = AsyncMock()
     parent = mocker.Mock(spec=AferoDevice)
     parent.id = device_id
-    parent.split_identifier = None
+    parent.split = None
     mocked_bridge._known_devs = {device_id: controller}
     mocked_bridge._known_afero_devices = {device_id: parent}
     return item, controller, parent
@@ -893,7 +913,7 @@ def test_remove_device_clears_state_fetch_tracking(
         controller = mocker.Mock()
         parent = mocker.Mock(spec=AferoDevice)
         parent.id = device_id
-        parent.split_identifier = None
+        parent.split = None
         mocked_bridge._known_devs = {device_id: controller}
         mocked_bridge._known_afero_devices = {device_id: parent}
     mocked_bridge._state_fetch_forbidden[device_id] = 3
@@ -946,10 +966,10 @@ async def test_mark_metadevice_unavailable_skips_unrelated_and_missing(
     """Unavailable marking skips other parents and missing controller items."""
     other = mocker.Mock(spec=AferoDevice)
     other.id = "other"
-    other.split_identifier = None
+    other.split = None
     target = mocker.Mock(spec=AferoDevice)
     target.id = "target"
-    target.split_identifier = None
+    target.split = None
     other_controller = mocker.Mock()
     target_controller = mocker.Mock()
     target_controller.get_device.side_effect = DeviceNotFound("missing")
@@ -960,7 +980,7 @@ async def test_mark_metadevice_unavailable_skips_unrelated_and_missing(
     bare_controller.emit_to_subscribers = AsyncMock()
     bare = mocker.Mock(spec=AferoDevice)
     bare.id = "bare"
-    bare.split_identifier = None
+    bare.split = None
 
     mocked_bridge._known_devs = {
         "other": other_controller,
@@ -1002,12 +1022,16 @@ def test_add_afero_dev_explicit_cache_key(mocked_bridge):
     ("device_id", "expected"),
     [
         ("plain-id", "plain-id"),
-        ("parent-light-id-light-main", "parent-light-id"),
+        ("parent-device-id-light-main", "parent-device-id"),
+        (
+            "c12e2c2c-c009-41bb-963f-d4f3a77d6928-light-light-sensor-enabled",
+            "c12e2c2c-c009-41bb-963f-d4f3a77d6928",
+        ),
     ],
 )
 def test_resolve_metadevice_id(mocked_bridge, device_id, expected):
     parent_dev = AferoDevice(
-        id="parent-light-id",
+        id="parent-device-id",
         device_id="device",
         model="m",
         device_class="light",
@@ -1016,18 +1040,31 @@ def test_resolve_metadevice_id(mocked_bridge, device_id, expected):
         friendly_name="f",
     )
     split_dev = AferoDevice(
-        id="parent-light-id-light-main",
+        id="parent-device-id-light-main",
         device_id="device",
         model="m",
         device_class="light",
         default_name="n",
         default_image="i",
         friendly_name="f",
-        split_identifier="light",
+        split=SplitDeviceId("parent-device-id", "light", "main"),
+    )
+    sensor_dev = AferoDevice(
+        id="c12e2c2c-c009-41bb-963f-d4f3a77d6928-light-light-sensor-enabled",
+        device_id="device",
+        model="m",
+        device_class="switch",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        split=SplitDeviceId(
+            "c12e2c2c-c009-41bb-963f-d4f3a77d6928", "light", "light-sensor-enabled"
+        ),
     )
     mocked_bridge._known_afero_devices = {
         "plain-id": parent_dev,
-        "parent-light-id": parent_dev,
-        "parent-light-id-light-main": split_dev,
+        "parent-device-id": parent_dev,
+        "parent-device-id-light-main": split_dev,
+        sensor_dev.id: sensor_dev,
     }
     assert mocked_bridge.resolve_metadevice_id(device_id) == expected
