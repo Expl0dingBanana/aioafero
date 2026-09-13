@@ -1,0 +1,1392 @@
+[
+  {
+    "id": "c12e2c2c-c009-41bb-963f-d4f3a77d6928",
+    "device_id": "340b1d9a-94a1-4346-8737-2890b7b5ce8f",
+    "model": "17000046",
+    "device_class": "light",
+    "default_name": "Motion Light",
+    "default_image": "globe-flood-light-pir-icon",
+    "friendly_name": "Motion Light",
+    "capabilities": [
+      {
+        "functionClass": "available",
+        "type": "boolean",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "visible",
+        "type": "boolean",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "direct",
+        "type": "boolean",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "ble-mac-address",
+        "type": "string",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "geo-coordinates",
+        "type": "object",
+        "schedulable": null,
+        "functionInstance": "system-device-location",
+        "_opts": {}
+      },
+      {
+        "functionClass": "scheduler-flags",
+        "type": "numeric",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "wifi-ssid",
+        "type": "string",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "wifi-rssi",
+        "type": "numeric",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "wifi-steady-state",
+        "type": "category",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {
+          "values": [
+            "not-connected",
+            "pending",
+            "connected",
+            "unknown-failure",
+            "association-failure",
+            "handshake-failed",
+            "echo-failed",
+            "ssid-not-found",
+            "ntp-failed"
+          ],
+          "categoryValues": [
+            {
+              "name": "not-connected",
+              "values": ["0"]
+            },
+            {
+              "name": "pending",
+              "values": ["1"]
+            },
+            {
+              "name": "connected",
+              "values": ["2"]
+            },
+            {
+              "name": "unknown-failure",
+              "values": ["3"]
+            },
+            {
+              "name": "association-failure",
+              "values": ["4"]
+            },
+            {
+              "name": "handshake-failed",
+              "values": ["5"]
+            },
+            {
+              "name": "echo-failed",
+              "values": ["6"]
+            },
+            {
+              "name": "ssid-not-found",
+              "values": ["7"]
+            },
+            {
+              "name": "ntp-failed",
+              "values": ["8"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "wifi-setup-state",
+        "type": "category",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {
+          "values": [
+            "not-connected",
+            "pending",
+            "connected",
+            "unknown-failure",
+            "association-failure",
+            "handshake-failed",
+            "echo-failed",
+            "ssid-not-found",
+            "ntp-failed"
+          ],
+          "categoryValues": [
+            {
+              "name": "not-connected",
+              "values": ["0"]
+            },
+            {
+              "name": "pending",
+              "values": ["1"]
+            },
+            {
+              "name": "connected",
+              "values": ["2"]
+            },
+            {
+              "name": "unknown-failure",
+              "values": ["3"]
+            },
+            {
+              "name": "association-failure",
+              "values": ["4"]
+            },
+            {
+              "name": "handshake-failed",
+              "values": ["5"]
+            },
+            {
+              "name": "echo-failed",
+              "values": ["6"]
+            },
+            {
+              "name": "ssid-not-found",
+              "values": ["7"]
+            },
+            {
+              "name": "ntp-failed",
+              "values": ["8"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "wifi-mac-address",
+        "type": "string",
+        "schedulable": null,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "brightness",
+        "type": "numeric",
+        "schedulable": true,
+        "functionInstance": null,
+        "_opts": {
+          "range": {
+            "min": 1,
+            "max": 100,
+            "step": 1
+          }
+        }
+      },
+      {
+        "functionClass": "motion-detection",
+        "type": "category",
+        "schedulable": false,
+        "functionInstance": "motion-detection",
+        "_opts": {
+          "values": ["motion-detected", "no-motion"],
+          "categoryValues": [
+            {
+              "name": "motion-detected",
+              "values": ["1"]
+            },
+            {
+              "name": "no-motion",
+              "values": ["0"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "sensitivity",
+        "type": "category",
+        "schedulable": false,
+        "functionInstance": "light-sensor-sensitivity",
+        "_opts": {
+          "values": ["level-4", "level-3", "level-2", "level-1"],
+          "categoryValues": [
+            {
+              "name": "level-4",
+              "values": ["4"]
+            },
+            {
+              "name": "level-3",
+              "values": ["3"]
+            },
+            {
+              "name": "level-2",
+              "values": ["2"]
+            },
+            {
+              "name": "level-1",
+              "values": ["1"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "toggle",
+        "type": "category",
+        "schedulable": false,
+        "functionInstance": "light-sensor-enabled",
+        "_opts": {
+          "values": ["on", "off"],
+          "categoryValues": [
+            {
+              "name": "on",
+              "values": ["1"]
+            },
+            {
+              "name": "off",
+              "values": ["0"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "sensitivity",
+        "type": "category",
+        "schedulable": false,
+        "functionInstance": "motion-sensitivity",
+        "_opts": {
+          "values": ["more", "less", "least"],
+          "categoryValues": [
+            {
+              "name": "more",
+              "values": ["3"]
+            },
+            {
+              "name": "less",
+              "values": ["1"]
+            },
+            {
+              "name": "least",
+              "values": ["0"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "toggle",
+        "type": "category",
+        "schedulable": false,
+        "functionInstance": "motion-detection-enabled",
+        "_opts": {
+          "values": ["on", "off"],
+          "categoryValues": [
+            {
+              "name": "on",
+              "values": ["1"]
+            },
+            {
+              "name": "off",
+              "values": ["0"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "restore-values",
+        "type": "category",
+        "schedulable": false,
+        "functionInstance": null,
+        "_opts": {
+          "values": ["partial-restore", "restored", "not-restored"],
+          "categoryValues": [
+            {
+              "name": "partial-restore",
+              "values": ["2"]
+            },
+            {
+              "name": "restored",
+              "values": ["1"]
+            },
+            {
+              "name": "not-restored",
+              "values": ["0"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "auto-off-timer",
+        "type": "numeric",
+        "schedulable": false,
+        "functionInstance": "auto-off",
+        "_opts": {
+          "range": {
+            "min": 5,
+            "max": 1800,
+            "step": 1
+          }
+        }
+      },
+      {
+        "functionClass": "color-rgb",
+        "type": "object",
+        "schedulable": true,
+        "functionInstance": null,
+        "_opts": {}
+      },
+      {
+        "functionClass": "color-sequence",
+        "type": "category",
+        "schedulable": true,
+        "functionInstance": "custom",
+        "_opts": {
+          "values": ["valentines-day", "july-4th", "christmas", "rainbow"],
+          "categoryValues": [
+            {
+              "name": "valentines-day",
+              "values": ["0D4700C61C1C640A00FF0000640A00"]
+            },
+            {
+              "name": "july-4th",
+              "values": ["044B00FF0000641400FFFFFF6414000000FF641400"]
+            },
+            {
+              "name": "christmas",
+              "values": ["034700FF0000640A0000FF00640A00"]
+            },
+            {
+              "name": "rainbow",
+              "values": ["010700FF000064140000FF006414000000FF641400"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "color-sequence",
+        "type": "category",
+        "schedulable": true,
+        "functionInstance": "preset",
+        "_opts": {
+          "values": ["jump-3", "jump-7", "fade-3", "fade-7", "flash", "custom"],
+          "categoryValues": [
+            {
+              "name": "jump-3",
+              "values": ["305"]
+            },
+            {
+              "name": "jump-7",
+              "values": ["304"]
+            },
+            {
+              "name": "fade-3",
+              "values": ["303"]
+            },
+            {
+              "name": "fade-7",
+              "values": ["302"]
+            },
+            {
+              "name": "flash",
+              "values": ["301"]
+            },
+            {
+              "name": "custom",
+              "values": ["300"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "power",
+        "type": "category",
+        "schedulable": true,
+        "functionInstance": null,
+        "_opts": {
+          "values": ["on", "off"],
+          "categoryValues": [
+            {
+              "name": "on",
+              "values": ["1"]
+            },
+            {
+              "name": "off",
+              "values": ["0"]
+            }
+          ]
+        }
+      },
+      {
+        "functionClass": "speed",
+        "type": "numeric",
+        "schedulable": true,
+        "functionInstance": "color-sequence",
+        "_opts": {
+          "range": {
+            "min": -10,
+            "max": 10,
+            "step": 1
+          }
+        }
+      },
+      {
+        "functionClass": "color-mode",
+        "type": "category",
+        "schedulable": true,
+        "functionInstance": null,
+        "_opts": {
+          "values": ["sequence", "white", "color"],
+          "categoryValues": [
+            {
+              "name": "sequence",
+              "values": ["2"]
+            },
+            {
+              "name": "white",
+              "values": ["0"]
+            },
+            {
+              "name": "color",
+              "values": ["1"]
+            }
+          ]
+        }
+      }
+    ],
+    "functions": [
+      {
+        "id": "ff9a907f-564b-4734-8ebc-f100f615c12b",
+        "createdTimestampMs": 1708458284988,
+        "updatedTimestampMs": 1708458284988,
+        "functionClass": "brightness",
+        "type": "numeric",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "acb69fce-dabe-46fd-bc14-10925ba0e4f9",
+            "createdTimestampMs": 1708458284995,
+            "updatedTimestampMs": 1708458284995,
+            "name": "brightness",
+            "deviceValues": [
+              {
+                "id": "bf840aa8-d16a-462a-8391-7f2b45a8f2d3",
+                "createdTimestampMs": 1708458285000,
+                "updatedTimestampMs": 1708458285000,
+                "type": "attribute",
+                "key": "2"
+              }
+            ],
+            "range": {
+              "min": 1,
+              "max": 100,
+              "step": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "6e507e11-a46e-4341-99b3-b369d85448bb",
+        "createdTimestampMs": 1708458285413,
+        "updatedTimestampMs": 1708458285413,
+        "functionClass": "motion-detection",
+        "functionInstance": "motion-detection",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "49cc4160-862a-42ca-93cd-fadaa5b288c5",
+            "createdTimestampMs": 1708458285430,
+            "updatedTimestampMs": 1708458285430,
+            "name": "motion-detected",
+            "deviceValues": [
+              {
+                "id": "877eeecd-4369-411f-a435-c753c4a1a62d",
+                "createdTimestampMs": 1708458285436,
+                "updatedTimestampMs": 1708458285436,
+                "type": "attribute",
+                "key": "401",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "0cb28ea4-12ca-4027-8083-0a17d98b76d7",
+            "createdTimestampMs": 1708458285419,
+            "updatedTimestampMs": 1708458285419,
+            "name": "no-motion",
+            "deviceValues": [
+              {
+                "id": "13fe91be-b438-42d7-b3b6-3b274c9ead33",
+                "createdTimestampMs": 1708458285426,
+                "updatedTimestampMs": 1708458285426,
+                "type": "attribute",
+                "key": "401",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "c6ddf19a-152d-425c-93c9-8f07285e44c5",
+        "createdTimestampMs": 1708458285365,
+        "updatedTimestampMs": 1708458285365,
+        "functionClass": "sensitivity",
+        "functionInstance": "light-sensor-sensitivity",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "f03de54c-9b82-4078-941e-1ec6b628c570",
+            "createdTimestampMs": 1708458285402,
+            "updatedTimestampMs": 1708458285402,
+            "name": "level-4",
+            "deviceValues": [
+              {
+                "id": "d747b5f7-d7e3-4cea-ba2b-b3363dedd091",
+                "createdTimestampMs": 1708458285409,
+                "updatedTimestampMs": 1708458285409,
+                "type": "attribute",
+                "key": "104",
+                "value": "4"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "2657c93e-b69f-4daf-b9f0-0866de77ae68",
+            "createdTimestampMs": 1708458285392,
+            "updatedTimestampMs": 1708458285392,
+            "name": "level-3",
+            "deviceValues": [
+              {
+                "id": "c8c55e32-1818-4a11-9984-e57598078a70",
+                "createdTimestampMs": 1708458285398,
+                "updatedTimestampMs": 1708458285398,
+                "type": "attribute",
+                "key": "104",
+                "value": "3"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "ae5f7f84-8e5a-40c1-9d8e-9f5ae6148379",
+            "createdTimestampMs": 1708458285382,
+            "updatedTimestampMs": 1708458285382,
+            "name": "level-2",
+            "deviceValues": [
+              {
+                "id": "546cb930-c28b-4643-a86f-3e519d1216d8",
+                "createdTimestampMs": 1708458285388,
+                "updatedTimestampMs": 1708458285388,
+                "type": "attribute",
+                "key": "104",
+                "value": "2"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "a6693b79-3574-4ce8-9053-7362c04b26a4",
+            "createdTimestampMs": 1708458285371,
+            "updatedTimestampMs": 1708458285371,
+            "name": "level-1",
+            "deviceValues": [
+              {
+                "id": "1e461496-614d-4ba7-957c-855926903e15",
+                "createdTimestampMs": 1708458285377,
+                "updatedTimestampMs": 1708458285377,
+                "type": "attribute",
+                "key": "104",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "5c2f4e80-8bf2-4fae-adc3-3ca89651b9cf",
+        "createdTimestampMs": 1708458285334,
+        "updatedTimestampMs": 1708458285334,
+        "functionClass": "toggle",
+        "functionInstance": "light-sensor-enabled",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "22b96d44-81fc-4685-93f3-efc730977289",
+            "createdTimestampMs": 1708458285355,
+            "updatedTimestampMs": 1708458285355,
+            "name": "on",
+            "deviceValues": [
+              {
+                "id": "40640d8e-0c3e-4969-a239-2a228d118ae9",
+                "createdTimestampMs": 1708458285361,
+                "updatedTimestampMs": 1708458285361,
+                "type": "attribute",
+                "key": "103",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "5a533a3c-58c8-4e7a-9874-916540773f07",
+            "createdTimestampMs": 1708458285343,
+            "updatedTimestampMs": 1708458285343,
+            "name": "off",
+            "deviceValues": [
+              {
+                "id": "7bb82ee0-c553-47fc-bf2d-227ff1cd841d",
+                "createdTimestampMs": 1708458285350,
+                "updatedTimestampMs": 1708458285350,
+                "type": "attribute",
+                "key": "103",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "cbaa494f-38cb-4366-a1df-52259247b21f",
+        "createdTimestampMs": 1708458285282,
+        "updatedTimestampMs": 1708458285282,
+        "functionClass": "sensitivity",
+        "functionInstance": "motion-sensitivity",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "9a4ae0dd-ac26-4be0-b49b-ebe43c276edb",
+            "createdTimestampMs": 1708458285323,
+            "updatedTimestampMs": 1708458285323,
+            "name": "more",
+            "deviceValues": [
+              {
+                "id": "ae9a605e-6bf0-45a8-8301-5a7d6d00b3e5",
+                "createdTimestampMs": 1708458285330,
+                "updatedTimestampMs": 1708458285330,
+                "type": "attribute",
+                "key": "102",
+                "value": "3"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "0b3f173a-f403-4261-956c-84945ccc3862",
+            "createdTimestampMs": 1708458285312,
+            "updatedTimestampMs": 1708458285312,
+            "name": "less",
+            "deviceValues": [
+              {
+                "id": "ba243dcd-f459-4270-bc3f-6eb1c4ba6a8c",
+                "createdTimestampMs": 1708458285319,
+                "updatedTimestampMs": 1708458285319,
+                "type": "attribute",
+                "key": "102",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "1c2cbc51-f375-48c9-a404-16d2b8129f4b",
+            "createdTimestampMs": 1708458285298,
+            "updatedTimestampMs": 1708458285298,
+            "name": "least",
+            "deviceValues": [
+              {
+                "id": "e3d20acf-4252-4564-b6ae-7caba85e6c4b",
+                "createdTimestampMs": 1708458285307,
+                "updatedTimestampMs": 1708458285307,
+                "type": "attribute",
+                "key": "102",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "d075c27e-0c9c-4a10-ba3c-3a59540086e2",
+        "createdTimestampMs": 1708458285253,
+        "updatedTimestampMs": 1708458285253,
+        "functionClass": "toggle",
+        "functionInstance": "motion-detection-enabled",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "fc061caf-909e-4014-957a-c6a4800914ac",
+            "createdTimestampMs": 1708458285271,
+            "updatedTimestampMs": 1708458285271,
+            "name": "on",
+            "deviceValues": [
+              {
+                "id": "8a3939c1-1b3c-46c1-8c38-b22b6635c5b4",
+                "createdTimestampMs": 1708458285277,
+                "updatedTimestampMs": 1708458285277,
+                "type": "attribute",
+                "key": "101",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "f85b8cd6-de18-4f9d-87ee-bbfffb5d039d",
+            "createdTimestampMs": 1708458285259,
+            "updatedTimestampMs": 1708458285259,
+            "name": "off",
+            "deviceValues": [
+              {
+                "id": "4b8917a6-9e6b-4a1a-9b00-e14b4f046d14",
+                "createdTimestampMs": 1708458285266,
+                "updatedTimestampMs": 1708458285266,
+                "type": "attribute",
+                "key": "101",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "3662fabb-5331-461e-9c10-c0f54d1b39b0",
+        "createdTimestampMs": 1708458285215,
+        "updatedTimestampMs": 1708458285215,
+        "functionClass": "restore-values",
+        "type": "category",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "68e76ecf-b23c-415e-96af-b049b31b9b1a",
+            "createdTimestampMs": 1708458285242,
+            "updatedTimestampMs": 1708458285242,
+            "name": "partial-restore",
+            "deviceValues": [
+              {
+                "id": "e36a440e-9c6e-4194-bf26-79f05c5a3364",
+                "createdTimestampMs": 1708458285249,
+                "updatedTimestampMs": 1708458285249,
+                "type": "attribute",
+                "key": "100",
+                "value": "2"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "d6349a7f-fbcb-4175-891a-723c3912f1bf",
+            "createdTimestampMs": 1708458285232,
+            "updatedTimestampMs": 1708458285232,
+            "name": "restored",
+            "deviceValues": [
+              {
+                "id": "38112faf-67b7-4575-b40f-dc31c62847de",
+                "createdTimestampMs": 1708458285238,
+                "updatedTimestampMs": 1708458285238,
+                "type": "attribute",
+                "key": "100",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "fb079812-d221-48a6-ab38-032930e78dae",
+            "createdTimestampMs": 1708458285221,
+            "updatedTimestampMs": 1708458285221,
+            "name": "not-restored",
+            "deviceValues": [
+              {
+                "id": "0518f1bc-8d8c-4637-9ba9-051cb7c903f8",
+                "createdTimestampMs": 1708458285227,
+                "updatedTimestampMs": 1708458285227,
+                "type": "attribute",
+                "key": "100",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "45f25e12-bd3c-484f-9fea-3c4765cf69b1",
+        "createdTimestampMs": 1708458285198,
+        "updatedTimestampMs": 1708458285198,
+        "functionClass": "auto-off-timer",
+        "functionInstance": "auto-off",
+        "type": "numeric",
+        "schedulable": false,
+        "values": [
+          {
+            "id": "c2715f2d-267f-4b54-abd8-23f26ab43415",
+            "createdTimestampMs": 1708458285204,
+            "updatedTimestampMs": 1708458285204,
+            "name": "Auto Off Timer",
+            "deviceValues": [
+              {
+                "id": "f0acb6a2-fecf-48f9-a211-e2d6bca91713",
+                "createdTimestampMs": 1708458285210,
+                "updatedTimestampMs": 1708458285210,
+                "type": "attribute",
+                "key": "50"
+              }
+            ],
+            "range": {
+              "min": 5,
+              "max": 1800,
+              "step": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "4c2d1789-f08a-4781-bc75-4e0893a997a3",
+        "createdTimestampMs": 1708458285181,
+        "updatedTimestampMs": 1708458285181,
+        "functionClass": "color-rgb",
+        "type": "object",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "3ae4c343-c98c-47ca-96d6-541fcb6ebbae",
+            "createdTimestampMs": 1708458285187,
+            "updatedTimestampMs": 1708458285187,
+            "name": "color-rgb",
+            "deviceValues": [
+              {
+                "id": "9345650f-e932-4f03-b196-ab18032e986e",
+                "createdTimestampMs": 1708458285194,
+                "updatedTimestampMs": 1708458285194,
+                "type": "attribute",
+                "key": "4",
+                "format": "color-rgb"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "fae95269-c74c-491a-b8ab-9d244305c83e",
+        "createdTimestampMs": 1708458285130,
+        "updatedTimestampMs": 1708458285130,
+        "functionClass": "color-sequence",
+        "functionInstance": "custom",
+        "type": "category",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "b2425cf3-92c1-4498-8d48-358ccc29e06c",
+            "createdTimestampMs": 1708458285170,
+            "updatedTimestampMs": 1708458285170,
+            "name": "valentines-day",
+            "deviceValues": [
+              {
+                "id": "367f6ac2-6f67-4fc3-8e63-f947bd16c200",
+                "createdTimestampMs": 1708458285176,
+                "updatedTimestampMs": 1708458285176,
+                "type": "attribute",
+                "key": "300",
+                "value": "0D4700C61C1C640A00FF0000640A00"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "dc36e4d1-29ca-498e-be69-b1996663f8b7",
+            "createdTimestampMs": 1708458285159,
+            "updatedTimestampMs": 1708458285159,
+            "name": "july-4th",
+            "deviceValues": [
+              {
+                "id": "f2a9012e-d163-4f3f-ab7f-00cdaf2700d6",
+                "createdTimestampMs": 1708458285166,
+                "updatedTimestampMs": 1708458285166,
+                "type": "attribute",
+                "key": "300",
+                "value": "044B00FF0000641400FFFFFF6414000000FF641400"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "4506b96c-2dfd-43eb-8dc5-5743cc869907",
+            "createdTimestampMs": 1708458285147,
+            "updatedTimestampMs": 1708458285147,
+            "name": "christmas",
+            "deviceValues": [
+              {
+                "id": "0cc4e6f1-10b1-41b4-b3b1-59de5da3d228",
+                "createdTimestampMs": 1708458285154,
+                "updatedTimestampMs": 1708458285154,
+                "type": "attribute",
+                "key": "300",
+                "value": "034700FF0000640A0000FF00640A00"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "fe2e19d9-36b7-408c-9b69-5d7844934983",
+            "createdTimestampMs": 1708458285136,
+            "updatedTimestampMs": 1708458285136,
+            "name": "rainbow",
+            "deviceValues": [
+              {
+                "id": "04ac2f5f-88d5-44ff-8b56-20e5b5485b9c",
+                "createdTimestampMs": 1708458285142,
+                "updatedTimestampMs": 1708458285142,
+                "type": "attribute",
+                "key": "300",
+                "value": "010700FF000064140000FF006414000000FF641400"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "8ce55736-b9b8-4176-8560-d3c9535d85bd",
+        "createdTimestampMs": 1708458285048,
+        "updatedTimestampMs": 1708458285048,
+        "functionClass": "color-sequence",
+        "functionInstance": "preset",
+        "type": "category",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "0533eb94-100c-4102-bf98-c4327884bf16",
+            "createdTimestampMs": 1708458285120,
+            "updatedTimestampMs": 1708458285120,
+            "name": "jump-3",
+            "deviceValues": [
+              {
+                "id": "68294023-9c96-4a59-8300-cf1d09661f3b",
+                "createdTimestampMs": 1708458285126,
+                "updatedTimestampMs": 1708458285126,
+                "type": "attribute",
+                "key": "6",
+                "value": "305"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "66e21b83-974a-4716-8195-c2fe09afc0eb",
+            "createdTimestampMs": 1708458285109,
+            "updatedTimestampMs": 1708458285109,
+            "name": "jump-7",
+            "deviceValues": [
+              {
+                "id": "d1390bec-5261-4910-93ca-039c86feccc4",
+                "createdTimestampMs": 1708458285115,
+                "updatedTimestampMs": 1708458285115,
+                "type": "attribute",
+                "key": "6",
+                "value": "304"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "98fb7b3b-9103-47fc-9d3e-dba8b63eb947",
+            "createdTimestampMs": 1708458285084,
+            "updatedTimestampMs": 1708458285084,
+            "name": "fade-3",
+            "deviceValues": [
+              {
+                "id": "56f87211-ed58-4ca7-9436-c88e7df10dbc",
+                "createdTimestampMs": 1708458285098,
+                "updatedTimestampMs": 1708458285098,
+                "type": "attribute",
+                "key": "6",
+                "value": "303"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "f675b0e2-7a3f-4af0-a722-b57ac4c02dbb",
+            "createdTimestampMs": 1708458285073,
+            "updatedTimestampMs": 1708458285073,
+            "name": "fade-7",
+            "deviceValues": [
+              {
+                "id": "bab9df11-b934-4673-9531-8897c7327a2d",
+                "createdTimestampMs": 1708458285079,
+                "updatedTimestampMs": 1708458285079,
+                "type": "attribute",
+                "key": "6",
+                "value": "302"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "46c83cb8-e185-4649-984e-cb03179e00d3",
+            "createdTimestampMs": 1708458285063,
+            "updatedTimestampMs": 1708458285063,
+            "name": "flash",
+            "deviceValues": [
+              {
+                "id": "6fd547ca-63b0-46c0-aee4-529fc1ff620a",
+                "createdTimestampMs": 1708458285069,
+                "updatedTimestampMs": 1708458285069,
+                "type": "attribute",
+                "key": "6",
+                "value": "301"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "db3917de-cd4d-4269-bc0d-2cac724b66e8",
+            "createdTimestampMs": 1708458285053,
+            "updatedTimestampMs": 1708458285053,
+            "name": "custom",
+            "deviceValues": [
+              {
+                "id": "8a25d54d-7bf0-4d65-a24f-f7eb4b9bfc85",
+                "createdTimestampMs": 1708458285059,
+                "updatedTimestampMs": 1708458285059,
+                "type": "attribute",
+                "key": "6",
+                "value": "300"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "4714b1bf-c0eb-4b14-82ac-00abb269a923",
+        "createdTimestampMs": 1708458285021,
+        "updatedTimestampMs": 1708458285021,
+        "functionClass": "power",
+        "type": "category",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "537223a2-10e1-4710-b8af-8878a3c6abb3",
+            "createdTimestampMs": 1708458285038,
+            "updatedTimestampMs": 1708458285038,
+            "name": "on",
+            "deviceValues": [
+              {
+                "id": "c37b0f1e-a469-4dca-9645-d108d220bbe6",
+                "createdTimestampMs": 1708458285044,
+                "updatedTimestampMs": 1708458285044,
+                "type": "attribute",
+                "key": "1",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "6c8c1d17-8e11-455b-9fbd-a5bca4f4c7c2",
+            "createdTimestampMs": 1708458285027,
+            "updatedTimestampMs": 1708458285027,
+            "name": "off",
+            "deviceValues": [
+              {
+                "id": "7b12a566-8449-4661-a821-302ef53f53c2",
+                "createdTimestampMs": 1708458285033,
+                "updatedTimestampMs": 1708458285033,
+                "type": "attribute",
+                "key": "1",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      },
+      {
+        "id": "0386b4f3-7870-4226-97c9-24025d809786",
+        "createdTimestampMs": 1708458285005,
+        "updatedTimestampMs": 1708458285005,
+        "functionClass": "speed",
+        "functionInstance": "color-sequence",
+        "type": "numeric",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "79ce6b17-76cb-46dd-a5bf-d7fc1d4dbc40",
+            "createdTimestampMs": 1708458285011,
+            "updatedTimestampMs": 1708458285011,
+            "name": "speed",
+            "deviceValues": [
+              {
+                "id": "569ec920-9cf1-4ecf-930f-362c0b0184d8",
+                "createdTimestampMs": 1708458285017,
+                "updatedTimestampMs": 1708458285017,
+                "type": "attribute",
+                "key": "11"
+              }
+            ],
+            "range": {
+              "min": -10,
+              "max": 10,
+              "step": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "4170f9df-884c-421c-97f3-42d018bfad03",
+        "createdTimestampMs": 1708458284657,
+        "updatedTimestampMs": 1708458284657,
+        "functionClass": "color-mode",
+        "type": "category",
+        "schedulable": true,
+        "values": [
+          {
+            "id": "680413e6-4663-420e-a00a-01e5e17fc255",
+            "createdTimestampMs": 1708458284978,
+            "updatedTimestampMs": 1708458284978,
+            "name": "sequence",
+            "deviceValues": [
+              {
+                "id": "7f3f56d5-48e8-43fb-9d91-675a04b751dd",
+                "createdTimestampMs": 1708458284984,
+                "updatedTimestampMs": 1708458284984,
+                "type": "attribute",
+                "key": "5",
+                "value": "2"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "0d87d5e6-c585-405a-b2ea-57861c73399b",
+            "createdTimestampMs": 1708458284966,
+            "updatedTimestampMs": 1708458284966,
+            "name": "white",
+            "deviceValues": [
+              {
+                "id": "f6f0a528-ae30-456b-9dc7-942390cb3e13",
+                "createdTimestampMs": 1708458284973,
+                "updatedTimestampMs": 1708458284973,
+                "type": "attribute",
+                "key": "5",
+                "value": "0"
+              }
+            ],
+            "range": {}
+          },
+          {
+            "id": "1c875fa5-5244-4401-8e36-6ccd6c9a650b",
+            "createdTimestampMs": 1708458284714,
+            "updatedTimestampMs": 1708458284714,
+            "name": "color",
+            "deviceValues": [
+              {
+                "id": "0f6e04fe-3e73-4826-b094-892fb315a79d",
+                "createdTimestampMs": 1708458284905,
+                "updatedTimestampMs": 1708458284905,
+                "type": "attribute",
+                "key": "5",
+                "value": "1"
+              }
+            ],
+            "range": {}
+          }
+        ]
+      }
+    ],
+    "states": [
+      {
+        "functionClass": "brightness",
+        "value": 50,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "motion-detection",
+        "value": "motion-detected",
+        "lastUpdateTime": 0,
+        "functionInstance": "motion-detection"
+      },
+      {
+        "functionClass": "sensitivity",
+        "value": "level-2",
+        "lastUpdateTime": 0,
+        "functionInstance": "light-sensor-sensitivity"
+      },
+      {
+        "functionClass": "toggle",
+        "value": "on",
+        "lastUpdateTime": 0,
+        "functionInstance": "light-sensor-enabled"
+      },
+      {
+        "functionClass": "sensitivity",
+        "value": "less",
+        "lastUpdateTime": 0,
+        "functionInstance": "motion-sensitivity"
+      },
+      {
+        "functionClass": "toggle",
+        "value": "on",
+        "lastUpdateTime": 0,
+        "functionInstance": "motion-detection-enabled"
+      },
+      {
+        "functionClass": "restore-values",
+        "value": "not-restored",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "auto-off-timer",
+        "value": 60,
+        "lastUpdateTime": 0,
+        "functionInstance": "auto-off"
+      },
+      {
+        "functionClass": "color-rgb",
+        "value": {
+          "color-rgb": {
+            "r": 255,
+            "b": 31,
+            "g": 243
+          }
+        },
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "color-sequence",
+        "value": "rainbow",
+        "lastUpdateTime": 0,
+        "functionInstance": "custom"
+      },
+      {
+        "functionClass": "color-sequence",
+        "value": "fade-3",
+        "lastUpdateTime": 0,
+        "functionInstance": "preset"
+      },
+      {
+        "functionClass": "power",
+        "value": "off",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "speed",
+        "value": 0,
+        "lastUpdateTime": 0,
+        "functionInstance": "color-sequence"
+      },
+      {
+        "functionClass": "color-mode",
+        "value": "white",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-ssid",
+        "value": "cda39a81-a553-4bd3-8038-702a47dc53e0",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-rssi",
+        "value": -60,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-steady-state",
+        "value": "connected",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-setup-state",
+        "value": "connected",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "wifi-mac-address",
+        "value": "54691b6c-a88c-40a6-95cb-4f181b33641d",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "geo-coordinates",
+        "value": {
+          "geo-coordinates": {
+            "latitude": "0",
+            "longitude": "0"
+          }
+        },
+        "lastUpdateTime": 0,
+        "functionInstance": "system-device-location"
+      },
+      {
+        "functionClass": "scheduler-flags",
+        "value": 1,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "available",
+        "value": true,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "visible",
+        "value": true,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "direct",
+        "value": true,
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      },
+      {
+        "functionClass": "ble-mac-address",
+        "value": "8e9f488d-98d2-4ae8-8860-0c57c0a6705f",
+        "lastUpdateTime": 0,
+        "functionInstance": null
+      }
+    ],
+    "children": [],
+    "manufacturerName": "Defiant",
+    "split_identifier": null,
+    "version_data": null
+  }
+]

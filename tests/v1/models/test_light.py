@@ -1,5 +1,6 @@
 import pytest
 
+from aioafero.device import SplitDeviceId
 from aioafero.v1.models import DeviceInformation, features
 from aioafero.v1.models.light import Light, LightChannel
 
@@ -104,10 +105,18 @@ def test_init(populated_light):
     assert populated_light.brightness == 100
     assert populated_light.update_id == "entity-1"
     assert populated_light.instance is None
-    populated_light._id = "entity-beans-1"
-    populated_light.split_identifier = "beans"
+    assert populated_light.split_identifier is None
+    populated_light.split = SplitDeviceId("entity", "beans", "1")
+    populated_light._id = str(populated_light.split)
     assert populated_light.update_id == "entity"
     assert populated_light.instance == "1"
+    assert populated_light.split_identifier == "beans"
+    populated_light.split = SplitDeviceId(
+        "c12e2c2c-c009-41bb-963f-d4f3a77d6928", "light", "light-sensor-enabled"
+    )
+    populated_light._id = str(populated_light.split)
+    assert populated_light.update_id == "c12e2c2c-c009-41bb-963f-d4f3a77d6928"
+    assert populated_light.instance == "light-sensor-enabled"
 
 
 def test_empty_light(empty_light):

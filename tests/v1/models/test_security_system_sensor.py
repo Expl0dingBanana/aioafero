@@ -1,5 +1,6 @@
 import pytest
 
+from aioafero.device import SplitDeviceId
 from aioafero.v1.models import (
     DeviceInformation,
     SecuritySystemSensor,
@@ -13,7 +14,7 @@ from aioafero.v1.models.sensor import AferoBinarySensor, AferoSensor
 def populated_entity():
     return SecuritySystemSensor(
         _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-        split_identifier="sensor",
+        split=SplitDeviceId("7f4e4c01-e799-45c5-9b1a-385433a78edc", "sensor", "2"),
         available=True,
         selects={
             ("chirpMode", None): features.SelectFeature(
@@ -59,7 +60,7 @@ def populated_entity():
 def empty_entity():
     return SecuritySystemSensor(
         _id="7f4e4c01-e799-45c5-9b1a-385433a78edc-sensor-2",
-        split_identifier="sensor",
+        split=SplitDeviceId("7f4e4c01-e799-45c5-9b1a-385433a78edc", "sensor", "2"),
         available=True,
         selects={},
         binary_sensors={},

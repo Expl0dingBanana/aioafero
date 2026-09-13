@@ -15,11 +15,6 @@ from .event import CallbackResponse
 SPLIT_IDENTIFIER: str = "exhaust-fan"
 
 
-def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
-    """Generate the name for an instanced element."""
-    return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
-
-
 def get_split_instances(afero_dev: AferoDevice) -> list[str]:
     """Determine available instances from the states."""
     instances = set()
@@ -48,8 +43,7 @@ def exhaust_fan_callback(afero_device: AferoDevice) -> CallbackResponse:
     if afero_device.device_class == ResourceTypes.EXHAUST_FAN.value:
         for instance in get_split_instances(afero_device):
             cloned = copy.deepcopy(afero_device)
-            cloned.id = generate_split_name(afero_device, instance)
-            cloned.split_identifier = SPLIT_IDENTIFIER
+            cloned.apply_split(SPLIT_IDENTIFIER, instance)
             cloned.friendly_name = f"{afero_device.friendly_name} - {instance}"
             cloned.states = get_valid_states(afero_device, instance)
             cloned.device_class = ResourceTypes.SWITCH.value

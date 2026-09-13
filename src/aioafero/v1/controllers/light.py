@@ -28,11 +28,6 @@ def process_names(values: list[dict]) -> set[str]:
     return vals
 
 
-def generate_split_name(afero_device: AferoDevice, instance: str) -> str:
-    """Generate the name for an instanced element."""
-    return f"{afero_device.id}-{SPLIT_IDENTIFIER}-{instance}"
-
-
 def _channel_brightness_instances(afero_dev: AferoDevice) -> set[str]:
     """Collect non-primary brightness instances from states, functions, and capabilities."""
     instances: set[str] = set()
@@ -85,7 +80,7 @@ def should_use_brightness_state(afero_dev: AferoDevice, state: AferoState) -> bo
     """Return whether a brightness state should populate Light.dimming."""
     if state.functionClass != "brightness":
         return True
-    if afero_dev.split_identifier:
+    if afero_dev.split:
         return True
     if not is_dual_channel_rgb_fixture(afero_dev):
         return True
@@ -229,16 +224,17 @@ def state_belongs_to_light_instance(
 
 def state_matches_instance(afero_device: AferoDevice, state: AferoState) -> bool:
     """Return whether a state belongs to a split light instance."""
-    if not afero_device.split_identifier:
+    if not afero_device.split:
         return True
-    instance = afero_device.id.rsplit(f"-{afero_device.split_identifier}-", 1)[1]
-    return state_belongs_to_light_instance(afero_device, state, instance)
+    return state_belongs_to_light_instance(
+        afero_device, state, afero_device.split.instance
+    )
 
 
 def resolve_function_instance(afero_device: AferoDevice) -> str | None:
     """Return the functionInstance key for this light resource (split zone or single)."""
-    if afero_device.split_identifier:
-        return afero_device.id.rsplit(f"-{afero_device.split_identifier}-", 1)[1]
+    if afero_device.split:
+        return afero_device.split.instance
     for state in afero_device.states:
         if state.functionClass == "color-mode":
             return state.functionInstance
@@ -298,8 +294,7 @@ def light_callback(afero_device: AferoDevice) -> CallbackResponse:
             instance_name = instance or "primary"
             cloned = copy.deepcopy(afero_device)
             cloned.device_class = resource_type.value
-            cloned.id = generate_split_name(afero_device, instance)
-            cloned.split_identifier = SPLIT_IDENTIFIER
+            cloned.apply_split(SPLIT_IDENTIFIER, instance)
             cloned.friendly_name = f"{afero_device.friendly_name} - {instance_name}"
             cloned.states = get_valid_states(afero_device, instance)
             cloned.children = []
@@ -475,7 +470,7 @@ class LightController(BaseResourcesController[Light]):
                 afero_device.functions, state.functionClass, state.functionInstance
             )
             if state.functionClass == "power" or (
-                afero_device.split_identifier and state.functionClass == "toggle"
+                afero_device.split and state.functionClass == "toggle"
             ):
                 on = features.OnFeature(
                     on=state.value == "on",
@@ -552,7 +547,7 @@ class LightController(BaseResourcesController[Light]):
         self._items[afero_device.id] = Light(
             _id=afero_device.id,
             available=available,
-            split_identifier=afero_device.split_identifier,
+            split=afero_device.split,
             channels=channels,
             sensors=sensors,
             binary_sensors=binary_sensors,
@@ -594,7 +589,7 @@ class LightController(BaseResourcesController[Light]):
             if not state_matches_instance(afero_device, state):
                 continue
             if state.functionClass == "power" or (
-                afero_device.split_identifier and state.functionClass == "toggle"
+                afero_device.split and state.functionClass == "toggle"
             ):
                 new_val = state.value == "on"
                 if cur_item.on.on != new_val:

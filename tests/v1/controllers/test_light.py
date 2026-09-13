@@ -2,7 +2,13 @@
 
 import pytest
 
-from aioafero.device import AferoCapability, AferoDevice, AferoState, merge_afero_states
+from aioafero.device import (
+    AferoCapability,
+    AferoDevice,
+    AferoState,
+    SplitDeviceId,
+    merge_afero_states,
+)
 from aioafero.v1.controllers import event, light
 from aioafero.v1.controllers.light import (
     features,
@@ -141,7 +147,7 @@ def _trim_update_with_states(
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name=trim_dev.device_information.name,
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "trim"),
         states=states,
     )
 
@@ -150,12 +156,6 @@ def _trim_update_with_states(
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     return mocked_bridge.lights
-
-
-def test_generate_split_name():
-    assert (
-        light.generate_split_name(a21_light, "beans") == f"{a21_light.id}-light-beans"
-    )
 
 
 @pytest.mark.parametrize(
@@ -492,7 +492,7 @@ def test_get_color_modes_for_device_fallback_without_instance_match():
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name="main",
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "main"),
         states=[],
         functions=[
             {
@@ -618,7 +618,7 @@ def test_should_use_brightness_state_split_zone():
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name="main",
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "main"),
     )
     main_brightness = AferoState(
         functionClass="brightness", value=50, functionInstance="main"
@@ -667,7 +667,7 @@ def test_resolve_function_instance_split_zone():
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name="trim",
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "trim"),
     )
     assert light.resolve_function_instance(split_dev) == "trim"
 
@@ -778,6 +778,17 @@ def test_light_speaker():
     assert len(multi_devs[0].states) == 2
 
 
+def test_light_callback_globe_flood_pir_toggles():
+    """Defiant PIR flood splits light-sensor / motion toggles, not the light."""
+    flood = utils.create_devices_from_data("light-globe-flood-pir.json")[0]
+    multi_devs, remove_dev = light.light_callback(flood)
+    assert remove_dev is False
+    assert {dev.id: dev.device_class for dev in multi_devs} == {
+        f"{flood.id}-light-light-sensor-enabled": ResourceTypes.SWITCH.value,
+        f"{flood.id}-light-motion-detection-enabled": ResourceTypes.SWITCH.value,
+    }
+
+
 def test_light_callback_none():
     multi_devs, remove_dev = light.light_callback(a21_light)
     assert remove_dev is False
@@ -852,7 +863,7 @@ def test_state_matches_instance_trim_zone(state, expected):
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name="trim",
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "trim"),
     )
     assert state_matches_instance(trim_device, state) is expected
 
@@ -937,7 +948,7 @@ def test_get_color_modes_for_device_trim_vs_main():
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name="trim",
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "trim"),
         states=light.get_valid_states(trim_light, "trim"),
         functions=trim_light.functions,
     )
@@ -949,7 +960,7 @@ def test_get_color_modes_for_device_trim_vs_main():
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name="main",
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "main"),
         states=light.get_valid_states(trim_light, "main"),
         functions=trim_light.functions,
     )
@@ -2328,7 +2339,7 @@ async def test_update_elem_ignores_trim_zone_color_temperature_without_feature(
         default_name=trim_light.default_name,
         default_image=trim_light.default_image,
         friendly_name=trim_dev.device_information.name,
-        split_identifier="light",
+        split=SplitDeviceId(trim_light.id, "light", "trim"),
         states=[
             AferoState(
                 functionClass="color-temperature",
@@ -2411,7 +2422,7 @@ async def test_update_elem_main_ignores_trim_power(mocked_controller):
             default_name=trim_light.default_name,
             default_image=trim_light.default_image,
             friendly_name=f"{trim_light.friendly_name} - main",
-            split_identifier="light",
+            split=SplitDeviceId(trim_light.id, "light", "main"),
             states=[
                 AferoState(
                     functionClass="power",

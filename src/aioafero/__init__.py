@@ -12,6 +12,7 @@ __all__ = [
     "OTPError",
     "OTPRequired",
     "SecuritySystemError",
+    "SplitDeviceId",
     "TemperatureUnit",
     "anonymize_device",
     "anonymize_devices",
@@ -34,7 +35,13 @@ finally:
 
 from . import v1
 from .anonymize_data import anonymize_device, anonymize_devices
-from .device import AferoCapability, AferoDevice, AferoState, get_afero_device
+from .device import (
+    AferoCapability,
+    AferoDevice,
+    AferoState,
+    SplitDeviceId,
+    get_afero_device,
+)
 from .errors import (
     AferoError,
     InvalidAuth,

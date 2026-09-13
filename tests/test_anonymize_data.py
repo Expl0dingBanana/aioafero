@@ -3,7 +3,7 @@ from dataclasses import replace
 import pytest
 
 from aioafero import anonymize_data
-from aioafero.device import AferoCapability, AferoDevice, AferoState
+from aioafero.device import AferoCapability, AferoDevice, AferoState, SplitDeviceId
 
 POWER_STATE = {
     "functionClass": "power",
@@ -179,7 +179,7 @@ def test_anonymize_state(state, only_geo, expected, mocker):
             {},
             True,
             {
-                "split_identifier": None,
+                "split": None,
                 "friendly_name": "friendly-device-0",
                 "id": "its-a-1",
                 "device_id": "its-a-2",
@@ -209,7 +209,7 @@ def test_anonymize_state(state, only_geo, expected, mocker):
             {child_dev_1.id: {"parent": parent_dev_1.id, "new": "anon-id"}},
             False,
             {
-                "split_identifier": None,
+                "split": None,
                 "friendly_name": child_dev_1.friendly_name,
                 "id": "anon-id",
                 "device_id": "anon-device-id",
@@ -272,7 +272,7 @@ def test_generate_parent_mapping(devices, expected, new_children, mock_uuid):
 def test_anonymize_devices(anon_name, mock_uuid):
     expected = [
         {
-            "split_identifier": None,
+            "split": None,
             "id": "its-a-1",
             "device_id": "its-a-2",
             "model": "test-dev-1",
@@ -318,7 +318,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "version_data": None,
         },
         {
-            "split_identifier": None,
+            "split": None,
             "id": "its-a-2",
             "device_id": "its-a-2",
             "model": "test-c-dev-1",
@@ -353,7 +353,7 @@ def test_anonymize_devices(anon_name, mock_uuid):
             "version_data": None,
         },
         {
-            "split_identifier": None,
+            "split": None,
             "id": "its-a-2",
             "device_id": "its-a-2",
             "model": "test-c-dev-2",
@@ -398,3 +398,50 @@ def test_anonymize_devices(anon_name, mock_uuid):
         )
         == expected
     )
+
+
+def test_anonymize_split_rewrites_parent_id(mock_uuid):
+    """Split dumps must not keep the real parent UUID in ``split``."""
+    parent = "c12e2c2c-c009-41bb-963f-d4f3a77d6928"
+    clone = AferoDevice(
+        id=parent,
+        device_id="physical",
+        model="m",
+        device_class="switch",
+        default_name="n",
+        default_image="i",
+        friendly_name="f",
+        split=SplitDeviceId(parent, "light", "light-sensor-enabled"),
+    )
+    clone.id = str(clone.split)
+    anon = anonymize_data.anonymize_device(clone, {}, {}, False)
+    assert anon["split"]["parent_id"] == "its-a-1"
+    assert anon["split"]["identifier"] == "light"
+    assert anon["split"]["instance"] == "light-sensor-enabled"
+    assert anon["id"] == "its-a-1-light-light-sensor-enabled"
+    assert parent not in anon["id"]
+    assert parent not in str(anon["split"])
+
+
+def test_anonymize_split_clones_share_parent_mapping(mock_uuid):
+    parent = "real-parent-uuid"
+    clones = [
+        AferoDevice(
+            id=str(SplitDeviceId(parent, "light", instance)),
+            device_id="physical",
+            model="m",
+            device_class="light",
+            default_name="n",
+            default_image="i",
+            friendly_name="f",
+            split=SplitDeviceId(parent, "light", instance),
+        )
+        for instance in ("main", "trim")
+    ]
+    anon = anonymize_data.anonymize_devices(clones)
+    assert anon[0]["split"]["parent_id"] == anon[1]["split"]["parent_id"] == "its-a-1"
+    assert {a["split"]["instance"] for a in anon} == {"main", "trim"}
+    assert {a["id"] for a in anon} == {
+        "its-a-1-light-main",
+        "its-a-1-light-trim",
+    }

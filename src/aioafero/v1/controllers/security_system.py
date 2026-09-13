@@ -51,11 +51,6 @@ def get_sensor_ids(device) -> set[int]:
     return sensor_ids
 
 
-def generate_sensor_name(afero_device, sensor_id: int) -> str:
-    """Generate the name for an instanced element."""
-    return f"{afero_device.id}-{SENSOR_SPLIT_IDENTIFIER}-{sensor_id}"
-
-
 def get_valid_states(afero_states: list, sensor_id: int) -> list:
     """Find states associated with the specific sensor."""
     valid_states: list = []
@@ -204,9 +199,8 @@ def security_system_callback(afero_device: AferoDevice) -> CallbackResponse:
     if afero_device.device_class == "security-system":
         for sensor_id in get_sensor_ids(afero_device):
             cloned = copy.deepcopy(afero_device)
-            cloned.device_id = generate_sensor_name(afero_device, sensor_id)
-            cloned.id = generate_sensor_name(afero_device, sensor_id)
-            cloned.split_identifier = SENSOR_SPLIT_IDENTIFIER
+            cloned.apply_split(SENSOR_SPLIT_IDENTIFIER, str(sensor_id))
+            cloned.device_id = cloned.id
             cloned.device_class = ResourceTypes.SECURITY_SYSTEM_SENSOR.value
             cloned.friendly_name = f"{afero_device.friendly_name} - {get_sensor_name(afero_device.capabilities, sensor_id)}"
             cloned.states = get_valid_states(afero_device.states, sensor_id)

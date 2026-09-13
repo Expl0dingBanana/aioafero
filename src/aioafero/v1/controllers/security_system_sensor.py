@@ -6,12 +6,7 @@ from aioafero.v1.models import SecuritySystemSensor, SecuritySystemSensorPut, fe
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
-from .security_system import (
-    BYPASS_MODES,
-    GENERIC_MODES,
-    SENSOR_SPLIT_IDENTIFIER,
-    TRIGGER_MODES,
-)
+from .security_system import BYPASS_MODES, GENERIC_MODES, TRIGGER_MODES
 
 
 class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSensor]):
@@ -64,7 +59,7 @@ class SecuritySystemSensorController(BaseResourcesController[SecuritySystemSenso
                 config_key = state.value
         self._items[device.id] = SecuritySystemSensor(
             _id=device.id,
-            split_identifier=SENSOR_SPLIT_IDENTIFIER,
+            split=device.split,
             config_key=config_key,
             available=available,
             sensors=sensors,

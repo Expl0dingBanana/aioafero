@@ -7,7 +7,6 @@ from aioafero.v1.controllers import event
 from aioafero.v1.controllers.exhaust_fan import (
     exhaust_fan_callback,
     features,
-    generate_split_name,
     get_split_instances,
     get_valid_states,
 )
@@ -23,13 +22,6 @@ a21_light = utils.create_devices_from_data("light-a21.json")[0]
 def mocked_controller(mocked_bridge, mocker):
     mocker.patch("time.time", return_value=12345)
     return mocked_bridge.exhaust_fans
-
-
-def test_generate_split_name():
-    assert (
-        generate_split_name(exhaust_fan, "humidity-detection-enabled")
-        == "44620d02-8b62-49ce-afe8-1ea8f15e0ec5-exhaust-fan-humidity-detection-enabled"
-    )
 
 
 def test_get_split_instances():
