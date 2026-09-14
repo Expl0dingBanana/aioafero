@@ -332,10 +332,27 @@ class AferoBridgeV1:
                 EventType.RESOURCE_UPDATED, device_id, item
             )
 
+    def _is_shutdown_state_fetch_error(self, exc: BaseException) -> bool:
+        """Return True when a state-fetch failure is expected during teardown.
+
+        Home Assistant closes the shared ``ClientSession`` while unload/stop is
+        racing in-flight polls; aiohttp then raises ``RuntimeError('Session is
+        closed')``. Once ``close()`` has set ``_closed``, further failures are
+        also noise.
+        """
+        if self._closed:
+            return True
+        if self._web_session is not None and self._web_session.closed:
+            return True
+        return isinstance(exc, RuntimeError) and "Session is closed" in str(exc)
+
     async def _handle_state_fetch_exception(
         self, metadevice_id: str | None, exc: BaseException
     ) -> None:
         """Log a failed state fetch; track Forbidden and pause after repeated hits."""
+        if self._is_shutdown_state_fetch_error(exc):
+            self.logger.debug("Unable to fetch states during shutdown: %s", exc)
+            return
         if not isinstance(exc, web_exceptions.HTTPForbidden) or not metadevice_id:
             self.logger.warning("Unable to fetch states: %s", exc)
             return

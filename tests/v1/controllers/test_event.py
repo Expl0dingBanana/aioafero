@@ -80,6 +80,29 @@ async def test_stop(bridge):
 
 
 @pytest.mark.asyncio
+async def test_stop_awaits_cancelled_tasks(bridge):
+    """stop() must await cancelled loops so HTTP work cannot outlive close()."""
+    stream = bridge.events
+    started = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def hang():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            finished.set()
+
+    task = asyncio.create_task(hang())
+    stream._scheduled_tasks = [task]
+    await started.wait()
+    await stream.stop()
+    assert stream._scheduled_tasks == []
+    assert task.done()
+    assert finished.is_set()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("call", "event_filter", "resource_filter", "expected"),
     [

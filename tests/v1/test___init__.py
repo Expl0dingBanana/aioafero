@@ -805,6 +805,59 @@ async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
 
 
 @pytest.mark.asyncio
+async def test_fetch_all_device_states_session_closed_is_quiet(
+    mocked_bridge, mocker, caplog
+):
+    """HA closing the shared session mid-poll must not WARN."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=RuntimeError("Session is closed")),
+    )
+    with caplog.at_level(logging.DEBUG):
+        assert await mocked_bridge.fetch_all_device_states() == []
+    assert "Unable to fetch states: Session is closed" not in caplog.text
+    assert "Unable to fetch states during shutdown" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_quiet_when_session_closed(
+    mocked_bridge, mocker, caplog
+):
+    """Any fetch failure after the shared session closed is debug-only."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocked_bridge._web_session = mocker.Mock(closed=True)
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=RuntimeError("connection lost")),
+    )
+    with caplog.at_level(logging.DEBUG):
+        assert await mocked_bridge.fetch_all_device_states() == []
+    assert "Unable to fetch states: connection lost" not in caplog.text
+    assert "Unable to fetch states during shutdown" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_quiet_when_bridge_closed(
+    mocked_bridge, mocker, caplog
+):
+    """Failures after bridge.close() are debug-only, not warnings."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocked_bridge._closed = True
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=RuntimeError("still racing")),
+    )
+    with caplog.at_level(logging.DEBUG):
+        assert await mocked_bridge.fetch_all_device_states() == []
+    assert "Unable to fetch states: still racing" not in caplog.text
+    assert "Unable to fetch states during shutdown" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_fetch_all_device_states_dedupes_split_ids(mocked_bridge, mocker):
     parent_id = "parent-device-id"
     parent_dev = mocker.Mock(spec=AferoDevice)

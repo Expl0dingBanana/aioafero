@@ -201,12 +201,18 @@ class EventStream:
         self._multiple_device_finder[name] = generate_devices
 
     async def stop(self) -> None:
-        """Stop listening for events."""
-        with contextlib.suppress(asyncio.CancelledError):
-            for task in self._scheduled_tasks:
-                task.cancel()
-            self._status = EventStreamStatus.DISCONNECTED
-            self._scheduled_tasks = []
+        """Stop listening for events.
+
+        Cancel discovery/polling/processor loops and await them so in-flight
+        HTTP work finishes (as cancelled) before the caller's session teardown.
+        """
+        tasks = list(self._scheduled_tasks)
+        self._scheduled_tasks = []
+        self._status = EventStreamStatus.DISCONNECTED
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def subscribe(
         self,
