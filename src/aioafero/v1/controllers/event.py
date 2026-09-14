@@ -1,14 +1,14 @@
 """Handle connecting to Afero IoT and distribute events."""
 
 import asyncio
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 import contextlib
 import datetime
 from enum import Enum
 from inspect import iscoroutinefunction
 import time
 from types import NoneType
-from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from aiohttp.client_exceptions import ClientError
 from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
@@ -19,23 +19,26 @@ from aioafero.types import EventType
 from aioafero.v1.models import ResourceTypes
 from aioafero.v1.v1_const import VERSION_POLL_INTERVAL_SECONDS
 
+from .callback import CallbackResponse
+from .split_refresh import refresh_split_clone_states
+
 if TYPE_CHECKING:  # pragma: no cover
     from aioafero.v1 import AferoBridgeV1
+
+# Re-export for callers that historically imported from ``event``.
+__all__ = [
+    "AferoEvent",
+    "BackoffException",
+    "CallbackResponse",
+    "EventCallBackType",
+    "EventStream",
+    "EventStreamStatus",
+    "EventSubscriptionType",
+]
 
 
 class BackoffException(Exception):
     """Exception raised when a backoff is required."""
-
-
-class CallbackResponse(NamedTuple):
-    """Callback response for DEVICE_SPLIT_CALLBACKS.
-
-    :param split_devices: New devices that should be added to the overall list
-    :param remove_original: Remove the original device from the list of devices
-    """
-
-    split_devices: Sequence[AferoDevice] = ()
-    remove_original: bool = False
 
 
 class EventStreamStatus(Enum):
@@ -455,8 +458,8 @@ class EventStream:
             in flight. Stale REST bodies that still list them must not revive
             the cache / emit ``RESOURCE_ADDED``.
         """
-        processed_ids = []
-        skipped_ids = []
+        processed_ids: set[str] = set()
+        skipped_ids: set[str] = set()
         devices = await self.generate_devices_from_data(data)
         if skip_readd_ids:
             kept: list[AferoDevice] = []
@@ -469,6 +472,7 @@ class EventStream:
                     )
                     with contextlib.suppress(KeyError):
                         self._bridge.remove_device(device.id)
+                    skipped_ids.add(device.id)
                     continue
                 kept.append(device)
             devices = kept
@@ -498,7 +502,7 @@ class EventStream:
                     force_forward=False,
                 )
             )
-            processed_ids.append(device.id)
+            processed_ids.add(device.id)
         # Handle devices that did not report in from the API
         for dev_id in list(self._bridge.tracked_devices):
             if dev_id in processed_ids or dev_id in skipped_ids:
@@ -586,7 +590,3 @@ class EventStream:
         """Process the Afero IoT devices."""
         while True:
             await self.process_event()
-
-
-# Imported after CallbackResponse so light/exhaust_fan can import event safely.
-from .split_refresh import refresh_split_clone_states  # noqa: E402

@@ -78,7 +78,7 @@ def test_zlib_prefix_held_when_only_one_byte_received():
 def test_malformed_zlib_payload_logs_and_discards(caplog):
     decoder = frames.ConclaveFrameDecoder()
     blob = zlib.compress(b"\xff\xfe")
-    with caplog.at_level("WARNING"):
+    with caplog.at_level("WARNING", logger="aioafero.v1.conclave.frames"):
         result = _drain(decoder, blob)
     assert result == []
     assert "Discarding malformed zlib-framed" in caplog.text
@@ -108,7 +108,7 @@ def test_newline_delimited_frames_yield_heartbeats():
 def test_non_object_top_level_value_is_dropped(caplog):
     decoder = frames.ConclaveFrameDecoder()
     decoder._expecting_zlib_prefix = False
-    with caplog.at_level("DEBUG"):
+    with caplog.at_level("DEBUG", logger="aioafero.v1.conclave.frames"):
         result = _drain(decoder, b"42")
     assert result == []
     assert "Discarding non-object" in caplog.text
@@ -164,6 +164,6 @@ def test_drop_non_object_json_rejects_partial_utf8():
 def test_drop_non_object_json_accepts_array(caplog):
     decoder = frames.ConclaveFrameDecoder()
     decoder._expecting_zlib_prefix = False
-    with caplog.at_level("DEBUG"):
+    with caplog.at_level("DEBUG", logger="aioafero.v1.conclave.frames"):
         assert _drain(decoder, b"[1,2]") == []
     assert "Discarding non-object Conclave frame" in caplog.text

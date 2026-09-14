@@ -88,14 +88,21 @@ async def _apply_to_conclave_devices(
     refreshes clones afterward. Applying to clones as well would duplicate
     ``RESOURCE_UPDATE_RESPONSE`` events and corrupt filtered clone state.
     """
+    matched = False
     applied = False
     for afero_device in bridge.find_afero_devices_by_conclave_id(device_id):
         if afero_device.split_identifier:
             continue
+        matched = True
         if await handler(afero_device):
             applied = True
-    if not applied:
+    if not matched:
         logger.debug("Ignoring Conclave push for unknown device %s", device_id)
+    elif not applied:
+        logger.debug(
+            "Ignoring Conclave push for device %s (no applicable change)",
+            device_id,
+        )
     return applied
 
 

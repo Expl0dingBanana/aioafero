@@ -1,6 +1,6 @@
 import pytest
 
-from aioafero import AferoDevice, AferoState, get_afero_device
+from aioafero import AferoDevice, AferoState, SplitDeviceId, get_afero_device
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.models.resource import DeviceInformation
@@ -475,7 +475,7 @@ async def test_process_resource_lifecycle_add_skips_split_clone(mocked_controlle
         friendly_name="Trim",
         functions=a21_light.functions,
         states=[],
-        split_identifier="light",
+        split=SplitDeviceId(a21_light.id, "light", "trim"),
     )
     await mocked_controller._process_resource_lifecycle(
         event.EventType.RESOURCE_ADDED,

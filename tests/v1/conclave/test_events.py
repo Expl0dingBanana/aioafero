@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from aioafero.device import AferoDevice
+from aioafero.device import AferoDevice, SplitDeviceId
 from aioafero.errors import AferoError
 from aioafero.types import EventType
 from aioafero.v1.conclave import events
@@ -193,7 +193,7 @@ async def test_apply_attr_change_skips_split_clones_sharing_device_id(conclave_b
         friendly_name="Trim",
         functions=parent.functions,
         states=[],
-        split_identifier="light",
+        split=SplitDeviceId(parent.id, "light", "trim"),
     )
     bridge.add_afero_dev(clone, clone.id)
     payload = {
@@ -540,7 +540,7 @@ async def test_apply_invalidate_remove_includes_split_clone(conclave_bridge):
         friendly_name="clone",
         functions=[],
         states=[],
-        split_identifier="light",
+        split=SplitDeviceId(device.id, "light", "main"),
     )
     bridge.add_afero_dev(clone)
     bridge.add_device(device.id, bridge.lights)

@@ -10,7 +10,7 @@ from aioafero.v1.models.exhaust_fan import ExhaustFan, ExhaustFanPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
-from .event import CallbackResponse
+from .callback import CallbackResponse
 
 SPLIT_IDENTIFIER: str = "exhaust-fan"
 

@@ -13,6 +13,7 @@ from aioafero.v1.conclave.frame_capture import ConclaveFrameFileHandler
 @pytest.mark.asyncio
 async def test_handler_buffers_then_flushes(tmp_path: Path, conclave_bridge):
     path = tmp_path / "frames.ndjson"
+    previous_propagate = FRAME_LOGGER.propagate
     handler = attach_frame_capture(path, buffer_size=2, propagate=False)
     try:
         bridge, _, _ = conclave_bridge
@@ -26,18 +27,23 @@ async def test_handler_buffers_then_flushes(tmp_path: Path, conclave_bridge):
         assert [f["private"]["event"] for f in frames] == ["a", "b"]
     finally:
         FRAME_LOGGER.removeHandler(handler)
+        FRAME_LOGGER.propagate = previous_propagate
         handler.close()
 
 
 @pytest.mark.asyncio
 async def test_handler_close_flushes_partial_buffer(tmp_path: Path, conclave_bridge):
     path = tmp_path / "frames.ndjson"
+    previous_propagate = FRAME_LOGGER.propagate
     handler = attach_frame_capture(path, buffer_size=10, propagate=False)
-    bridge, _, _ = conclave_bridge
-    client = ConclaveClient(bridge)
-    await client._handle_frame({"private": {"event": "x", "data": {}}})
-    FRAME_LOGGER.removeHandler(handler)
-    handler.close()
+    try:
+        bridge, _, _ = conclave_bridge
+        client = ConclaveClient(bridge)
+        await client._handle_frame({"private": {"event": "x", "data": {}}})
+    finally:
+        FRAME_LOGGER.removeHandler(handler)
+        FRAME_LOGGER.propagate = previous_propagate
+        handler.close()
     assert handler.read_frames() == [{"private": {"data": {}, "event": "x"}}]
 
 

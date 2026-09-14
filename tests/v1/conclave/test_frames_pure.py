@@ -52,7 +52,7 @@ def test_try_parse_zlib_prefix_abandons_truncated_prefix_with_plain_json_suffix(
 
 def test_try_parse_zlib_prefix_non_object(caplog):
     blob = zlib.compress(b"42")
-    with caplog.at_level("DEBUG"):
+    with caplog.at_level("DEBUG", logger="aioafero.v1.conclave.frames"):
         result = try_parse_zlib_prefix(blob)
     assert result.decided is True
     assert result.frame is None

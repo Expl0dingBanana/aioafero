@@ -186,10 +186,12 @@ class ConclaveClient:
         """Attach a reconnecting Conclave consumer to ``bridge``.
 
         :param push_idle_timeout: When set, end the session if no ``private``
-            push arrives within this many seconds after login while the socket
-            is still receiving heartbeats (idle clock starts at ``welcome``).
-            ``None`` disables (default). Use for zombie sessions where
-            ``welcome`` succeeds but state pushes never arrive or stop.
+            push is successfully handled within this many seconds after login
+            while the socket is still receiving heartbeats (idle clock starts
+            at ``welcome``). Successful ``public`` inventory handlers do **not**
+            reset the clock. ``None`` disables (default). Use for zombie
+            sessions where ``welcome`` succeeds but state pushes never arrive
+            or stop.
         :param reconcile_on_reconnect: After a failed session, run one REST
             state poll once login succeeds again (in the background so the TLS
             dispatch loop can keep acking heartbeats).
@@ -317,17 +319,24 @@ class ConclaveClient:
             await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _run_frame_handler(
-        self, handler: Callable[..., Awaitable[bool]], data: dict
+        self,
+        handler: Callable[..., Awaitable[bool]],
+        data: dict,
+        *,
+        counts_as_push: bool = False,
     ) -> None:
         """Run a private/public frame handler off the TLS dispatch loop.
 
         Handlers are serialized so inventory ``remove`` completes before a later
         ``status_change`` / ``attr_change`` for the same device, and a slow
         inventory ``add`` cannot finish after a later ``remove``.
+
+        :param counts_as_push: When ``True`` (private frames), a successful
+            handler resets the push-idle clock. Public inventory frames do not.
         """
         async with self._frame_handler_lock:
             try:
-                if await handler(self._bridge, data):
+                if await handler(self._bridge, data) and counts_as_push:
                     self._last_private_at = time.monotonic()
             except asyncio.CancelledError:
                 raise
@@ -491,7 +500,8 @@ class ConclaveClient:
         idle = time.monotonic() - self._last_private_at
         if idle > self._push_idle_timeout:
             raise ConclavePushStaleError(
-                f"No Conclave push in {idle:.0f}s (limit {self._push_idle_timeout:.0f}s)"
+                f"No private Conclave push in {idle:.0f}s "
+                f"(limit {self._push_idle_timeout:.0f}s)"
             )
 
     async def _handle_frame(self, frame: dict) -> None:
@@ -508,7 +518,9 @@ class ConclaveClient:
                     "Unhandled Conclave private event: %s", private.event
                 )
                 return
-            self._track_session_task(self._run_frame_handler(handler, private.data))
+            self._track_session_task(
+                self._run_frame_handler(handler, private.data, counts_as_push=True)
+            )
             return
 
         public = parse_public_frame(frame)
@@ -518,7 +530,9 @@ class ConclaveClient:
                 self._logger.debug("Unhandled Conclave public event: %s", public.event)
                 return
             # Inventory add may REST; keep heartbeats moving on this loop.
-            self._track_session_task(self._run_frame_handler(handler, public.data))
+            self._track_session_task(
+                self._run_frame_handler(handler, public.data, counts_as_push=False)
+            )
             return
 
         self._logger.debug(

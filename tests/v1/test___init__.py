@@ -73,6 +73,7 @@ async def test_open(mocker):
     assert bridge._events.polling_interval == 15
     init.assert_awaited_once()
     block.assert_awaited_once()
+    await bridge.close()
 
 
 @pytest.mark.asyncio
@@ -80,8 +81,9 @@ async def test_close_closes_owned_session(mocker):
     mocker.patch.object(AferoBridgeV1, "initialize", mocker.AsyncMock())
     mocker.patch.object(AferoBridgeV1, "async_block_until_done", mocker.AsyncMock())
     bridge = await AferoBridgeV1.open("username", "mock-refresh-token")
+    # wraps= so the real session is still closed (avoids 3.14 ResourceWarning).
     close_session = mocker.patch.object(
-        bridge._web_session, "close", new=mocker.AsyncMock()
+        bridge._web_session, "close", wraps=bridge._web_session.close
     )
     await bridge.close()
     close_session.assert_awaited_once()
@@ -94,7 +96,7 @@ async def test_open_closes_session_on_initialize_failure(mocker):
         "initialize",
         side_effect=RuntimeError("boom"),
     )
-    close_bridge = mocker.patch.object(AferoBridgeV1, "close", new=mocker.AsyncMock())
+    close_bridge = mocker.spy(AferoBridgeV1, "close")
     with pytest.raises(RuntimeError, match="boom"):
         await AferoBridgeV1.open("username", "mock-refresh-token")
     close_bridge.assert_awaited_once()

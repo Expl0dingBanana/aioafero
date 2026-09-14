@@ -59,7 +59,7 @@ Implementing a new split type
 On the **primary controller** (non-split class):
 
 * Register a callback in ``DEVICE_SPLIT_CALLBACKS`` that returns
-  :class:`~aioafero.v1.controllers.event.CallbackResponse` with
+  :class:`~aioafero.v1.controllers.callback.CallbackResponse` with
   ``split_devices=[...]`` and ``remove_original=...``.
 
 On the **split model**:

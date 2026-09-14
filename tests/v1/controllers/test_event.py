@@ -9,7 +9,7 @@ from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 import pytest
 
 from aioafero import InvalidAuth
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice, AferoState, SplitDeviceId
 from aioafero.v1.controllers import (
     event,
     exhaust_fan,
@@ -1019,7 +1019,7 @@ async def test_generate_events_from_update_refreshes_clones_and_dedupes(bridge, 
         default_image="i",
         friendly_name="Split light",
         states=[],
-        split_identifier="light",
+        split=SplitDeviceId(parent.id, "light", "trim"),
     )
     stream.split_devices = AsyncMock(return_value=[parent, clone, clone])
     add_dev = mocker.patch.object(bridge, "add_afero_dev")

@@ -1,10 +1,10 @@
 """Tests for split clone state refresh helpers."""
 
-from aioafero.device import AferoDevice, AferoState
+from aioafero.device import AferoDevice, AferoState, SplitDeviceId
 from aioafero.v1.controllers import split_refresh
 
 
-def test_refresh_split_clone_states_noop_without_split_marker():
+def test_refresh_split_clone_states_noop_without_split():
     parent = AferoDevice(
         id="parent",
         device_id="physical",
@@ -25,7 +25,6 @@ def test_refresh_split_clone_states_noop_without_split_marker():
         default_name="n",
         default_image="i",
         friendly_name="n",
-        split_identifier="light",
         states=[AferoState(functionClass="power", functionInstance=None, value="on")],
     )
     split_refresh.refresh_split_clone_states(parent, clone)
@@ -51,7 +50,7 @@ def test_refresh_split_clone_states_noop_for_unknown_split_type():
         default_name="n",
         default_image="i",
         friendly_name="n",
-        split_identifier="custom",
+        split=SplitDeviceId(parent.id, "custom", "zone"),
         states=[],
     )
     split_refresh.refresh_split_clone_states(parent, clone)
@@ -67,13 +66,10 @@ def test_split_instance_from_device():
         default_name="n",
         default_image="i",
         friendly_name="n",
-        split_identifier="light",
+        split=SplitDeviceId("uuid", "light", "trim"),
     )
     assert split_refresh.split_instance_from_device(device) == "trim"
-    device.split_identifier = None
-    assert split_refresh.split_instance_from_device(device) is None
-    device.split_identifier = "missing"
-    device.id = "uuid-without-marker"
+    device.split = None
     assert split_refresh.split_instance_from_device(device) is None
 
 
@@ -100,7 +96,7 @@ def test_refresh_split_clone_states_filters_light_instance():
         default_image="i",
         friendly_name="Split light",
         states=[],
-        split_identifier="light",
+        split=SplitDeviceId(parent.id, "light", "trim"),
     )
     split_refresh.refresh_split_clone_states(parent, clone)
     assert len(clone.states) == 1
@@ -141,7 +137,7 @@ def test_refresh_split_clone_states_filters_security_sensor():
         default_image="i",
         friendly_name="Sensor 12",
         states=[],
-        split_identifier="sensor",
+        split=SplitDeviceId(parent.id, "sensor", "12"),
     )
     split_refresh.refresh_split_clone_states(parent, clone)
     triggered = next(

@@ -241,7 +241,8 @@ async def test_handle_frame_applies_public_invalidate_remove(conclave_bridge):
     assert conclave._session_tasks
     await asyncio.gather(*conclave._session_tasks)
     assert device.id not in bridge._known_afero_devices
-    assert conclave._last_private_at > 1.0
+    # Public inventory success must not reset the private push-idle clock.
+    assert conclave._last_private_at == 1.0
 
 
 @pytest.mark.asyncio
@@ -578,7 +579,9 @@ async def test_push_idle_timeout_ends_session(conclave_bridge, monkeypatch):
         bridge, push_idle_timeout=30.0, reconcile_on_reconnect=False
     )
     conclave._last_private_at = 1000.0
-    with pytest.raises(client_module.ConclavePushStaleError, match="No Conclave push"):
+    with pytest.raises(
+        client_module.ConclavePushStaleError, match="No private Conclave push"
+    ):
         await conclave._dispatch_loop(FakeConnection())
 
 
