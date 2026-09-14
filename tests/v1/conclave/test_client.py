@@ -911,7 +911,13 @@ async def test_default_connect_uses_tls_when_ssl_enabled(mocker):
     fake = mocker.patch(
         "asyncio.open_connection", AsyncMock(return_value=("reader", "writer"))
     )
+    to_thread = mocker.patch(
+        "asyncio.to_thread",
+        AsyncMock(side_effect=lambda fn, *a, **k: fn(*a, **k)),
+    )
     result = await client_module._default_connect(ACCESS)
+    to_thread.assert_awaited_once()
+    assert to_thread.await_args.args[0] is ssl.create_default_context
     fake.assert_awaited_once()
     host, port = fake.await_args.args[:2]
     assert host == ACCESS.host

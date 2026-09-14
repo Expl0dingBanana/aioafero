@@ -546,7 +546,8 @@ async def _default_connect(
 ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
     """Open a connection to the Conclave server."""
     if access.ssl:
-        ctx = ssl.create_default_context()
+        # create_default_context() loads CA certs synchronously; keep it off the loop.
+        ctx = await asyncio.to_thread(ssl.create_default_context)
         return await asyncio.open_connection(
             access.host,
             access.port,
