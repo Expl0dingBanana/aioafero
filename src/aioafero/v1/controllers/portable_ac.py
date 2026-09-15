@@ -8,8 +8,8 @@ from aioafero.errors import DeviceNotFound
 from aioafero.v1.models.portable_ac import PortableAC, PortableACPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
+from .callback import CallbackResponse
 from .climate import ClimateController
-from .event import CallbackResponse
 
 SPLIT_IDENTIFIER: str = "portable-ac"
 

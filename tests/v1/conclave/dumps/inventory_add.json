@@ -1,0 +1,201 @@
+{
+  "description": "Conclave public invalidate add when re-pairing a light (mitm capture, anonymized). Metadevice body is under metadevice_response for fetch_metadevice.",
+  "metadevice_id": "22222222-2222-4222-8222-222222222222",
+  "device_id": "aabbccddeeff0011",
+  "frames": [
+    {
+      "public": {
+        "seq": 5,
+        "sessionId": 0,
+        "event": "invalidate",
+        "data": {
+          "kind": "add",
+          "target": "metadevices",
+          "values": [
+            {
+              "metadeviceId": "22222222-2222-4222-8222-222222222222"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "public": {
+        "seq": 6,
+        "sessionId": 0,
+        "event": "invalidate",
+        "data": {
+          "kind": "add",
+          "target": "devices",
+          "values": [
+            {
+              "deviceId": "aabbccddeeff0011",
+              "associationId": "000000000000aabbccddeeff0011",
+              "profileId": "5ffab3f9-8edb-4036-8c43-612a00156a3f",
+              "updating": false,
+              "createdTimestamp": 1709413092369,
+              "deviceState": {
+                "deviceId": "aabbccddeeff0011",
+                "available": false,
+                "visible": false,
+                "rebooted": false,
+                "connectable": false,
+                "connected": false,
+                "dirty": false,
+                "direct": false,
+                "rssi": 0,
+                "location": null,
+                "linked": true,
+                "updatedTimestamp": 1786294084160,
+                "deviceLocalityId": null
+              },
+              "profile": null,
+              "deviceTags": [],
+              "virtual": false,
+              "friendlyName": "",
+              "attributes": [
+                {
+                  "id": 1,
+                  "data": "00",
+                  "value": "0",
+                  "updatedTimestamp": 1786294084160
+                }
+              ],
+              "developerDevice": false,
+              "partnerId": "a96c26d9-c6a1-4bc4-beab-e582ca08b514",
+              "deviceTypeId": "a8652c58-fe1e-4341-8f09-0d5adf4ce90a",
+              "rootDeviceTypeId": "a8652c58-fe1e-4341-8f09-0d5adf4ce90a",
+              "accountId": "33333333-3333-4333-8333-333333333333",
+              "quarantined": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "public": {
+        "seq": 12,
+        "sessionId": 0,
+        "event": "invalidate",
+        "data": {
+          "kind": "update",
+          "type": "metadevice",
+          "id": "22222222-2222-4222-8222-222222222222",
+          "fields": [
+            {
+              "name": "friendlyName",
+              "value": "friendly-device-1"
+            },
+            {
+              "name": "locale",
+              "value": "en_US"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "metadevice_response": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "deviceId": "aabbccddeeff0011",
+    "friendlyName": "friendly-device-1",
+    "friendlyDescription": "",
+    "typeId": "metadevice.device",
+    "createdTimestampMs": 0,
+    "children": [],
+    "description": {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "createdTimestampMs": 0,
+      "updatedTimestampMs": 0,
+      "version": 1,
+      "defaultImage": "a21-e26-color-cct-100w-smd-frosted-icon",
+      "descriptions": [],
+      "hints": [],
+      "device": {
+        "defaultName": "A21 Color CCT Light",
+        "deviceClass": "light",
+        "manufacturerName": "example",
+        "model": "example-a21",
+        "profileId": "6ea6d241-3909-4235-836d-c594ece2bb67",
+        "type": "device"
+      },
+      "functions": [
+        {
+          "functionClass": "power",
+          "functionInstance": null,
+          "values": [
+            {
+              "name": "off",
+              "deviceValues": [
+                {
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "00"
+                }
+              ]
+            },
+            {
+              "name": "on",
+              "deviceValues": [
+                {
+                  "type": "attribute",
+                  "key": "1",
+                  "value": "01"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "functionClass": "brightness",
+          "functionInstance": null,
+          "values": [
+            {
+              "name": "brightness",
+              "deviceValues": [
+                {
+                  "type": "attribute",
+                  "key": "2"
+                }
+              ],
+              "range": {
+                "min": 1,
+                "max": 100,
+                "step": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "state": {
+      "metadeviceId": "22222222-2222-4222-8222-222222222222",
+      "values": [
+        {
+          "functionClass": "power",
+          "functionInstance": null,
+          "lastUpdateTime": 0,
+          "value": "off"
+        },
+        {
+          "functionClass": "available",
+          "functionInstance": null,
+          "lastUpdateTime": 0,
+          "value": true
+        },
+        {
+          "functionClass": "visible",
+          "functionInstance": null,
+          "lastUpdateTime": 0,
+          "value": true
+        },
+        {
+          "functionClass": "direct",
+          "functionInstance": null,
+          "lastUpdateTime": 0,
+          "value": true
+        }
+      ]
+    }
+  }
+}

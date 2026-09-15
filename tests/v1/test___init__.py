@@ -73,6 +73,7 @@ async def test_open(mocker):
     assert bridge._events.polling_interval == 15
     init.assert_awaited_once()
     block.assert_awaited_once()
+    await bridge.close()
 
 
 @pytest.mark.asyncio
@@ -80,8 +81,9 @@ async def test_close_closes_owned_session(mocker):
     mocker.patch.object(AferoBridgeV1, "initialize", mocker.AsyncMock())
     mocker.patch.object(AferoBridgeV1, "async_block_until_done", mocker.AsyncMock())
     bridge = await AferoBridgeV1.open("username", "mock-refresh-token")
+    # wraps= so the real session is still closed (avoids 3.14 ResourceWarning).
     close_session = mocker.patch.object(
-        bridge._web_session, "close", new=mocker.AsyncMock()
+        bridge._web_session, "close", wraps=bridge._web_session.close
     )
     await bridge.close()
     close_session.assert_awaited_once()
@@ -94,7 +96,7 @@ async def test_open_closes_session_on_initialize_failure(mocker):
         "initialize",
         side_effect=RuntimeError("boom"),
     )
-    close_bridge = mocker.patch.object(AferoBridgeV1, "close", new=mocker.AsyncMock())
+    close_bridge = mocker.spy(AferoBridgeV1, "close")
     with pytest.raises(RuntimeError, match="boom"):
         await AferoBridgeV1.open("username", "mock-refresh-token")
     close_bridge.assert_awaited_once()
@@ -232,6 +234,40 @@ async def test_fetch_discovery_data(
     else:
         with pytest.raises(TypeError):
             await mocked_bridge_req.fetch_discovery_data()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("expected_val", "temperature_unit"),
+    [
+        ({"id": "meta-1"}, TemperatureUnit.FAHRENHEIT),
+        ({"id": "meta-1"}, TemperatureUnit.CELSIUS),
+        (["not-a-dict"], TemperatureUnit.CELSIUS),
+    ],
+)
+async def test_fetch_metadevice(
+    expected_val, temperature_unit, mocked_bridge_req, mocker
+):
+    expected = mocker.Mock()
+    mocked_bridge_req.temperature_unit = temperature_unit
+    mocker.patch.object(
+        expected, "json", side_effect=mocker.AsyncMock(return_value=expected_val)
+    )
+    mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
+    result = await mocked_bridge_req.fetch_metadevice("meta-1")
+    call = mocked_bridge_req.request.call_args
+    assert call[0][0] == "get"
+    assert call[0][1].endswith("/metadevices/meta-1")
+    params = call[1]["params"]
+    assert params["expansions"] == "state,capabilities,semantics"
+    if temperature_unit == TemperatureUnit.FAHRENHEIT:
+        assert params["units"] == TemperatureUnit.FAHRENHEIT.value
+    else:
+        assert "units" not in params
+    if isinstance(expected_val, dict):
+        assert result == expected_val
+    else:
+        assert result is None
 
 
 def fake_version_data(*args, **kwargs):
@@ -493,6 +529,7 @@ def test_set_token_data(mocked_bridge):
     )
     mocked_bridge.set_token_data(data)
     assert mocked_bridge.refresh_token == "refresh_token"
+    assert mocked_bridge.token_data == data
 
 
 @pytest.mark.asyncio
@@ -765,6 +802,59 @@ async def test_fetch_all_device_states(mocked_bridge, mocker, caplog):
     assert dev2.states == states2
     assert "Unable to fetch states: Boom" in caplog.text
     assert "Device dev4 not found in cache" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_session_closed_is_quiet(
+    mocked_bridge, mocker, caplog
+):
+    """HA closing the shared session mid-poll must not WARN."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=RuntimeError("Session is closed")),
+    )
+    with caplog.at_level(logging.DEBUG):
+        assert await mocked_bridge.fetch_all_device_states() == []
+    assert "Unable to fetch states: Session is closed" not in caplog.text
+    assert "Unable to fetch states during shutdown" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_quiet_when_session_closed(
+    mocked_bridge, mocker, caplog
+):
+    """Any fetch failure after the shared session closed is debug-only."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocked_bridge._web_session = mocker.Mock(closed=True)
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=RuntimeError("connection lost")),
+    )
+    with caplog.at_level(logging.DEBUG):
+        assert await mocked_bridge.fetch_all_device_states() == []
+    assert "Unable to fetch states: connection lost" not in caplog.text
+    assert "Unable to fetch states during shutdown" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_fetch_all_device_states_quiet_when_bridge_closed(
+    mocked_bridge, mocker, caplog
+):
+    """Failures after bridge.close() are debug-only, not warnings."""
+    _seed_known_parent(mocked_bridge, mocker)
+    mocked_bridge._closed = True
+    mocker.patch.object(
+        mocked_bridge,
+        "_fetch_device_states",
+        AsyncMock(side_effect=RuntimeError("still racing")),
+    )
+    with caplog.at_level(logging.DEBUG):
+        assert await mocked_bridge.fetch_all_device_states() == []
+    assert "Unable to fetch states: still racing" not in caplog.text
+    assert "Unable to fetch states during shutdown" in caplog.text
 
 
 @pytest.mark.asyncio

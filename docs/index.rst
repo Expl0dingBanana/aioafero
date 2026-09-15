@@ -25,6 +25,7 @@ Quick links
    user/auth
    user/bridge
    user/features
+   user/conclave
    user/controllers/index
    user/examples
    user/troubleshooting

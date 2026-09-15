@@ -9,6 +9,7 @@ from aiohttp.web_exceptions import HTTPForbidden, HTTPTooManyRequests
 import pytest
 
 from aioafero import InvalidAuth
+from aioafero.device import AferoDevice, AferoState, SplitDeviceId
 from aioafero.v1.controllers import (
     event,
     exhaust_fan,
@@ -76,6 +77,29 @@ async def test_stop(bridge):
     stream = bridge.events
     await stream.stop()
     assert len(stream._scheduled_tasks) == 0
+
+
+@pytest.mark.asyncio
+async def test_stop_awaits_cancelled_tasks(bridge):
+    """stop() must await cancelled loops so HTTP work cannot outlive close()."""
+    stream = bridge.events
+    started = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def hang():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            finished.set()
+
+    task = asyncio.create_task(hang())
+    stream._scheduled_tasks = [task]
+    await started.wait()
+    await stream.stop()
+    assert stream._scheduled_tasks == []
+    assert task.done()
+    assert finished.is_set()
 
 
 @pytest.mark.asyncio
@@ -337,6 +361,26 @@ async def test_generate_events_from_data(bridge, mocker):
     }
 
 
+@pytest.mark.asyncio
+async def test_generate_events_from_added_data_does_not_delete(bridge):
+    stream = bridge.events
+    await stream.stop()
+    bridge._known_devs = {"stale-device": bridge.lights}
+    raw_data = utils.create_hs_raw_from_dump("light-a21.json")
+    devices = await stream.generate_events_from_added_data(raw_data)
+    assert len(devices) == 1
+    assert devices[0].id == a21_light.id
+    # Only ADDED for the new light — stale tracked ids are left alone.
+    assert stream._event_queue.qsize() == 1
+    assert await stream._event_queue.get() == {
+        "type": event.EventType.RESOURCE_ADDED,
+        "device_id": a21_light.id,
+        "device": a21_light,
+        "force_forward": False,
+    }
+    assert "stale-device" in bridge.tracked_devices
+
+
 def get_sensor_ids(device) -> set[int]:
     """Determine available sensors from the states"""
     sensor_ids = set()
@@ -385,6 +429,104 @@ def security_system_callback(afero_device) -> event.CallbackResponse:
         split_devices=multi_devs,
         remove_original=False,
     )
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_data_defers_delete_for_mid_poll_adds(bridge):
+    """Discovery must not delete devices Conclave added while the poll ran."""
+    stream = bridge.events
+    await stream.stop()
+    bridge.add_device(a21_light.id, bridge.lights)
+    assert a21_light.id in bridge.tracked_devices
+    raw_data = utils.create_hs_raw_from_dump("switch-HPDA311CWB.json")
+    await stream.generate_events_from_data(raw_data, reconcile_deletes_from=set())
+    deleted = []
+    while not stream._event_queue.empty():
+        evt = stream._event_queue.get_nowait()
+        if evt["type"] == event.EventType.RESOURCE_DELETED:
+            deleted.append(evt["device_id"])
+    assert a21_light.id not in deleted
+    assert a21_light.id in bridge.tracked_devices
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_data_skips_readd_after_mid_poll_remove(bridge):
+    """Stale discovery must not revive devices Conclave removed mid-poll."""
+    stream = bridge.events
+    await stream.stop()
+    raw_data = utils.create_hs_raw_from_dump("light-a21.json")
+    await stream.generate_events_from_data(raw_data, skip_readd_ids={a21_light.id})
+    added = []
+    while not stream._event_queue.empty():
+        evt = stream._event_queue.get_nowait()
+        if evt["type"] == event.EventType.RESOURCE_ADDED:
+            added.append(evt["device_id"])
+    assert a21_light.id not in added
+    assert a21_light.id not in bridge._known_afero_devices
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_data_skip_readd_keeps_unrelated(bridge):
+    stream = bridge.events
+    await stream.stop()
+    raw_data = utils.create_hs_raw_from_dump("light-a21.json")
+    await stream.generate_events_from_data(raw_data, skip_readd_ids={"other-id"})
+    added = []
+    while not stream._event_queue.empty():
+        evt = stream._event_queue.get_nowait()
+        if evt["type"] == event.EventType.RESOURCE_ADDED:
+            added.append(evt["device_id"])
+    assert a21_light.id in added
+
+
+@pytest.mark.asyncio
+async def test_discovery_tombstone_blocks_stale_readd(bridge):
+    """Tombstones from Conclave remove survive beyond the in-flight poll window."""
+    stream = bridge.events
+    await stream.stop()
+    stream.tombstone_device(a21_light.id)
+    raw_data = utils.create_hs_raw_from_dump("light-a21.json")
+    await stream.generate_events_from_data(
+        raw_data, skip_readd_ids=stream.active_discovery_tombstones()
+    )
+    added = []
+    while not stream._event_queue.empty():
+        evt = stream._event_queue.get_nowait()
+        if evt["type"] == event.EventType.RESOURCE_ADDED:
+            added.append(evt["device_id"])
+    assert a21_light.id not in added
+
+
+def test_discovery_tombstone_expires(bridge, monkeypatch):
+    stream = bridge.events
+    stream._discovery_interval = 60
+    now = {"t": 1000.0}
+    monkeypatch.setattr(
+        "aioafero.v1.controllers.event.time.monotonic", lambda: now["t"]
+    )
+    stream.tombstone_device(a21_light.id)
+    assert a21_light.id in stream.active_discovery_tombstones()
+    now["t"] += 121.0  # past max(120, 2*60)
+    assert a21_light.id not in stream.active_discovery_tombstones()
+
+
+def test_clear_discovery_tombstone_clears_split_clones(bridge):
+    stream = bridge.events
+    parent = a21_light.id
+    stream.tombstone_device(parent)
+    stream.tombstone_device(f"{parent}-light-trim")
+    stream.clear_discovery_tombstone(parent)
+    assert stream._discovery_tombstones == {}
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_added_data_clears_tombstone(bridge):
+    stream = bridge.events
+    await stream.stop()
+    stream.tombstone_device(a21_light.id)
+    raw_data = utils.create_hs_raw_from_dump("light-a21.json")
+    await stream.generate_events_from_added_data(raw_data)
+    assert a21_light.id not in stream._discovery_tombstones
 
 
 @pytest.mark.asyncio
@@ -872,3 +1014,50 @@ async def test_device_polling_not_ready(bridge, mocker):
         await task
 
     mock_fetch.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_events_from_update_refreshes_clones_and_dedupes(bridge, mocker):
+    """Parent patch fans out once per unique id and refreshes split clone states."""
+    stream = bridge.events
+    parent = AferoDevice(
+        id="8866648e-ef12-47b1-a7af-16c86214933e",
+        device_id="aabbccddeeff0011",
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="n",
+        states=[
+            AferoState(functionClass="power", functionInstance="trim", value="on"),
+            AferoState(functionClass="power", functionInstance="other", value="off"),
+        ],
+    )
+    clone = AferoDevice(
+        id=f"{parent.id}-light-trim",
+        device_id=parent.device_id,
+        model="m",
+        device_class="light",
+        default_name="n",
+        default_image="i",
+        friendly_name="Split light",
+        states=[],
+        split=SplitDeviceId(parent.id, "light", "trim"),
+    )
+    stream.split_devices = AsyncMock(return_value=[parent, clone, clone])
+    add_dev = mocker.patch.object(bridge, "add_afero_dev")
+    jobs: list = []
+
+    def _capture(event_msg):
+        jobs.append(event_msg)
+
+    stream._event_queue.put_nowait = _capture
+
+    await stream.generate_events_from_update(parent)
+
+    assert len(jobs) == 2
+    assert {job["device_id"] for job in jobs} == {parent.id, clone.id}
+    assert all(job["type"] == event.EventType.RESOURCE_UPDATE_RESPONSE for job in jobs)
+    assert len(clone.states) == 1
+    assert clone.states[0].functionInstance == "trim"
+    add_dev.assert_called_once_with(clone, clone.id)

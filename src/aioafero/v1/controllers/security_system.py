@@ -16,7 +16,7 @@ from aioafero.v1.models import SecuritySystem, SecuritySystemPut, features
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
 from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
-from .event import CallbackResponse
+from .callback import CallbackResponse
 
 SENSOR_SPLIT_IDENTIFIER = "sensor"
 GENERIC_MODES = {0: "Off", 1: "On"}

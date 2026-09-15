@@ -23,10 +23,10 @@ All of the above must pass before a PR: **lint**, **audit**, **tests** (3.12–3
 Before pushing, run the quality gate above, then review the branch diff:
 
 ```bash
-git diff main...HEAD -- src/ tests/
+git diff origin/main...HEAD -- src/ tests/
 ```
 
-In Cursor, ask: _Review this diff like Copilot would — secrets/redaction, None paths, API JSON validation, typing vs runtime, auth/session rules._
+In Cursor, ask: _Review this diff like Copilot would — secrets/redaction, None paths, API JSON validation, typing vs runtime, auth/session rules, Conclave push paths when touched._
 
 GitHub Copilot PR review reads [.github/copilot-instructions.md](.github/copilot-instructions.md) (≤4k chars). Re-request after push:
 
@@ -42,7 +42,7 @@ Rules live in `pyproject.toml` and `.pre-commit-config.yaml` — fix what `tox -
 
 ## Architecture
 
-`AferoAuth` (login/OTP/refresh) → `AferoBridgeV1` (session, polling, controllers) → models (cached state) + `EventStream` (REST polls, in-process callbacks). Models are **read-only snapshots**; writes go through controller methods / `set_state`.
+`AferoAuth` (login/OTP/refresh) → `AferoBridgeV1` (session, polling, controllers) → models (cached state) + `EventStream` (REST polls, in-process callbacks). Optional Conclave push (`enable_conclave=True`) updates the same cached models; REST stays source of truth for discovery/writes. Models are **read-only snapshots**; writes go through controller methods / `set_state`.
 
 **Auth:** Bridge takes `username` + `refresh_token` (optional `token` / `token_expiration`), not a password. **`AferoAuth` and `AferoBridgeV1` require `aiohttp.ClientSession` at construction.** `for_login(session, user, password)` for credentials; runtime uses `AferoAuth(session, user, refresh_token, …)`. `AferoBridgeV1.open(...)` may create a session when omitted (only path without an upfront session). `bridge.close()` does **not** close a session you passed in.
 
@@ -56,11 +56,11 @@ await bridge.close()
 await session.close()
 ```
 
-More: [docs/user/auth.rst](docs/user/auth.rst), [docs/user/overview.rst](docs/user/overview.rst).
+More: [docs/user/auth.rst](docs/user/auth.rst), [docs/user/overview.rst](docs/user/overview.rst), [docs/user/conclave.rst](docs/user/conclave.rst).
 
 ## Layout
 
-`src/aioafero/v1/` — `__init__.py` (bridge), `auth.py`, `controllers/`, `models/`, `controllers/event.py` (polling). `tests/` mirrors `src/`. Cloud I/O via controllers — do not bypass `BaseResourcesController.set_state` / `update_afero_api`.
+`src/aioafero/v1/` — `__init__.py` (bridge), `auth.py`, `conclave/`, `controllers/`, `models/`, `controllers/event.py` (polling). `tests/` mirrors `src/`. Cloud I/O via controllers — do not bypass `BaseResourcesController.set_state` / `update_afero_api`.
 
 **Secrets / dumps:** never commit credentials, live tokens, or dumps with PII. Prefer anonymized device dumps under `tests/v1/device_dumps/`.
 

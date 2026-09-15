@@ -797,8 +797,12 @@ async def test_initialize_not_needed(ex1_rc, mocker):
 async def test_initialize(item_types, ex1_rc, mocker):
     ex1_rc._initialized = False
     mocker.patch.object(ex1_rc, "_handle_event")
+    before = len(ex1_rc._bridge.events._subscribers)
     await ex1_rc.initialize()
-    assert len(ex1_rc._bridge.events._subscribers) == 15
+    # One EventStream subscription per initialize(); do not hard-code the
+    # bridge-wide total (it grows when controllers or DeviceController hooks
+    # are added).
+    assert len(ex1_rc._bridge.events._subscribers) == before + 1
     assert "nada" in ex1_rc._bridge.events.registered_multiple_devices
     assert ex1_rc._bridge.events.registered_multiple_devices["nada"] == callback
 
