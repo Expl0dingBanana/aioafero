@@ -2,6 +2,13 @@
 Changelog
 =========
 
+Unreleased
+==========
+
+ * Decode six-digit hexadecimal Conclave ``color-rgb`` attribute values into
+   REST-shaped RGB channel mappings so the light controller can safely apply
+   push updates.
+
 Version 9.3.0
 =============
 

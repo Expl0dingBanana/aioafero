@@ -1,3 +1,5 @@
+import pytest
+
 from aioafero.device import AferoDevice
 from aioafero.v1.conclave import semantics
 
@@ -205,6 +207,58 @@ def test_coerce_rest_state_value_maps_power_and_color_temperature():
     assert semantics.coerce_rest_state_value(cct, "4000", "A00F") == "4000K"
     bright = semantics.SemanticBinding("brightness", None, "brightness", None)
     assert semantics.coerce_rest_state_value(bright, "40", "28") == 40
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ({"color-rgb": {"r": 12, "g": 34, "b": 56}}, {"r": 12, "g": 34, "b": 56}),
+    ],
+)
+def test_coerce_rest_state_value_preserves_rest_rgb_shape(value, expected):
+    binding = semantics.SemanticBinding("color-rgb", None, "color-rgb", None)
+
+    assert semantics.coerce_rest_state_value(binding, value) == {"color-rgb": expected}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        "not-json",
+        "GG0000",
+        "FF000",
+        {"color-rgb": []},
+        {"color-rgb": {"r": 1, "g": 2}},
+        {"color-rgb": {"r": True, "g": 2, "b": 3}},
+        {"color-rgb": {"r": 256, "g": 2, "b": 3}},
+        {"r": 12, "g": 34, "b": 56},
+    ],
+)
+def test_coerce_rest_state_value_rejects_malformed_rgb(value):
+    binding = semantics.SemanticBinding("color-rgb", None, "color-rgb", None)
+
+    assert semantics.coerce_rest_state_value(binding, value) is None
+
+
+@pytest.mark.parametrize(
+    ("wire_value", "expected"),
+    [
+        ("FF0000", {"r": 255, "g": 0, "b": 0}),
+        ("000000", {"r": 0, "g": 0, "b": 0}),
+        ("112233", {"r": 17, "g": 34, "b": 51}),
+        ("abcdef", {"r": 171, "g": 205, "b": 239}),
+        ("FFFFFF", {"r": 255, "g": 255, "b": 255}),
+    ],
+)
+def test_coerce_rest_state_value_decodes_observed_conclave_hex_rgb(
+    wire_value, expected
+):
+    binding = semantics.SemanticBinding("color-rgb", None, "color-rgb", None)
+
+    assert semantics.coerce_rest_state_value(binding, wire_value, wire_value) == {
+        "color-rgb": expected
+    }
 
 
 def test_coerce_rest_state_value_uses_semantics_name_on_exact_match():

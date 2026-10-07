@@ -115,7 +115,10 @@ unique device (the same path REST write echoes and state polls use).
 
 Each ``attr_change`` maps ``attribute.id`` through that device's
 ``description.functions`` semantics, coerces values into REST-shaped
-``AferoState`` rows, and merges them into the parent. ``status_change`` updates
+``AferoState`` rows, and merges them into the parent. ``color-rgb`` values sent
+as six hexadecimal digits (for example ``FF0000``) are decoded into the REST
+channel mapping; malformed RGB values are skipped so they cannot replace the
+last valid cached color. ``status_change`` updates
 ``available``, ``visible``, and ``direct`` only — not ``linked``, ``connected``, or
 ``rssi``.
 
