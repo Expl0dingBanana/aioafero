@@ -251,6 +251,137 @@ async def test_captured_attr_change_updates_live_light_brightness(mocked_bridge)
     assert brightness.lastUpdateTime == 1786298006828
 
 
+def _attribute_key(
+    device: AferoDevice, function_class: str, function_instance: str | None
+) -> object:
+    """Return the semantics attribute id for one function on a discovered device."""
+    for func in device.functions:
+        if func.get("functionClass") != function_class:
+            continue
+        if func.get("functionInstance") != function_instance:
+            continue
+        for value in func.get("values") or []:
+            if not isinstance(value, dict):
+                continue
+            for device_value in value.get("deviceValues") or []:
+                if (
+                    isinstance(device_value, dict)
+                    and device_value.get("type") == "attribute"
+                    and "key" in device_value
+                ):
+                    return device_value["key"]
+    raise AssertionError(f"no attribute for {function_class}/{function_instance}")
+
+
+@pytest.mark.asyncio
+async def test_conclave_numeric_pushes_match_rest_types(mocked_bridge):
+    """Humidity and numeric color temperature stay JSON numbers, not text."""
+    dehumidifier = utils.create_devices_from_data("dehumidifier.json")[0]
+    light = utils.create_devices_from_data("light-a21.json")[0]
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("dehumidifier.json")
+        + utils.create_hs_raw_from_dump("light-a21.json")
+    )
+    await mocked_bridge.async_block_until_done()
+
+    dehum = mocked_bridge.dehumidifiers[dehumidifier.id]
+    dehum_cached = mocked_bridge.get_afero_device(dehumidifier.id)
+    assert dehum.current_humidity == 48
+
+    assert await events.apply_attr_change(
+        mocked_bridge,
+        {
+            "id": dehum_cached.device_id,
+            "attribute": {
+                "id": _attribute_key(dehum_cached, "humidity", "current"),
+                "value": "53",
+            },
+        },
+    )
+    await mocked_bridge.async_block_until_done()
+    assert dehum.current_humidity == 53
+    current = next(
+        state
+        for state in dehum_cached.states
+        if state.functionClass == "humidity" and state.functionInstance == "current"
+    )
+    assert current.value == 53
+
+    assert await events.apply_attr_change(
+        mocked_bridge,
+        {
+            "id": dehum_cached.device_id,
+            "attribute": {
+                "id": _attribute_key(dehum_cached, "humidity", "target"),
+                "value": "55",
+            },
+        },
+    )
+    await mocked_bridge.async_block_until_done()
+    assert dehum.target_humidity.value == 55
+
+    assert await events.apply_attr_change(
+        mocked_bridge,
+        {
+            "id": dehum_cached.device_id,
+            "attribute": {
+                "id": _attribute_key(dehum_cached, "mode", "dehumidifier-mode"),
+                "value": "3",
+            },
+        },
+    )
+    await mocked_bridge.async_block_until_done()
+    assert dehum.mode.mode == "comfort"
+
+    light_cached = mocked_bridge.get_afero_device(light.id)
+    assert await events.apply_attr_change(
+        mocked_bridge,
+        {
+            "id": light_cached.device_id,
+            "attribute": {
+                "id": _attribute_key(light_cached, "color-temperature", None),
+                "value": "5000",
+            },
+        },
+    )
+    await mocked_bridge.async_block_until_done()
+    color_temp = next(
+        state
+        for state in light_cached.states
+        if state.functionClass == "color-temperature"
+    )
+    assert color_temp.value == 5000
+    assert mocked_bridge.lights[light.id].color_temperature.temperature == 5000
+
+
+@pytest.mark.asyncio
+async def test_conclave_category_color_temperature_uses_semantics_name(mocked_bridge):
+    """Category CCT stores the declared name (``3000K``), not a bare number."""
+    light = utils.create_devices_from_data("fan-ZandraFan.json")[1]
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("fan-ZandraFan.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    cached = mocked_bridge.get_afero_device(light.id)
+
+    assert await events.apply_attr_change(
+        mocked_bridge,
+        {
+            "id": cached.device_id,
+            "attribute": {
+                "id": _attribute_key(cached, "color-temperature", None),
+                "value": "2700",
+            },
+        },
+    )
+    await mocked_bridge.async_block_until_done()
+    color_temp = next(
+        state for state in cached.states if state.functionClass == "color-temperature"
+    )
+    assert color_temp.value == "2700K"
+    assert mocked_bridge.lights[light.id].color_temperature.temperature == 2700
+
+
 @pytest.mark.asyncio
 async def test_apply_invalidate_remove_metadevice(conclave_bridge):
     bridge, device, _ = conclave_bridge

@@ -13,6 +13,7 @@ value)`` triple feeds straight back into the existing
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -32,12 +33,15 @@ class SemanticBinding:
     :param device_value: Optional encoded value from ``deviceValues[].value``
         — set for enum mappings (e.g. color modes) and blob mappings
         (e.g. custom effect sequences); ``None`` for numeric/free-form values.
+    :param function_type: Parent function ``type`` (``numeric``, ``category``,
+        ``boolean``, ``object``, ``string``). Drives REST value coercion.
     """
 
     function_class: str
     function_instance: str | None
     value_name: str | None
     device_value: str | None
+    function_type: str | None = None
 
 
 AttributeIndex = dict[str, list[SemanticBinding]]
@@ -62,6 +66,8 @@ def build_attribute_index(device: AferoDevice) -> AttributeIndex:
         function_class = func.get("functionClass")
         if not function_class:
             continue
+        raw_type = func.get("type")
+        function_type = raw_type if isinstance(raw_type, str) else None
         function_instance = func.get("functionInstance")
         for value in func.get("values", []) or []:
             if not isinstance(value, dict):
@@ -78,6 +84,7 @@ def build_attribute_index(device: AferoDevice) -> AttributeIndex:
                     function_instance=function_instance,
                     value_name=value_name,
                     device_value=_as_str(dv.get("value")),
+                    function_type=function_type,
                 )
                 index.setdefault(str(key), []).append(binding)
     return index
@@ -125,9 +132,15 @@ def coerce_rest_state_value(
 ) -> object:
     """Translate a Conclave attribute payload into REST-shaped ``AferoState.value``.
 
-    Conclave pushes decoded strings such as ``"0"`` / ``"1"`` for booleans and
-    ``"4000"`` for color temperature. REST discovery and controllers expect
-    semantic names (``"on"`` / ``"off"``) and suffixed units (``"4000K"``).
+    Conclave delivers ``attribute.value`` as text. REST stores whatever the
+    function ``type`` declares:
+
+    * ``category`` — the semantics name (``on``, ``comfort``, ``3500K``).
+      ``3500K`` is that name, not a suffix added for color temperature.
+    * ``numeric`` — a JSON number (``53``, ``-70``, ``18.3``).
+    * ``boolean`` — ``True`` / ``False``.
+
+    ``object`` and ``string`` functions pass through the decoded value.
     """
     value_str = _as_str(attribute_value)
     data_str = _as_str(attribute_data)
@@ -136,18 +149,14 @@ def coerce_rest_state_value(
     if named is not None:
         return named
 
-    if binding.function_class in ("power", "toggle") and value_str in ("0", "1"):
-        return "off" if value_str == "0" else "on"
-
-    if (
-        binding.function_class == "color-temperature"
-        and value_str
-        and value_str.isdigit()
-    ):
-        return f"{value_str}K"
-
-    if binding.function_class == "brightness" and value_str and value_str.isdigit():
-        return int(value_str)
+    if binding.function_type == "numeric":
+        numeric = _coerce_numeric(attribute_value)
+        if numeric is not None:
+            return numeric
+    elif binding.function_type == "boolean":
+        boolean = _coerce_bool(attribute_value)
+        if boolean is not None:
+            return boolean
 
     return attribute_value
 
@@ -179,6 +188,38 @@ def _semantic_value_name(
     return None
 
 
+def _coerce_numeric(value: object) -> int | float | None:
+    """Parse a Conclave numeric string into the int or float REST would store."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        number = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(number):
+        return None
+    if number.is_integer():
+        return int(number)
+    return number
+
+
+def _coerce_bool(value: object) -> bool | None:
+    """Parse a Conclave boolean string into the ``bool`` REST would store."""
+    if isinstance(value, bool):
+        return value
+    if not isinstance(value, str):
+        return None
+    token = value.strip().lower()
+    if token in {"1", "true"}:
+        return True
+    if token in {"0", "false"}:
+        return False
+    return None
+
+
 def _as_str(value: object) -> str | None:
     """Convert an attribute or deviceValues payload into a comparable string."""
     if value is None:
@@ -189,5 +230,14 @@ def _as_str(value: object) -> str | None:
 
 
 def _values_equal(device_value: str, candidate: str) -> bool:
-    """Case-insensitive equality (Conclave pushes mixed-case hex blobs)."""
-    return device_value.lower() == candidate.lower()
+    """Compare a semantics ``deviceValue`` to a Conclave attribute.
+
+    Hex blobs compare case-insensitively. Decimal attributes such as power
+    compare numerically so ``01`` matches Conclave's decoded ``1`` (and ``00``
+    matches ``0``).
+    """
+    if device_value.lower() == candidate.lower():
+        return True
+    if device_value.isdigit() and candidate.isdigit():
+        return int(device_value) == int(candidate)
+    return False
