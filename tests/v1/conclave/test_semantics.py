@@ -1,3 +1,5 @@
+import pytest
+
 from aioafero.device import AferoDevice
 from aioafero.v1.conclave import semantics
 
@@ -63,6 +65,7 @@ def test_build_attribute_index_groups_by_key():
             {
                 "functionClass": "brightness",
                 "functionInstance": None,
+                "type": "numeric",
                 "values": [
                     {
                         "name": "brightness",
@@ -77,6 +80,8 @@ def test_build_attribute_index_groups_by_key():
     assert {b.value_name for b in index["1"]} == {"on", "off"}
     assert index["2"][0].function_class == "brightness"
     assert index["2"][0].device_value is None
+    assert index["1"][0].function_type is None
+    assert index["2"][0].function_type == "numeric"
 
 
 def test_build_attribute_index_skips_missing_pieces():
@@ -197,25 +202,222 @@ def test_resolve_binding_coerces_non_string_values():
     assert binding is bindings[1]
 
 
-def test_coerce_rest_state_value_maps_power_and_color_temperature():
-    on = semantics.SemanticBinding("power", None, "on", "01")
-    assert semantics.coerce_rest_state_value(on, "1", "01") == "on"
-    assert semantics.coerce_rest_state_value(on, "0", "00") == "off"
-    cct = semantics.SemanticBinding("color-temperature", None, None, None)
-    assert semantics.coerce_rest_state_value(cct, "4000", "A00F") == "4000K"
-    bright = semantics.SemanticBinding("brightness", None, "brightness", None)
-    assert semantics.coerce_rest_state_value(bright, "40", "28") == 40
+def test_resolve_binding_matches_zero_padded_device_value():
+    """Conclave decodes power as ``0``/``1`` when semantics store ``00``/``01``."""
+    bindings = [
+        semantics.SemanticBinding("power", None, "off", "00", "category"),
+        semantics.SemanticBinding("power", None, "on", "01", "category"),
+    ]
+    assert semantics.resolve_binding({"1": bindings}, "1", "1") is bindings[1]
+    assert semantics.resolve_binding({"1": bindings}, "1", "0", "00") is bindings[0]
 
 
-def test_coerce_rest_state_value_uses_semantics_name_on_exact_match():
-    white = semantics.SemanticBinding("color-mode", None, "white", "01")
-    assert semantics.coerce_rest_state_value(white, "01", None) == "white"
-    assert semantics.coerce_rest_state_value(white, None, "01") == "white"
+def test_resolve_binding_ignores_non_numeric_mismatch():
+    bindings = [
+        semantics.SemanticBinding("color-mode", None, "white", "white-hex"),
+        semantics.SemanticBinding("color-mode", None, "color", "color-hex"),
+    ]
+    binding = semantics.resolve_binding({"5": bindings}, "5", "zz")
+    assert binding is bindings[0]
 
 
-def test_coerce_rest_state_value_passthrough_when_unmapped():
-    speed = semantics.SemanticBinding("fan-speed", "fan-speed", None, None)
-    assert semantics.coerce_rest_state_value(speed, "medium", None) == "medium"
+@pytest.mark.parametrize(
+    ("binding", "value", "data", "expected"),
+    [
+        (
+            semantics.SemanticBinding("power", None, "on", "01", "category"),
+            "1",
+            "01",
+            "on",
+        ),
+        (
+            semantics.SemanticBinding("power", None, "off", "00", "category"),
+            "0",
+            "00",
+            "off",
+        ),
+        (
+            semantics.SemanticBinding("power", None, "on", "01", "category"),
+            "1",
+            None,
+            "on",
+        ),
+        (
+            semantics.SemanticBinding("color-mode", None, "white", "01", "category"),
+            "01",
+            None,
+            "white",
+        ),
+        (
+            semantics.SemanticBinding("color-mode", None, "white", "01", "category"),
+            None,
+            "01",
+            "white",
+        ),
+        (
+            semantics.SemanticBinding(
+                "color-temperature", None, "3500K", "3500", "category"
+            ),
+            "3500",
+            None,
+            "3500K",
+        ),
+        (
+            semantics.SemanticBinding(
+                "color-temperature", None, "color-temperature", None, "numeric"
+            ),
+            "4000",
+            "A00F",
+            4000,
+        ),
+        (
+            semantics.SemanticBinding(
+                "brightness", None, "brightness", None, "numeric"
+            ),
+            "40",
+            "28",
+            40,
+        ),
+        (
+            semantics.SemanticBinding(
+                "humidity", "current", "current", None, "numeric"
+            ),
+            "53",
+            None,
+            53,
+        ),
+        (
+            semantics.SemanticBinding(
+                "humidity", "current", "current", None, "numeric"
+            ),
+            " 53 ",
+            None,
+            53,
+        ),
+        (
+            semantics.SemanticBinding("wifi-rssi", None, None, None, "numeric"),
+            "-70",
+            None,
+            -70,
+        ),
+        (
+            semantics.SemanticBinding(
+                "temperature", "current-temp", None, None, "numeric"
+            ),
+            "18.3",
+            None,
+            18.3,
+        ),
+        (
+            semantics.SemanticBinding(
+                "temperature", "current-temp", None, None, "numeric"
+            ),
+            "36.0",
+            None,
+            36,
+        ),
+        (
+            semantics.SemanticBinding("humidity", "current", None, None, "numeric"),
+            "n/a",
+            None,
+            "n/a",
+        ),
+        (
+            semantics.SemanticBinding("humidity", "current", None, None, "numeric"),
+            "",
+            None,
+            "",
+        ),
+        (
+            semantics.SemanticBinding("humidity", "current", None, None, "numeric"),
+            "nan",
+            None,
+            "nan",
+        ),
+        (
+            semantics.SemanticBinding("humidity", "current", None, None, "numeric"),
+            53,
+            None,
+            53,
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            "0",
+            None,
+            False,
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            "1",
+            None,
+            True,
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            "false",
+            None,
+            False,
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            " TRUE ",
+            None,
+            True,
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            True,
+            None,
+            True,
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            "maybe",
+            None,
+            "maybe",
+        ),
+        (
+            semantics.SemanticBinding(
+                "error-flag", "storage-error", None, None, "boolean"
+            ),
+            1,
+            None,
+            1,
+        ),
+        (
+            semantics.SemanticBinding("power", None, "on", "01", "category"),
+            "99",
+            "ff",
+            "99",
+        ),
+        (
+            semantics.SemanticBinding("fan-speed", "fan-speed", None, None, "category"),
+            "medium",
+            None,
+            "medium",
+        ),
+        (
+            semantics.SemanticBinding("color-rgb", None, "color-rgb", None, "object"),
+            "aabbcc",
+            None,
+            "aabbcc",
+        ),
+    ],
+)
+def test_coerce_rest_state_value(binding, value, data, expected):
+    assert semantics.coerce_rest_state_value(binding, value, data) == expected
 
 
 def test_build_attribute_index_coerces_non_string_device_value():
