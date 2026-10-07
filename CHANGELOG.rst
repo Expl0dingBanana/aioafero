@@ -2,9 +2,15 @@
 Changelog
 =========
 
-Unreleased
-==========
+Version 9.3.1
+=============
 
+ * Coerce Conclave attribute values from the function ``type`` in device
+   semantics. ``numeric`` pushes (humidity, brightness, temperature, RSSI)
+   become JSON numbers, ``category`` pushes become the semantics name, and
+   ``boolean`` pushes become ``true`` / ``false``. Dehumidifier
+   ``current_humidity`` no longer flips between ``int`` and ``str``
+   (`#107 <https://github.com/Expl0dingBanana/aioafero/issues/107>`__).
  * Decode six-digit hexadecimal Conclave ``color-rgb`` attribute values into
    REST-shaped RGB channel mappings so the light controller can safely apply
    push updates.
