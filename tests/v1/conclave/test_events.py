@@ -4,7 +4,7 @@ import pytest
 
 from aioafero.device import AferoDevice, SplitDeviceId
 from aioafero.errors import AferoError
-from aioafero.types import EventType
+from aioafero.types import EventType, TemperatureUnit
 from aioafero.v1.conclave import events
 from tests.v1 import utils
 from tests.v1.conclave.helpers import get_conclave_dump, get_conclave_frames
@@ -926,3 +926,39 @@ async def test_captured_invalidate_add_imports_live_light(mocked_bridge):
     assert metadevice_id in mocked_bridge.lights
     assert metadevice_id in mocked_bridge.devices
     assert mocked_bridge.get_afero_device(metadevice_id).device_id == dump["device_id"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("unit", "expected"),
+    [
+        (TemperatureUnit.CELSIUS, 34),
+        (TemperatureUnit.FAHRENHEIT, 93),
+    ],
+)
+async def test_conclave_temperature_respects_bridge_unit(mocked_bridge, unit, expected):
+    """Conclave pushes Celsius; convert when the bridge is set to Fahrenheit."""
+    ac = utils.create_devices_from_data("portable-ac.json")[0]
+    await mocked_bridge.events.generate_events_from_data(
+        utils.create_hs_raw_from_dump("portable-ac.json")
+    )
+    await mocked_bridge.async_block_until_done()
+    mocked_bridge.temperature_unit = unit
+    cached = mocked_bridge.get_afero_device(ac.id)
+
+    assert await events.apply_attr_change(
+        mocked_bridge,
+        {
+            "id": cached.device_id,
+            "attribute": {
+                "id": _attribute_key(cached, "temperature", "current-temp"),
+                "value": "34",
+            },
+        },
+    )
+    state = next(
+        s
+        for s in cached.states
+        if s.functionClass == "temperature" and s.functionInstance == "current-temp"
+    )
+    assert state.value == expected

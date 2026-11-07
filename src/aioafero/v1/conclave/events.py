@@ -10,7 +10,7 @@ from aiohttp import ClientResponseError
 
 from aioafero.device import AferoDevice, AferoState, merge_afero_states
 from aioafero.errors import AferoError
-from aioafero.types import EventType
+from aioafero.types import EventType, TemperatureUnit
 from aioafero.util import normalize_afero_last_update_time_ms
 from aioafero.v1.controllers.event import AferoEvent
 
@@ -28,6 +28,7 @@ STATUS_FIELDS: tuple[str, ...] = ("available", "visible", "direct")
 def translate_attr_change(
     device: AferoDevice,
     attribute: Mapping[str, Any],
+    temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS,
 ) -> AferoState | None:
     """Map one Conclave ``attribute`` block to an :class:`~aioafero.device.AferoState`."""
     attr_id = attribute.get("id")
@@ -47,6 +48,13 @@ def translate_attr_change(
             "Ignoring malformed Conclave color-rgb value for device %s", device.id
         )
         return None
+    if (
+        temperature_unit == TemperatureUnit.FAHRENHEIT
+        and binding.function_class == "temperature"
+        and isinstance(value, (int, float))
+        and not isinstance(value, bool)
+    ):
+        value = round(value * 9 / 5 + 32)
     return AferoState(
         functionClass=binding.function_class,
         functionInstance=binding.function_instance,
@@ -130,7 +138,7 @@ async def apply_attr_change(bridge: AferoBridgeV1, payload: dict) -> bool:
     device_id, attribute = parsed
 
     async def _apply(device: AferoDevice) -> bool:
-        new_state = translate_attr_change(device, attribute)
+        new_state = translate_attr_change(device, attribute, bridge.temperature_unit)
         if new_state is None:
             logger.debug(
                 "Ignoring Conclave attr_change for unknown attribute id=%s on %s",
