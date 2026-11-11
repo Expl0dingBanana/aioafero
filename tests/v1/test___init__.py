@@ -20,6 +20,7 @@ from aioafero.v1 import (
     auth,
     v1_const,
 )
+from aioafero.v1.controllers.blinds import BlindsController, BlindsGatewayController
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -131,11 +132,21 @@ def test_switches(mocked_bridge):
     assert isinstance(mocked_bridge.switches, SwitchController)
 
 
+def test_blinds(mocked_bridge):
+    assert isinstance(mocked_bridge.blinds, BlindsController)
+
+
+def test_blinds_gateways(mocked_bridge):
+    assert isinstance(mocked_bridge.blinds_gateways, BlindsGatewayController)
+
+
 def test_valves(mocked_bridge):
     assert isinstance(mocked_bridge.valves, ValveController)
 
 
 def test_controllers(mocked_bridge):
+    mocked_bridge.blinds._initialized = False
+    mocked_bridge.blinds_gateways._initialized = False
     mocked_bridge.dehumidifiers._initialized = False
     mocked_bridge.devices._initialized = False
     mocked_bridge.exhaust_fans._initialized = False

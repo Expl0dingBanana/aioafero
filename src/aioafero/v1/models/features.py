@@ -255,6 +255,29 @@ class OpenFeature(AferoFeature):
 
 
 @dataclass(kw_only=True)
+class PositionFeature(AferoFeature):
+    """Represent a position (e.g. blinds where 100 is fully open).
+
+    ``min`` / ``max`` / ``step`` come from the device's function definition.
+    """
+
+    position: int
+    min: int = 0
+    max: int = 100
+    step: int = 1
+
+    def snap(self, position: float) -> int:
+        """Return the nearest position the device accepts."""
+        stepped = self.min + round((position - self.min) / self.step) * self.step
+        return max(self.min, min(self.max, stepped))
+
+    @property
+    def api_value(self) -> int:
+        """Value to send to Afero API."""
+        return self.position
+
+
+@dataclass(kw_only=True)
 class PresetFeature(AferoFeature):
     """Represent the current preset."""
 
