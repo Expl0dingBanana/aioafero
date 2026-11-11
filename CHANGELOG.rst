@@ -2,6 +2,22 @@
 Changelog
 =========
 
+Version 9.5.0
+=============
+
+ * Add ``bridge.blinds_gateways`` (``BlindsGatewayController``) for the Smart
+   Blinds Gateway. It is read-only and exposes the ``wifi-steady-state`` /
+   ``wifi-setup-state`` diagnostic sensors.
+ * Add ``bridge.blinds`` (``BlindsController``) for ``blinds-zone`` devices such
+   as the Smart Blinds Gateway zones. Position is the ``blinds-open`` state,
+   0 (closed) to 100 (open); ``open``, ``close``, ``set_position`` and
+   ``stop`` are provided. Positions snap to the step the device advertises
+   (25 for Hubspace blinds). A zone moves all blinds assigned to it. A zone is only
+   ``available`` when the Smart Blinds Gateway it is paired to is also
+   available, and a gateway change is pushed to its zones. The gateway
+   settings are not supported yet
+   (`Hubspace-Homeassistant#272 <https://github.com/jdeath/Hubspace-Homeassistant/issues/272>`__).
+
 Version 9.4.0
 =============
 
