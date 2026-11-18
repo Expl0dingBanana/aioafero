@@ -253,5 +253,9 @@ class FanController(BaseResourcesController[Fan]):
             for key, val in numbers.items():
                 if key not in cur_item.numbers:
                     continue
+                # Home Assistant passes floats (30.0); the cloud only applies
+                # whole minutes when they are sent as ints.
+                if isinstance(val, float) and val.is_integer():
+                    val = int(val)
                 update_obj.numbers[key] = replace(cur_item.numbers[key], value=val)
         await self.update(device_id, obj_in=update_obj)

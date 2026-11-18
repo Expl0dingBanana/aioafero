@@ -490,7 +490,15 @@ async def test_update_elem_timer(function_class, value, mocked_controller):
 
 
 @pytest.mark.asyncio
-async def test_set_state_timer(mocked_controller, mocker):
+@pytest.mark.parametrize(
+    "value",
+    [
+        45,
+        # Home Assistant's NumberEntity passes floats; send whole minutes as int
+        45.0,
+    ],
+)
+async def test_set_state_timer(value, mocked_controller, mocker):
     await mocked_controller._bridge.events.generate_events_from_data(
         [utils.create_hs_raw_from_device(zandra_fan)]
     )
@@ -498,7 +506,7 @@ async def test_set_state_timer(mocked_controller, mocker):
     update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_state(
         zandra_fan.id,
-        numbers={("timer", "fan-power"): 45, ("invalid", "state"): 5},
+        numbers={("timer", "fan-power"): value, ("invalid", "state"): 5},
     )
     await mocked_controller._bridge.async_block_until_done()
     update_afero_api.assert_awaited_once_with(
@@ -512,4 +520,6 @@ async def test_set_state_timer(mocked_controller, mocker):
             }
         ],
     )
+    sent = update_afero_api.await_args.args[1][0]["value"]
+    assert type(sent) is int
     assert mocked_controller.items[0].numbers[("timer", "fan-power")].value == 45
