@@ -2,6 +2,20 @@
 Changelog
 =========
 
+Version 9.4.0
+=============
+
+ * Add ``BlindsController`` (``bridge.blinds``) for roller shades behind a
+   blinds gateway, such as Home Decorators Collection smart roller shades. Each
+   ``blinds-zone`` metadevice becomes a ``Blind`` model with a ``position``
+   (``PositionFeature``, 0 closed to 100 open, with the shade's step) and the
+   one-shot ``commands`` it accepts.
+ * ``BlindsController`` actions: ``set_state(position=...)`` (snaps to the
+   shade's step), ``open``, ``close``, ``stop``, ``move`` (coarse or fine jog),
+   ``start_limit_setting``, ``confirm_limit``, ``clear_limits``, and
+   ``toggle_motor_direction``.
+ * New ``ResourceTypes.BLINDS_ZONE`` and ``features.PositionFeature``.
+
 Version 9.3.0
 =============
 

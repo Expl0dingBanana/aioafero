@@ -3,6 +3,8 @@
 __all__ = [
     "AferoBinarySensor",
     "AferoSensor",
+    "Blind",
+    "BlindPut",
     "Dehumidifier",
     "DehumidifierPut",
     "Device",
@@ -34,6 +36,7 @@ __all__ = [
 ]
 
 
+from .blinds import Blind, BlindPut
 from .dehumidifier import Dehumidifier, DehumidifierPut
 from .device import Device
 from .exhaust_fan import ExhaustFan, ExhaustFanPut

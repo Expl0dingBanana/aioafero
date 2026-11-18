@@ -255,6 +255,21 @@ class OpenFeature(AferoFeature):
 
 
 @dataclass(kw_only=True)
+class PositionFeature(AferoFeature):
+    """Represent a position between ``min`` (fully closed) and ``max`` (fully open)."""
+
+    position: int
+    min: int
+    max: int
+    step: int
+
+    @property
+    def api_value(self) -> int:
+        """Value to send to Afero API."""
+        return self.position
+
+
+@dataclass(kw_only=True)
 class PresetFeature(AferoFeature):
     """Represent the current preset."""
 

@@ -6,6 +6,7 @@ __all__ = [
     "AferoController",
     "AferoModelResource",
     "BaseResourcesController",
+    "BlindsController",
     "ConclaveClient",
     "ConclaveStatus",
     "DehumidifierController",
@@ -50,6 +51,7 @@ from . import models, v1_const
 from .auth import AferoAuth, TokenData, passthrough
 from .conclave import ConclaveClient, ConclaveStatus
 from .controllers.base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .controllers.blinds import BlindsController
 from .controllers.dehumidifier import DehumidifierController
 from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
@@ -67,6 +69,7 @@ from .controllers.valve import ValveController
 
 type AferoModelResource = (
     models.Device
+    | models.Blind
     | models.Dehumidifier
     | models.Fan
     | models.Light
@@ -84,6 +87,7 @@ type AferoModelResource = (
 
 type AferoController = (
     DeviceController
+    | BlindsController
     | DehumidifierController
     | FanController
     | LightController
@@ -193,6 +197,7 @@ class AferoBridgeV1:
         )
         # Data Controllers
         self._controllers: dict[str, BaseResourcesController] = {}
+        self.add_controller("blinds", BlindsController)
         self.add_controller("dehumidifiers", DehumidifierController)
         self.add_controller("devices", DeviceController)
         self.add_controller("exhaust_fans", ExhaustFanController)

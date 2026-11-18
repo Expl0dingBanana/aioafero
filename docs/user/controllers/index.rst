@@ -17,6 +17,8 @@ To find available actions for a device, open the page for that controller (or ca
 
    * - Bridge attribute
      - Controller class
+   * - ``bridge.blinds``
+     - :doc:`blinds`
    * - ``bridge.dehumidifiers``
      - :doc:`dehumidifiers`
    * - ``bridge.devices``
@@ -47,6 +49,7 @@ To find available actions for a device, open the page for that controller (or ca
 .. toctree::
    :maxdepth: 1
 
+   blinds
    dehumidifiers
    devices
    exhaust_fans

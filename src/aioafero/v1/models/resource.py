@@ -8,6 +8,7 @@ from typing import Any
 class ResourceTypes(Enum):
     """Type of the supported resources."""
 
+    BLINDS_ZONE = "blinds-zone"
     DEHUMIDIFIER = "dehumidifier"
     DEVICE = "metadevice.device"
     HOME = "metadata.home"
