@@ -2,6 +2,17 @@
 Changelog
 =========
 
+Version 9.4.0
+=============
+
+ * ``FanController`` exposes a fan's built-in auto-off timer as a number
+   (``Timer``, minutes, 0-1440). Ceiling fans report it as either
+   ``timer/fan-power`` or ``power-off-timer/fan-power`` depending on model;
+   both are mapped, and ``set_state`` accepts ``numbers=``.
+ * Number features coerce numeric strings from Conclave pushes (``"120"``)
+   back to numbers, so values stay numeric and an unchanged value is no
+   longer reported as an update.
+
 Version 9.3.0
 =============
 

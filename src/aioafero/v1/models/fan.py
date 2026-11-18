@@ -1,6 +1,6 @@
 """Representation of an Afero Fan and its corresponding updates."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aioafero.v1.models import features
 
@@ -76,3 +76,6 @@ class FanPut:
     speed: features.SpeedFeature | None = None
     direction: features.DirectionFeature | None = None
     preset: features.PresetFeature | None = None
+    numbers: dict[tuple[str, str | None], features.NumbersFeature] | None = field(
+        default_factory=dict, repr=False, init=False
+    )

@@ -406,3 +406,120 @@ async def test_fan_emitting(bridge):
     await bridge.async_block_until_done()
     assert len(bridge.fans._items) == 1
     assert not bridge.fans._items[dev_update.id].available
+
+
+def _zandra_with_timer_class(function_class: str):
+    """Zandra fan with its timer relabelled to ``function_class``.
+
+    Ceiling fans report the same 0-1440 minute timer as either
+    ``timer/fan-power`` or ``power-off-timer/fan-power`` depending on model.
+    """
+    dev = utils.create_devices_from_data("fan-ZandraFan.json")[0]
+    for func in dev.functions:
+        if func["functionClass"] == "timer":
+            func["functionClass"] = function_class
+    dev.states = [
+        AferoState(
+            functionClass=function_class,
+            value=state.value,
+            lastUpdateTime=state.lastUpdateTime,
+            functionInstance=state.functionInstance,
+        )
+        if state.functionClass == "timer"
+        else state
+        for state in dev.states
+    ]
+    return dev
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("function_class", ["timer", "power-off-timer"])
+async def test_initialize_timer_number(function_class, mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(_zandra_with_timer_class(function_class))]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev = mocked_controller.items[0]
+    assert dev.numbers == {
+        (function_class, "fan-power"): features.NumbersFeature(
+            function_class=function_class,
+            function_instance="fan-power",
+            value=0,
+            min=0,
+            max=1440,
+            step=1,
+            name="Timer",
+            unit="minutes",
+        )
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("function_class", "value"),
+    [
+        # REST polling delivers an int
+        ("timer", 30),
+        # Conclave pushes a decoded string
+        ("power-off-timer", "120"),
+    ],
+)
+async def test_update_elem_timer(function_class, value, mocked_controller):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(_zandra_with_timer_class(function_class))]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    key = (function_class, "fan-power")
+    dev_update = _zandra_with_timer_class(function_class)
+    utils.modify_state(
+        dev_update,
+        AferoState(
+            functionClass=function_class,
+            value=value,
+            lastUpdateTime=0,
+            functionInstance="fan-power",
+        ),
+    )
+    updates = await mocked_controller.update_elem(dev_update)
+    number = mocked_controller.items[0].numbers[key]
+    assert number.value == int(value)
+    assert isinstance(number.value, int)
+    assert updates == {f"number-{key}"}
+    # The same value again is not a change
+    assert await mocked_controller.update_elem(dev_update) == set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "value",
+    [
+        45,
+        # Home Assistant's NumberEntity passes floats; send whole minutes as int
+        45.0,
+    ],
+)
+async def test_set_state_timer(value, mocked_controller, mocker):
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(zandra_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    await mocked_controller.set_state(
+        zandra_fan.id,
+        numbers={("timer", "fan-power"): value, ("invalid", "state"): 5},
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        zandra_fan.id,
+        [
+            {
+                "functionClass": "timer",
+                "functionInstance": "fan-power",
+                "value": 45,
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
+    sent = update_afero_api.await_args.args[1][0]["value"]
+    assert type(sent) is int
+    assert mocked_controller.items[0].numbers[("timer", "fan-power")].value == 45
