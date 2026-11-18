@@ -14,6 +14,7 @@ from aioafero.v1.controllers.base import (
     BaseResourcesController,
     NumbersFeature,
     NumbersName,
+    _coerce_number,
     dataclass_to_afero,
     get_afero_state_from_feature,
     get_afero_states_from_list,
@@ -1730,3 +1731,19 @@ def test_unsubscribe(ex1_rc):
     ex1_rc._subscribers = {"*": [], "beans": [(whatever, None)]}
     unsub()
     assert ex1_rc._subscribers == {"*": [], "beans": []}
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("120", 120),
+        ("1.5", 1.5),
+        ("not-a-number", "not-a-number"),
+        (7, 7),
+        (None, None),
+    ],
+)
+def test_coerce_number(value, expected):
+    result = _coerce_number(value)
+    assert result == expected
+    assert type(result) is type(expected)

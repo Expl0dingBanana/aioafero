@@ -46,6 +46,24 @@ ID_FILTER_ALL = "*"
 unit_extractor = re.compile(r"(\d*)(\D*)")
 
 
+def _coerce_number(value: Any) -> Any:
+    """Return numeric strings as numbers; leave anything else unchanged.
+
+    REST states carry numbers as ints, while Conclave pushes them as decoded
+    strings (``"120"``). Number features must stay numeric for comparisons
+    and for Home Assistant's ``NumberEntity``.
+    """
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            try:
+                return float(value)
+            except ValueError:
+                return value
+    return value
+
+
 class NumbersName(NamedTuple):
     """Data used for displaying a Number."""
 
@@ -314,8 +332,9 @@ class BaseResourcesController[AferoResource]:
         key = (state.functionClass, state.functionInstance)
         if key in self.ITEM_NUMBERS:
             number = cur_item.numbers.get(key)
-            if number is not None and number.value != state.value:
-                number.value = state.value
+            new_value = _coerce_number(state.value)
+            if number is not None and number.value != new_value:
+                number.value = new_value
                 return f"number-{key}"
         return None
 
