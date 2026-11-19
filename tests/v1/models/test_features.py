@@ -205,6 +205,18 @@ def test_OpenFeature():
     assert feat.api_value == "off"
 
 
+def test_PositionFeature():
+    feat = features.PositionFeature(
+        position=75,
+        min=0,
+        max=100,
+        step=25,
+        function_class="blinds-open",
+        function_instance="blinds-open-1",
+    )
+    assert feat.api_value == 75
+
+
 def test_PresetFeature():
     feat = features.PresetFeature(
         enabled=True, function_class="cool", function_instance="beans"

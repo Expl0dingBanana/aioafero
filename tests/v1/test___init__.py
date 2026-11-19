@@ -20,6 +20,7 @@ from aioafero.v1 import (
     auth,
     v1_const,
 )
+from aioafero.v1.controllers.blinds import BlindsController
 from aioafero.v1.controllers.device import DeviceController
 from aioafero.v1.controllers.event import EventStream
 from aioafero.v1.controllers.fan import FanController
@@ -107,6 +108,10 @@ def test_bridge_requires_session():
         AferoBridgeV1("username", "mock-refresh-token", None)
 
 
+def test_blinds(mocked_bridge):
+    assert isinstance(mocked_bridge.blinds, BlindsController)
+
+
 def test_devices(mocked_bridge):
     assert isinstance(mocked_bridge.devices, DeviceController)
 
@@ -136,6 +141,7 @@ def test_valves(mocked_bridge):
 
 
 def test_controllers(mocked_bridge):
+    mocked_bridge.blinds._initialized = False
     mocked_bridge.dehumidifiers._initialized = False
     mocked_bridge.devices._initialized = False
     mocked_bridge.exhaust_fans._initialized = False
