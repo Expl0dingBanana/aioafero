@@ -2,6 +2,15 @@
 Changelog
 =========
 
+Version 9.4.0
+=============
+
+ * Add ``HumidifierController`` (``bridge.humidifiers``) for the ``humidifier``
+   device class (Vissani ``VK-8529``). Exposes power, mode, current and target
+   humidity, plus ``Mist Level``, ``Wellness Target``, ``Plant Care Target`` and
+   ``Dark Mode`` selects. Error states remain on ``bridge.devices``
+   (`Hubspace-Homeassistant #277 <https://github.com/jdeath/Hubspace-Homeassistant/issues/277>`__)
+
 Version 9.3.1
 =============
 
