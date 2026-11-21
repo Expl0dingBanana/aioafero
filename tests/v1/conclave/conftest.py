@@ -43,6 +43,7 @@ def conclave_bridge(mocked_bridge):
             {
                 "functionClass": "brightness",
                 "functionInstance": None,
+                "type": "numeric",
                 "values": [
                     {
                         "name": "brightness",
