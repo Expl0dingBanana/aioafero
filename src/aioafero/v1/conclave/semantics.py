@@ -122,13 +122,18 @@ def coerce_rest_state_value(
     binding: SemanticBinding,
     attribute_value: object,
     attribute_data: object | None = None,
-) -> object:
+) -> object | None:
     """Translate a Conclave attribute payload into REST-shaped ``AferoState.value``.
 
     Conclave pushes decoded strings such as ``"0"`` / ``"1"`` for booleans and
     ``"4000"`` for color temperature. REST discovery and controllers expect
     semantic names (``"on"`` / ``"off"``) and suffixed units (``"4000K"``).
+    Invalid RGB updates return ``None`` so callers can preserve the last valid
+    cached state instead of publishing a malformed value to controllers.
     """
+    if binding.function_class == "color-rgb":
+        return _coerce_color_rgb(attribute_value)
+
     value_str = _as_str(attribute_value)
     data_str = _as_str(attribute_data)
 
@@ -150,6 +155,36 @@ def coerce_rest_state_value(
         return int(value_str)
 
     return attribute_value
+
+
+def _coerce_color_rgb(value: object) -> dict[str, dict[str, int]] | None:
+    """Return a REST-shaped RGB value from Conclave hex or REST state."""
+    if isinstance(value, str):
+        if len(value) == 6 and all(char in "0123456789abcdefABCDEF" for char in value):
+            # Conclave sends RGB attribute changes as six hexadecimal digits
+            # (for example ``"FF0000"``); REST exposes channel mappings.
+            channels = {
+                "r": int(value[0:2], 16),
+                "g": int(value[2:4], 16),
+                "b": int(value[4:6], 16),
+            }
+        else:
+            return None
+    elif isinstance(value, dict):
+        # REST discovery wraps channels by function class; preserve that public
+        # shape as the normalized controller input.
+        channels = value.get("color-rgb")
+    else:
+        return None
+    if not isinstance(channels, dict):
+        return None
+    rgb: dict[str, int] = {}
+    for channel in ("r", "g", "b"):
+        component = channels.get(channel)
+        if type(component) is not int or not 0 <= component <= 255:
+            return None
+        rgb[channel] = component
+    return {"color-rgb": rgb}
 
 
 def _binding_for_device_value(

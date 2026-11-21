@@ -50,6 +50,18 @@ def conclave_bridge(mocked_bridge):
                     }
                 ],
             },
+            {
+                "functionClass": "color-rgb",
+                "functionInstance": None,
+                "values": [
+                    {
+                        "name": "color-rgb",
+                        "deviceValues": [
+                            {"type": "attribute", "key": "4", "format": "color-rgb"}
+                        ],
+                    }
+                ],
+            },
         ],
         states=[],
     )

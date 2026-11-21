@@ -41,10 +41,16 @@ def translate_attr_change(
     )
     if binding is None:
         return None
+    value = coerce_rest_state_value(binding, attr_value, attr_data)
+    if binding.function_class == "color-rgb" and value is None:
+        logger.debug(
+            "Ignoring malformed Conclave color-rgb value for device %s", device.id
+        )
+        return None
     return AferoState(
         functionClass=binding.function_class,
         functionInstance=binding.function_instance,
-        value=coerce_rest_state_value(binding, attr_value, attr_data),
+        value=value,
         lastUpdateTime=normalize_afero_last_update_time_ms(
             attribute.get("updatedTimestamp")
         ),

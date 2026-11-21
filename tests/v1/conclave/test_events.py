@@ -44,6 +44,113 @@ async def test_apply_attr_change_brightness_writes_numeric_value(conclave_bridge
 
 
 @pytest.mark.asyncio
+async def test_apply_attr_change_applies_observed_conclave_hex_rgb(conclave_bridge):
+    bridge, device, generate = conclave_bridge
+    payload = {
+        "id": device.device_id,
+        "attribute": {
+            "id": 4,
+            "value": "FF0000",
+            "data": "FF0000",
+            "updatedTimestamp": 1791389011566,
+        },
+    }
+
+    assert await events.apply_attr_change(bridge, payload) is True
+    state = next(s for s in device.states if s.functionClass == "color-rgb")
+    assert state.value == {"color-rgb": {"r": 255, "g": 0, "b": 0}}
+    generate.assert_awaited_once_with(device)
+
+
+@pytest.mark.asyncio
+async def test_observed_hex_rgb_updates_real_light_controller(mocked_bridge):
+    bridge = mocked_bridge
+    device = utils.create_devices_from_data("light-a21.json")[0]
+    await bridge.generate_devices_from_data([device])
+    await bridge.async_block_until_done()
+    light = bridge.lights.get_device(device.id)
+    assert light.color is not None
+
+    payload = {
+        "id": device.device_id,
+        "attribute": {
+            "id": 4,
+            "value": "FF0000",
+            "data": "FF0000",
+            "updatedTimestamp": 1791389011566,
+        },
+    }
+    assert await events.apply_attr_change(bridge, payload) is True
+    await bridge.async_block_until_done()
+
+    cached = bridge.get_afero_device(device.id)
+    state = next(s for s in cached.states if s.functionClass == "color-rgb")
+    assert state.value == {"color-rgb": {"r": 255, "g": 0, "b": 0}}
+    assert (light.color.red, light.color.green, light.color.blue) == (255, 0, 0)
+
+
+@pytest.mark.asyncio
+async def test_light_controller_recovers_after_malformed_rgb_event(mocked_bridge):
+    bridge = mocked_bridge
+    device = utils.create_devices_from_data("light-a21.json")[0]
+    await bridge.generate_devices_from_data([device])
+    await bridge.async_block_until_done()
+    light = bridge.lights.get_device(device.id)
+    original_color = (
+        light.color.red,
+        light.color.green,
+        light.color.blue,
+    )
+
+    malformed = {
+        "id": device.device_id,
+        "attribute": {"id": 4, "value": "GG0000", "data": "GG0000"},
+    }
+    assert await events.apply_attr_change(bridge, malformed) is False
+    await bridge.async_block_until_done()
+    assert (
+        light.color.red,
+        light.color.green,
+        light.color.blue,
+    ) == original_color
+
+    valid = {
+        "id": device.device_id,
+        "attribute": {
+            "id": 4,
+            "value": "FF0000",
+            "data": "FF0000",
+            "updatedTimestamp": 1791389011566,
+        },
+    }
+    assert await events.apply_attr_change(bridge, valid) is True
+    await bridge.async_block_until_done()
+    light = bridge.lights.get_device(device.id)
+    assert (light.color.red, light.color.green, light.color.blue) == (255, 0, 0)
+
+
+@pytest.mark.asyncio
+async def test_apply_attr_change_ignores_malformed_rgb_without_poisoning_cache(
+    conclave_bridge,
+):
+    bridge, device, generate = conclave_bridge
+    existing = events.AferoState(
+        functionClass="color-rgb",
+        functionInstance=None,
+        value={"color-rgb": {"r": 1, "g": 2, "b": 3}},
+    )
+    device.states.append(existing)
+    payload = {
+        "id": device.device_id,
+        "attribute": {"id": 4, "value": "not-json"},
+    }
+
+    assert await events.apply_attr_change(bridge, payload) is False
+    assert device.states == [existing]
+    generate.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_apply_attr_change_unknown_attribute_id_skipped(conclave_bridge, caplog):
     bridge, device, generate = conclave_bridge
     payload = {
