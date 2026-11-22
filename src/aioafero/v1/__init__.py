@@ -11,6 +11,7 @@ __all__ = [
     "DehumidifierController",
     "DeviceController",
     "FanController",
+    "HumidifierController",
     "LightController",
     "LockController",
     "OTPRequired",
@@ -55,6 +56,7 @@ from .controllers.device import DeviceController
 from .controllers.event import EventCallBackType, EventStream, EventType
 from .controllers.exhaust_fan import ExhaustFanController
 from .controllers.fan import FanController
+from .controllers.humidifier import HumidifierController
 from .controllers.light import LightController
 from .controllers.lock import LockController
 from .controllers.portable_ac import PortableACController
@@ -69,6 +71,7 @@ type AferoModelResource = (
     models.Device
     | models.Dehumidifier
     | models.Fan
+    | models.Humidifier
     | models.Light
     | models.Lock
     | models.Switch
@@ -86,6 +89,7 @@ type AferoController = (
     DeviceController
     | DehumidifierController
     | FanController
+    | HumidifierController
     | LightController
     | LockController
     | AferoSensor
@@ -197,6 +201,7 @@ class AferoBridgeV1:
         self.add_controller("devices", DeviceController)
         self.add_controller("exhaust_fans", ExhaustFanController)
         self.add_controller("fans", FanController)
+        self.add_controller("humidifiers", HumidifierController)
         self.add_controller("lights", LightController)
         self.add_controller("locks", LockController)
         self.add_controller("portable_acs", PortableACController)

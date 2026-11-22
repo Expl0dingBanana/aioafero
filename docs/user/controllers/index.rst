@@ -25,6 +25,8 @@ To find available actions for a device, open the page for that controller (or ca
      - :doc:`exhaust_fans`
    * - ``bridge.fans``
      - :doc:`fans`
+   * - ``bridge.humidifiers``
+     - :doc:`humidifiers`
    * - ``bridge.lights``
      - :doc:`lights`
    * - ``bridge.locks``
@@ -51,6 +53,7 @@ To find available actions for a device, open the page for that controller (or ca
    devices
    exhaust_fans
    fans
+   humidifiers
    lights
    locks
    portable_acs

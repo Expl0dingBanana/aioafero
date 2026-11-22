@@ -11,6 +11,7 @@ class ResourceTypes(Enum):
     DEHUMIDIFIER = "dehumidifier"
     DEVICE = "metadevice.device"
     HOME = "metadata.home"
+    HUMIDIFIER = "humidifier"
     ROOM = "metadata.room"
     EXHAUST_FAN = "exhaust-fan"
     FAN = "fan"

@@ -11,6 +11,8 @@ __all__ = [
     "ExhaustFanPut",
     "Fan",
     "FanPut",
+    "Humidifier",
+    "HumidifierPut",
     "Light",
     "LightChannel",
     "LightPut",
@@ -38,6 +40,7 @@ from .dehumidifier import Dehumidifier, DehumidifierPut
 from .device import Device
 from .exhaust_fan import ExhaustFan, ExhaustFanPut
 from .fan import Fan, FanPut
+from .humidifier import Humidifier, HumidifierPut
 from .light import Light, LightChannel, LightPut
 from .lock import Lock, LockPut
 from .portable_ac import PortableAC, PortableACPut
