@@ -29,6 +29,11 @@ Version 9.4.0
    humidity, plus ``Mist Level``, ``Wellness Target``, ``Plant Care Target`` and
    ``Dark Mode`` selects. Error states remain on ``bridge.devices``
    (`Hubspace-Homeassistant #277 <https://github.com/jdeath/Hubspace-Homeassistant/issues/277>`__)
+ * ``FanController`` exposes a ceiling fan's built-in auto-off timer as a
+   number (``Timer``, minutes, 0-1440). Fans report it as either
+   ``timer/fan-power`` or ``power-off-timer/fan-power`` depending on model;
+   both are mapped, and ``set_state`` accepts ``numbers=``. Whole-minute
+   floats (``30.0``) are sent as ints, since the cloud ignores them otherwise.
 
 Version 9.3.1
 =============
