@@ -1,6 +1,6 @@
 """Representation of Afero Blinds and their corresponding updates."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from aioafero.v1.models import features
 
@@ -19,6 +19,9 @@ class Blinds(StandardMixin):
     type: ResourceTypes = ResourceTypes.BLINDS_ZONE
 
     position: features.PositionFeature | None = None
+    # One-shot functions the zone accepts (``stop-moving``, ``move-coarse``, ...)
+    # mapped to their command values
+    commands: dict[str, set[str]] = field(default_factory=dict)
 
 
 @dataclass

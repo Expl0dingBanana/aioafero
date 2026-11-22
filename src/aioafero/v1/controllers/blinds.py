@@ -1,6 +1,7 @@
 """Controller holding and managing Afero IoT resources of type `blinds-zone`."""
 
 from dataclasses import replace
+from typing import Any, Literal
 
 from aioafero import errors
 from aioafero.device import AferoDevice
@@ -12,8 +13,27 @@ from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
 from .event import AferoEvent, EventType
 
 GATEWAY_DEVICE_CLASS: str = "blinds-gateway"
-STOP_FUNCTION_CLASS: str = "stop-moving"
-STOP_VALUE: str = "stop"
+# Values the API reports back after a one-shot command. They are never sent.
+RESULT_VALUES = frozenset({"success", "failure"})
+
+
+def get_commands(functions: list[dict[str, Any]] | None) -> dict[str, set[str]]:
+    """Map each one-shot (category) function to the values it accepts.
+
+    Based on the approach from aioafero PR #114 by @jstark-ttl.
+    """
+    commands: dict[str, set[str]] = {}
+    for func in functions or []:
+        if func.get("type") != "category" or not func.get("functionClass"):
+            continue
+        values = {
+            val["name"]
+            for val in func.get("values") or []
+            if val.get("name") and val["name"] not in RESULT_VALUES
+        }
+        if values:
+            commands[func["functionClass"]] = values
+    return commands
 
 
 def _position_range(afero_device: AferoDevice, instance: str | None) -> dict:
@@ -142,18 +162,65 @@ class BlindsController(BaseResourcesController[Blinds]):
             device_id: Device ID from this controller.
 
         """
+        await self._send_command(device_id, "stop-moving", "stop")
+
+    async def move(
+        self,
+        device_id: str,
+        direction: Literal["up", "down"],
+        *,
+        fine: bool = False,
+    ) -> None:
+        """Jog the blinds up or down.
+
+        Args:
+            device_id: Device ID from this controller.
+            direction: ``up`` or ``down``.
+            fine: ``True`` for a small step, ``False`` for a large one.
+
+        """
+        function_class = "move-fine" if fine else "move-coarse"
+        await self._send_command(device_id, function_class, direction)
+
+    async def start_limit_setting(
+        self, device_id: str, limit: Literal["top", "bottom"]
+    ) -> None:
+        """Put the blinds into limit-setting mode for the top or bottom limit."""
+        await self._send_command(device_id, "start-limit-mode", limit)
+
+    async def confirm_limit(self, device_id: str) -> None:
+        """Save the blinds' current spot as the limit being set."""
+        await self._send_command(device_id, "confirm-limit", "confirm")
+
+    async def clear_limits(self, device_id: str) -> None:
+        """Clear both limits."""
+        await self._send_command(device_id, "clear-all-limits", "clear")
+
+    async def toggle_motor_direction(self, device_id: str) -> None:
+        """Swap which way the motor turns for up and down."""
+        await self._send_command(device_id, "toggle-motor-reverse", "toggle")
+
+    async def _send_command(
+        self, device_id: str, function_class: str, value: str
+    ) -> None:
+        """Send a one-shot command the blinds list in their functions."""
         try:
-            self.get_device(device_id)
+            cur_item = self.get_device(device_id)
         except errors.DeviceNotFound:
             self._logger.info("Unable to find device %s", device_id)
+            return
+        if value not in cur_item.commands.get(function_class, set()):
+            self._logger.warning(
+                "%s does not support %s=%s", device_id, function_class, value
+            )
             return
         await self.update(
             device_id,
             states=[
                 {
-                    "functionClass": STOP_FUNCTION_CLASS,
+                    "functionClass": function_class,
                     "functionInstance": None,
-                    "value": STOP_VALUE,
+                    "value": value,
                 }
             ],
         )
@@ -200,6 +267,7 @@ class BlindsController(BaseResourcesController[Blinds]):
                 functions=afero_device.functions,
             ),
             position=position,
+            commands=get_commands(afero_device.functions),
         )
         return self._items[afero_device.id]
 
@@ -253,7 +321,10 @@ class BlindsController(BaseResourcesController[Blinds]):
             update_obj.position = replace(
                 cur_item.position, position=cur_item.position.snap(position)
             )
-        await self.update(device_id, obj_in=update_obj)
+        # Resend matching targets: a jog or the remote can leave the cached
+        # position behind the real one, and the user still expects a move.
+        # Approach from aioafero PR #114 by @jstark-ttl.
+        await self.update(device_id, obj_in=update_obj, send_duplicate_states=True)
 
 
 class BlindsGatewayController(BaseResourcesController[BlindsGateway]):

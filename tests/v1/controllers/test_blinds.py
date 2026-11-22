@@ -83,14 +83,75 @@ async def test_move(mocked_controller, mocker, method, args, expected):
 
 
 @pytest.mark.asyncio
-async def test_open_unchanged(mocked_controller, mocker, caplog):
-    """Already fully open in the dump, so nothing is sent."""
+async def test_open_resends_matching_target(mocked_controller, mocker):
+    """Already fully open in the dump, but the cache can lag the real position."""
     await _load(mocked_controller)
-    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
-    with caplog.at_level("DEBUG"):
-        await mocked_controller.open(blinds.id)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    await mocked_controller.open(blinds.id)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        blinds.id,
+        [
+            {
+                "functionClass": "blinds-open",
+                "functionInstance": "blinds-open-1",
+                "value": 100,
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_commands_discovered(mocked_controller):
+    await _load(mocked_controller)
+    commands = mocked_controller[blinds.id].commands
+    assert commands["stop-moving"] == {"stop"}
+    assert commands["confirm-limit"] == {"confirm"}
+    # Result values reported by the API are never commands
+    assert all("failure" not in vals for vals in commands.values())
+    assert "blinds-open" not in commands
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "function_class", "value"),
+    [
+        ("move", ("up",), "move-coarse", "up"),
+        ("move", ("up",), "move-fine", "up"),
+        ("start_limit_setting", ("top",), "start-limit-mode", "top"),
+        ("confirm_limit", (), "confirm-limit", "confirm"),
+        ("clear_limits", (), "clear-all-limits", "clear"),
+        ("toggle_motor_direction", (), "toggle-motor-reverse", "toggle"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_commands(mocked_controller, mocker, method, args, function_class, value):
+    await _load(mocked_controller)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    kwargs = {"fine": True} if function_class == "move-fine" else {}
+    await getattr(mocked_controller, method)(blinds.id, *args, **kwargs)
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        blinds.id,
+        [
+            {
+                "functionClass": function_class,
+                "functionInstance": None,
+                "value": value,
+                "lastUpdateTime": mocker.ANY,
+            }
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_unsupported_command_skipped(mocked_controller, mocker, caplog):
+    caplog.set_level(0)
+    await _load(mocked_controller)
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    await mocked_controller.move(blinds.id, "sideways")
     update_afero_api.assert_not_awaited()
-    assert "No states to send. Skipping" in caplog.text
+    assert "does not support move-coarse=sideways" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -168,11 +229,13 @@ async def test_blinds_emitting(bridge):
 
 @pytest.mark.asyncio
 async def test_set_position_clamps_high(mocked_controller, mocker):
-    """250 clamps to 100, which is where the dump already is."""
+    """250 clamps to 100, which is where the dump already is, and is still sent."""
     await _load(mocked_controller)
-    update_afero_api = mocker.patch.object(mocked_controller, "update_afero_api")
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
     await mocked_controller.set_position(blinds.id, 250)
-    update_afero_api.assert_not_awaited()
+    await mocked_controller._bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once()
+    assert update_afero_api.await_args.args[1][0]["value"] == 100
 
 
 gateway = utils.create_devices_from_data("blinds-gateway.json")[0]

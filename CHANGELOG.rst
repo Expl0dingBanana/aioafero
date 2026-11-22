@@ -2,7 +2,7 @@
 Changelog
 =========
 
-Version 9.5.0
+Version 9.4.0
 =============
 
  * Add ``bridge.blinds_gateways`` (``BlindsGatewayController``) for the Smart
@@ -17,10 +17,13 @@ Version 9.5.0
    available, and a gateway change is pushed to its zones. The gateway
    settings are not supported yet
    (`Hubspace-Homeassistant#272 <https://github.com/jdeath/Hubspace-Homeassistant/issues/272>`__).
-
-Version 9.4.0
-=============
-
+ * Add the one-shot commands blinds list in their functions: ``move`` (coarse or
+   fine), ``start_limit_setting``, ``confirm_limit``, ``clear_limits`` and
+   ``toggle_motor_direction``, plus a ``commands`` map on ``Blinds``. Commands a
+   zone does not list are logged and skipped. ``set_state`` now resends a
+   matching target, since a jog or the remote can leave the cached position
+   behind the real one. Thanks to `@jstark-ttl <https://github.com/jstark-ttl>`__
+   for the approach in `#114 <https://github.com/Expl0dingBanana/aioafero/pull/114>`__.
  * Add ``HumidifierController`` (``bridge.humidifiers``) for the ``humidifier``
    device class (Vissani ``VK-8529``). Exposes power, mode, current and target
    humidity, plus ``Mist Level``, ``Wellness Target``, ``Plant Care Target`` and
