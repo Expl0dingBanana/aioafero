@@ -8,7 +8,7 @@ from aioafero.v1.models import features
 from aioafero.v1.models.fan import Fan, FanPut
 from aioafero.v1.models.resource import DeviceInformation, ResourceTypes
 
-from .base import AferoBinarySensor, AferoSensor, BaseResourcesController
+from .base import AferoBinarySensor, AferoSensor, BaseResourcesController, NumbersName
 
 KNOWN_PRESETS = {"comfort-breeze"}
 
@@ -19,6 +19,13 @@ class FanController(BaseResourcesController[Fan]):
     ITEM_TYPE_ID = ResourceTypes.DEVICE
     ITEM_TYPES = [ResourceTypes.FAN]
     ITEM_CLS = Fan
+    # Elements that map to numbers. func class / func instance to unit
+    ITEM_NUMBERS: dict[tuple[str, str | None], NumbersName] = {
+        ("timer", "fan-power"): NumbersName(unit="minutes", display_name="Timer"),
+        ("power-off-timer", "fan-power"): NumbersName(
+            unit="minutes", display_name="Timer"
+        ),
+    }
 
     async def turn_on(self, device_id: str) -> None:
         """Turn on the fan.
@@ -87,6 +94,7 @@ class FanController(BaseResourcesController[Fan]):
         speed: features.SpeedFeature | None = None
         direction: features.DirectionFeature | None = None
         preset: features.PresetFeature | None = None
+        numbers: dict[tuple[str, str | None], features.NumbersFeature] = {}
         sensors: dict[str, AferoSensor] = {}
         binary_sensors: dict[str, AferoBinarySensor] = {}
         for state in afero_device.states:
@@ -130,6 +138,13 @@ class FanController(BaseResourcesController[Fan]):
                 )
             elif state.functionClass == "available":
                 available = state.value
+            elif number := await self.initialize_number(
+                get_function_from_device(
+                    afero_device.functions, state.functionClass, state.functionInstance
+                ),
+                state,
+            ):
+                numbers[number[0]] = number[1]
 
         self._items[afero_device.id] = Fan(
             _id=afero_device.id,
@@ -151,6 +166,7 @@ class FanController(BaseResourcesController[Fan]):
             speed=speed,
             direction=direction,
             preset=preset,
+            numbers=numbers,
         )
         return self._items[afero_device.id]
 
@@ -193,6 +209,8 @@ class FanController(BaseResourcesController[Fan]):
                 if cur_item.available != state.value:
                     cur_item.available = state.value
                     updated_keys.add("available")
+            elif update_key := await self.update_number(state, cur_item):
+                updated_keys.add(update_key)
 
         return updated_keys
 
@@ -204,6 +222,7 @@ class FanController(BaseResourcesController[Fan]):
         speed: int | None = None,
         forward: bool | None = None,
         preset: bool | None = None,
+        numbers: dict[tuple[str, str | None], float] | None = None,
     ) -> None:
         """Update fan state in the cloud.
 
@@ -213,6 +232,8 @@ class FanController(BaseResourcesController[Fan]):
             speed: Fan speed percentage (``0`` turns off).
             forward: ``True`` for forward rotation, ``False`` for reverse.
             preset: Comfort-breeze preset enabled state.
+            numbers: Number features keyed by ``(functionClass, functionInstance)``,
+                e.g. ``{("timer", "fan-power"): 30}``.
 
         """
         update_obj = FanPut()
@@ -228,4 +249,16 @@ class FanController(BaseResourcesController[Fan]):
             update_obj.preset = replace(cur_item.preset, enabled=preset)
         if forward is not None and cur_item.direction is not None:
             update_obj.direction = replace(cur_item.direction, forward=forward)
+        if numbers:
+            for key, val in numbers.items():
+                if key not in cur_item.numbers:
+                    continue
+                # Home Assistant passes floats (30.0); the cloud only applies
+                # whole minutes when they are sent as ints. Values are not
+                # clamped to min/max on purpose: the cloud accepts timer
+                # lengths the Hubspace app doesn't offer.
+                minutes = (
+                    int(val) if isinstance(val, float) and val.is_integer() else val
+                )
+                update_obj.numbers[key] = replace(cur_item.numbers[key], value=minutes)
         await self.update(device_id, obj_in=update_obj)

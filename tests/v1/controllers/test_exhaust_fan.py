@@ -3,6 +3,7 @@
 import pytest
 
 from aioafero.device import AferoState
+from aioafero.v1.conclave.events import translate_attr_change
 from aioafero.v1.controllers import event
 from aioafero.v1.controllers.exhaust_fan import (
     exhaust_fan_callback,
@@ -311,3 +312,25 @@ async def test_set_state_no_dev(mocked_controller, caplog, mocker):
     await mocked_controller.set_state("not-a-device")
     update_afero_api.assert_not_awaited()
     assert "Unable to find device" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_update_number_string_value_is_not_a_change(mocked_controller):
+    """A Conclave push of "1200" matches the REST value 1200.
+
+    Guards the Conclave numeric coercion: the push has to reach the controller
+    as an int, or every repeat would be reported as a change.
+    """
+    await mocked_controller._bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(exhaust_fan)]
+    )
+    await mocked_controller._bridge.async_block_until_done()
+    dev_update = utils.create_devices_from_data("exhaust-fan.json")[0]
+    # Attribute 50 is the auto-off timer in the exhaust-fan semantics
+    state = translate_attr_change(dev_update, {"id": 50, "value": "1200"})
+    assert state.functionClass == "auto-off-timer"
+    assert state.value == 1200
+    utils.modify_state(dev_update, state)
+    assert await mocked_controller.update_elem(dev_update) == set()
+    dev = mocked_controller.items[0]
+    assert dev.numbers[("auto-off-timer", "auto-off")].value == 1200
