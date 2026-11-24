@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import inspect
 from unittest.mock import Mock
 
@@ -80,7 +80,7 @@ async def mocked_bridge(mocker, aio_sess) -> AferoBridgeV1:
             "mock-token",
             "mock-access",
             "mock-refresh-token",
-            expiration=datetime.datetime.now().timestamp() + 200,
+            expiration=dt.datetime.now().timestamp() + 200,
         )
     )
 
@@ -124,7 +124,7 @@ def mocked_bridge_req(mocker, aio_sess):
             "mock-token",
             None,
             "mock-refresh-token",
-            expiration=datetime.datetime.now().timestamp() + 200,
+            expiration=dt.datetime.now().timestamp() + 200,
         )
     )
     # Force initialization so test elements are not overwritten
@@ -155,7 +155,7 @@ async def bridge_with_acct(mocker, aio_sess):
             "mock-token",
             None,
             "mock-refresh-token",
-            expiration=datetime.datetime.now().timestamp() + 200,
+            expiration=dt.datetime.now().timestamp() + 200,
         )
     )
     yield bridge
@@ -173,7 +173,7 @@ async def bridge_with_acct_req(mocker, aio_sess):
             "mock-token",
             None,
             "mock-refresh-token",
-            expiration=datetime.datetime.now().timestamp() + 200,
+            expiration=dt.datetime.now().timestamp() + 200,
         )
     )
     await bridge.initialize()

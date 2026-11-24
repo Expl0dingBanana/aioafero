@@ -8,7 +8,7 @@ import asyncio
 import base64
 from collections.abc import Mapping
 from contextlib import contextmanager
-import datetime
+import datetime as dt
 import hashlib
 import logging
 import os
@@ -111,7 +111,7 @@ def passthrough():
 
 def _token_expiration(resp_json: dict, *, now: float | None = None) -> float:
     """Compute bearer token expiration from an OAuth token response."""
-    timestamp = now if now is not None else datetime.datetime.now().timestamp()
+    timestamp = now if now is not None else dt.datetime.now().timestamp()
     expires_in = resp_json.get("expires_in")
     if expires_in is not None:
         return timestamp + float(expires_in) - TOKEN_EXPIRY_BUFFER
@@ -172,7 +172,7 @@ class AferoAuth:
             client_name=client_name,
         )
         add_secret(refresh_token)
-        now = datetime.datetime.now().timestamp()
+        now = dt.datetime.now().timestamp()
         if token:
             add_secret(token)
             if token_expiration is not None:
@@ -258,7 +258,7 @@ class AferoAuth:
         """Determine if the token is expired."""
         if not self._token_data:
             return True
-        return datetime.datetime.now().timestamp() >= self._token_data.expiration
+        return dt.datetime.now().timestamp() >= self._token_data.expiration
 
     async def _needs_token_refresh(self) -> bool:
         """Return True when the bearer token is missing or past its expiration."""

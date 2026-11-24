@@ -21,11 +21,10 @@ SplitStateRefresher = Callable[[AferoDevice, str], list[AferoState]]
 def _refresh_security_sensor_states(
     parent: AferoDevice, instance: str
 ) -> list[AferoState]:
-    from .security_system import (  # noqa: PLC0415 - deferred to break import cycles
-        get_valid_states as security_sensor_valid_states,
-    )
+    # Deferred to break import cycles.
+    from .security_system import get_valid_states  # noqa: PLC0415
 
-    return security_sensor_valid_states(parent.states, int(instance))
+    return get_valid_states(parent.states, int(instance))
 
 
 @lru_cache(maxsize=1)
