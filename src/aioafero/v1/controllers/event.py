@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Callable
 import contextlib
-import datetime
+import datetime as dt
 from enum import Enum
 from inspect import iscoroutinefunction
 import time
@@ -93,7 +93,7 @@ class EventStream:
         self._polling_interval: int = polling_interval
         self._discovery_interval: int = discovery_interval
         self._multiple_device_finder: dict[str, callable] = {}
-        self._version_poll_time: datetime.datetime | None = None
+        self._version_poll_time: dt.datetime | None = None
         self._version_poll_enabled: bool = poll_version
         self._first_poll_completed: bool = False
         # Metadevice / tracked ids removed by Conclave → expiry (monotonic).
@@ -129,7 +129,7 @@ class EventStream:
         """Determine if version polling should occur."""
         if not self._version_poll_enabled:
             return False
-        now = datetime.datetime.now(datetime.UTC)
+        now = dt.datetime.now(dt.UTC)
         if self._version_poll_time is None:
             self._version_poll_time = now
             return True

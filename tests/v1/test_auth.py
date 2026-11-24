@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import json
 import logging
 import pathlib
@@ -522,9 +522,7 @@ async def test_generate_refresh_token_from_refresh(
     caplog.set_level(logging.DEBUG)
     if not secure_mode:
         hs_auth.secret_logger = auth.passthrough
-    hs_auth._token_data = auth.TokenData(
-        None, None, refresh_token, datetime.datetime.now()
-    )
+    hs_auth._token_data = auth.TokenData(None, None, refresh_token, dt.datetime.now())
     url = hs_auth.generate_auth_url(v1_const.AFERO_GENERICS["AUTH_TOKEN_ENDPOINT"])
     aioresponses.post(url, **response)
     if expected:
@@ -725,7 +723,7 @@ def bad_refresh_token(*args, **kwargs):
         "token",
         "access_token",
         "refresh_token",
-        datetime.datetime.now().timestamp() + 120,
+        dt.datetime.now().timestamp() + 120,
     )
 
 
@@ -751,13 +749,13 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 "token",
                 "access_token",
                 "refresh_token",
-                datetime.datetime.now().timestamp() - 120,
+                dt.datetime.now().timestamp() - 120,
             ),
             auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
-                datetime.datetime.now().timestamp() + 120,
+                dt.datetime.now().timestamp() + 120,
             ),
             "token",
             [
@@ -770,13 +768,13 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 None,
                 None,
                 "refresh_token",
-                datetime.datetime.now().timestamp() - 120,
+                dt.datetime.now().timestamp() - 120,
             ),
             auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
-                datetime.datetime.now().timestamp() + 120,
+                dt.datetime.now().timestamp() + 120,
             ),
             "token",
             [
@@ -789,13 +787,13 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 None,
                 None,
                 "refresh_token",
-                datetime.datetime.now().timestamp() + 120,
+                dt.datetime.now().timestamp() + 120,
             ),
             auth.TokenData(
                 "token",
                 "access_token",
                 "refresh_token",
-                datetime.datetime.now().timestamp() + 120,
+                dt.datetime.now().timestamp() + 120,
             ),
             "token",
             [
@@ -808,7 +806,7 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 "token",
                 "access_token",
                 "refresh_token",
-                datetime.datetime.now().timestamp() - 120,
+                dt.datetime.now().timestamp() - 120,
             ),
             bad_refresh_token,
             "token",
@@ -823,7 +821,7 @@ def bad_refresh_token_invalid(*args, **kwargs):
                 "token",
                 "access_token",
                 "refresh_token",
-                datetime.datetime.now().timestamp() - 120,
+                dt.datetime.now().timestamp() - 120,
             ),
             bad_refresh_token_invalid,
             None,
@@ -875,7 +873,7 @@ async def test_token_raises_when_refresh_returns_no_bearer(mocker, aio_sess):
         None,
         None,
         "refresh_token",
-        datetime.datetime.now().timestamp() + 120,
+        dt.datetime.now().timestamp() + 120,
     )
     mocker.patch.object(
         test_auth,
@@ -885,7 +883,7 @@ async def test_token_raises_when_refresh_returns_no_bearer(mocker, aio_sess):
                 None,
                 None,
                 "refresh_token",
-                datetime.datetime.now().timestamp() + 120,
+                dt.datetime.now().timestamp() + 120,
             )
         ),
     )
@@ -898,7 +896,7 @@ def test_set_token_data(hs_auth):
         "token",
         "access_token",
         "refresh_token",
-        datetime.datetime.now().timestamp() + 120,
+        dt.datetime.now().timestamp() + 120,
     )
     hs_auth.set_token_data(data)
     assert hs_auth._token_data == data
@@ -911,13 +909,13 @@ def test_set_token_data_updates_secret_registry(hs_auth, mocker):
         "old-bearer",
         "old-access",
         "old-refresh",
-        datetime.datetime.now().timestamp() + 120,
+        dt.datetime.now().timestamp() + 120,
     )
     new_data = auth.TokenData(
         "new-bearer",
         "new-access",
         "old-refresh",
-        datetime.datetime.now().timestamp() + 3600,
+        dt.datetime.now().timestamp() + 3600,
     )
     hs_auth.set_token_data(new_data)
     remove_secret.assert_has_calls(
@@ -941,7 +939,7 @@ def test_property_refresh_token(aio_sess):
         "token",
         "access_token",
         "refresh_token",
-        datetime.datetime.now().timestamp() + 120,
+        dt.datetime.now().timestamp() + 120,
     )
     assert _auth.refresh_token == "refresh_token"
 
