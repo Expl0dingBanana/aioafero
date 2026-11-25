@@ -2,6 +2,18 @@
 Changelog
 =========
 
+Version 9.4.1
+=============
+
+ * Fix setup hanging when the first discovery poll fails
+   (`Hubspace-Homeassistant#275 <https://github.com/jdeath/Hubspace-Homeassistant/issues/275>`__).
+   A device whose ``versions`` endpoint errors (403, 404, timeout, retries
+   exhausted) no longer aborts discovery; it is logged and gets
+   ``version_data=None``. Until the first poll succeeds, retry backoff is
+   capped at 30 seconds instead of up to 600. The HTTP error behind a lost
+   connection is now logged, and timeouts back off instead of retrying
+   immediately.
+
 Version 9.4.0
 =============
 

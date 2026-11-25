@@ -237,9 +237,9 @@ def gather_data_invalid_auth():
         (
             event.EventStreamStatus.CONNECTING,
             gather_data_timeout_gen,
-            ["Timeout when contacting Afero IoT API"],
+            ["Timeout when contacting Afero IoT API", "Waiting 0.0 seconds"],
             None,
-            [event.EventType.DISCONNECTED, event.EventType.CONNECTED],
+            [event.EventType.DISCONNECTED, event.EventType.RECONNECTED],
         ),
         # Unknown error
         (event.EventStreamStatus.CONNECTING, None, ["kaboom"], KeyError("kaboom"), []),
@@ -247,7 +247,11 @@ def gather_data_invalid_auth():
         (
             event.EventStreamStatus.CONNECTING,
             gather_data_error_gen,
-            ["seconds before next poll", "Lost connection to the Afero IoT API"],
+            [
+                "seconds before next poll",
+                "Lost connection to the Afero IoT API",
+                "Error contacting Afero IoT API",
+            ],
             None,
             [event.EventType.DISCONNECTED, event.EventType.RECONNECTED],
         ),
@@ -317,6 +321,30 @@ async def test_gather_discovery_data(
     for message in expected_messages:
         assert message in caplog.text
         assert caplog.text.count(message) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("first_poll_completed", "attempt", "expected_sleep"),
+    [
+        # Before the first poll, backoff is capped so setup is not starved
+        (False, 1, event.FIRST_POLL_MAX_BACKOFF_SECONDS),
+        (False, 5, event.FIRST_POLL_MAX_BACKOFF_SECONDS),
+        # After the first poll, normal backoff applies
+        (True, 1, 600),
+        (True, 5, 600),
+    ],
+)
+async def test_process_backoff_first_poll_cap(
+    first_poll_completed, attempt, expected_sleep, bridge, mocker
+):
+    stream = bridge.events
+    await stream.stop()
+    stream.polling_interval = 900
+    stream._first_poll_completed = first_poll_completed
+    sleep = mocker.patch.object(event.asyncio, "sleep", mocker.AsyncMock())
+    await stream.process_backoff(attempt)
+    sleep.assert_awaited_once_with(expected_sleep)
 
 
 @pytest.mark.asyncio

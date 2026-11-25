@@ -25,6 +25,9 @@ from .split_refresh import refresh_split_clone_states
 if TYPE_CHECKING:  # pragma: no cover
     from aioafero.v1 import AferoBridgeV1
 
+# Cap on retry backoff while setup is waiting for the first discovery poll.
+FIRST_POLL_MAX_BACKOFF_SECONDS = 30
+
 # Re-export for callers that historically imported from ``event``.
 __all__ = [
     "AferoEvent",
@@ -296,6 +299,10 @@ class EventStream:
         :param reason: Reason why the backoff is occurring
         """
         backoff_time = min(attempt * self.polling_interval, 600)
+        if not self._first_poll_completed:
+            # Setup is blocked on the first poll; retry quickly so a transient
+            # failure does not outlast the caller's setup timeout.
+            backoff_time = min(backoff_time, FIRST_POLL_MAX_BACKOFF_SECONDS)
         debug_message = f"Waiting {backoff_time} seconds before next poll"
         if attempt == 1:
             self._logger.info("Lost connection to the Afero IoT API.")
@@ -314,14 +321,16 @@ class EventStream:
                     version_poll=self.poll_version
                 )
             except TimeoutError:
+                consecutive_http_errors += 1
                 self._logger.warning("Timeout when contacting Afero IoT API.")
                 await self.process_backoff(consecutive_http_errors)
             except InvalidAuth:
                 consecutive_http_errors += 1
                 self._logger.warning("Invalid credentials provided.")
                 await self.process_backoff(consecutive_http_errors)
-            except (HTTPForbidden, HTTPTooManyRequests, ClientError):
+            except (HTTPForbidden, HTTPTooManyRequests, ClientError) as err:
                 consecutive_http_errors += 1
+                self._logger.warning("Error contacting Afero IoT API: %r", err)
                 await self.process_backoff(consecutive_http_errors)
             except TypeError as err:
                 self._logger.warning(

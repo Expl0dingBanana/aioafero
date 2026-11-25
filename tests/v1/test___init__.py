@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock
 from urllib.parse import urlencode
 
 from aiohttp import web_exceptions
-from aiohttp.client_exceptions import ClientResponseError
+from aiohttp.client_exceptions import ClientConnectionError, ClientResponseError
 import pytest
 
 from aioafero import AferoDevice, AferoState, EventType, InvalidAuth, SplitDeviceId
@@ -355,6 +355,43 @@ async def test_fetch_discovery_data_skips_missing_device_id(mocked_bridge_req, m
     resp = await mocked_bridge_req.fetch_discovery_data(version_poll=True)
     get_device_version.assert_called_once_with("valid_id")
     assert resp[1]["version_data"] == {"version": "1.0.0"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "version_error",
+    [
+        TimeoutError(),
+        ClientResponseError(Mock(), (), status=404),
+        ClientConnectionError(),
+        web_exceptions.HTTPForbidden(),
+        ExceededMaximumRetries("too many"),
+    ],
+)
+async def test_fetch_discovery_data_version_failure_is_not_fatal(
+    version_error, mocked_bridge_req, mocker, caplog
+):
+    get_device_version = mocker.patch.object(
+        mocked_bridge_req,
+        "get_device_version",
+        side_effect=[version_error, {"version": "2.0.0"}],
+    )
+    mocked_response = [
+        {"typeId": "metadevice.device", "deviceId": "bad_id"},
+        {"typeId": "metadevice.device", "deviceId": "good_id"},
+        {"typeId": "metadevice.device", "deviceId": "bad_id"},
+    ]
+    expected = mocker.Mock()
+    mocker.patch.object(
+        expected, "json", side_effect=mocker.AsyncMock(return_value=mocked_response)
+    )
+    mocker.patch.object(mocked_bridge_req, "request", return_value=expected)
+    resp = await mocked_bridge_req.fetch_discovery_data(version_poll=True)
+    assert get_device_version.call_count == 2
+    assert resp[0]["version_data"] is None
+    assert resp[1]["version_data"] == {"version": "2.0.0"}
+    assert resp[2]["version_data"] is None
+    assert "Unable to fetch version data for device bad_id" in caplog.text
 
 
 @pytest.mark.asyncio

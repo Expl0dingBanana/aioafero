@@ -751,20 +751,39 @@ class AferoBridgeV1:
         if not isinstance(data, list):
             raise TypeError(data)
         if version_poll:
-            devs = {}
-            for dev in data:
-                if dev.get("typeId") != "metadevice.device":
-                    continue
-                dev_id = dev.get("deviceId")
-                if not dev_id:
-                    continue
-                if dev_id in devs:
-                    dev["version_data"] = devs[dev_id]
-                    continue
-                dev["version_data"] = await self.get_device_version(dev_id)
-                devs[dev_id] = dev["version_data"]
+            await self._attach_version_data(data)
 
         return data
+
+    async def _attach_version_data(self, data: list[dict[Any, str]]) -> None:
+        """Attach ``version_data`` to each metadevice in ``data`` (in place).
+
+        Version info is cosmetic; one device's versions endpoint failing must
+        not abort the whole discovery poll.
+        """
+        devs: dict[str, dict | None] = {}
+        for dev in data:
+            if dev.get("typeId") != "metadevice.device":
+                continue
+            dev_id = dev.get("deviceId")
+            if not dev_id:
+                continue
+            if dev_id not in devs:
+                try:
+                    devs[dev_id] = await self.get_device_version(dev_id)
+                except (
+                    TimeoutError,
+                    aiohttp.ClientError,
+                    web_exceptions.HTTPForbidden,
+                    ExceededMaximumRetries,
+                ) as err:
+                    self.logger.warning(
+                        "Unable to fetch version data for device %s: %r",
+                        dev_id,
+                        err,
+                    )
+                    devs[dev_id] = None
+            dev["version_data"] = devs[dev_id]
 
     async def fetch_metadevice(self, metadevice_id: str) -> dict[Any, str] | None:
         """Fetch one metadevice with state/capabilities/semantics expansions.
