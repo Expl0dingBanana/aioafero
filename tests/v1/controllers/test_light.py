@@ -3072,3 +3072,141 @@ async def test_set_state_mode_before_power_aborts_on_failure(
     )
     assert "aborting turn-on" in caplog.text
     assert not dev.is_on
+
+
+# Issue jdeath/Hubspace-Homeassistant#281: Grand Duchess tree exposes only
+# ``brightness-presets`` (low/medium/high) rather than ``brightness``.
+christmas_tree_light = utils.create_devices_from_data("light-christmas-tree.json")[2]
+
+
+@pytest.mark.asyncio
+async def test_initialize_brightness_presets(mocked_controller):
+    await mocked_controller.initialize_elem(christmas_tree_light)
+    dev = mocked_controller[christmas_tree_light.id]
+    assert dev.supports_dimming
+    assert isinstance(dev.dimming, features.BrightnessPresetsFeature)
+    assert dev.dimming.brightness == 100
+    assert dev.brightness == 100
+    assert dev.dimming.supported == [33, 66, 100]
+    assert dev.dimming.presets == {"low": 33, "medium": 66, "high": 100}
+    assert dev.dimming.ranges == {
+        "low": (1, 33),
+        "medium": (34, 66),
+        "high": (67, 100),
+    }
+    assert dev.dimming.function_class == "brightness-presets"
+    assert dev.dimming.function_instance is None
+    assert dev.supports_effects
+
+
+@pytest.mark.parametrize(
+    ("brightness", "expected"),
+    [
+        (0, "low"),
+        (1, "low"),
+        (33, "low"),
+        (34, "medium"),
+        (50, "medium"),
+        (66, "medium"),
+        (67, "high"),
+        (100, "high"),
+        # Between ranges (HA sends whole numbers, but be safe)
+        (33.5, "low"),
+    ],
+)
+def test_brightness_presets_preset_for(brightness, expected):
+    feat = light.build_brightness_presets(
+        christmas_tree_light,
+        next(
+            s
+            for s in christmas_tree_light.states
+            if s.functionClass == "brightness-presets"
+        ),
+    )
+    assert feat.preset_for(brightness) == expected
+
+
+def test_build_brightness_presets_ignored_with_brightness_function():
+    dev = utils.create_devices_from_data("light-christmas-tree.json")[2]
+    dev.functions.append(
+        {
+            "functionClass": "brightness",
+            "functionInstance": None,
+            "values": [
+                {"name": "brightness", "range": {"min": 1, "max": 100, "step": 1}}
+            ],
+        }
+    )
+    state = next(s for s in dev.states if s.functionClass == "brightness-presets")
+    assert light.build_brightness_presets(dev, state) is None
+
+
+def test_build_brightness_presets_requires_values():
+    dev = utils.create_devices_from_data("light-christmas-tree.json")[2]
+    func = next(f for f in dev.functions if f["functionClass"] == "brightness-presets")
+    func["values"][0]["deviceValues"] = []
+    state = next(s for s in dev.states if s.functionClass == "brightness-presets")
+    assert light.build_brightness_presets(dev, state) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("brightness", "expected_value", "expected_brightness"),
+    [(10, "low", 33), (50, "medium", 66)],
+)
+async def test_set_brightness_presets(
+    mocked_controller, mocker, brightness, expected_value, expected_brightness
+):
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(christmas_tree_light)]
+    )
+    await bridge.async_block_until_done()
+    dev = mocked_controller[christmas_tree_light.id]
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    await mocked_controller.set_brightness(christmas_tree_light.id, brightness)
+    await bridge.async_block_until_done()
+    update_afero_api.assert_awaited_once_with(
+        christmas_tree_light.id,
+        [
+            {
+                "functionClass": "brightness-presets",
+                "functionInstance": None,
+                "value": expected_value,
+                "lastUpdateTime": mocker.ANY,
+            },
+        ],
+    )
+    assert dev.dimming.brightness == expected_brightness
+
+
+@pytest.mark.asyncio
+async def test_set_brightness_presets_same_preset_is_noop(mocked_controller, mocker):
+    """80% is still ``high``: nothing to send when the tree is already high."""
+    bridge = mocked_controller._bridge
+    await bridge.events.generate_events_from_data(
+        [utils.create_hs_raw_from_device(christmas_tree_light)]
+    )
+    await bridge.async_block_until_done()
+    update_afero_api = utils.mock_update_api(mocked_controller, mocker)
+    await mocked_controller.set_brightness(christmas_tree_light.id, 80)
+    await bridge.async_block_until_done()
+    update_afero_api.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_elem_brightness_presets(mocked_controller):
+    await mocked_controller.initialize_elem(christmas_tree_light)
+    dev = mocked_controller[christmas_tree_light.id]
+    dev_update = utils.create_devices_from_data("light-christmas-tree.json")[2]
+    dev_update.states = [
+        AferoState(
+            functionClass="brightness-presets", functionInstance=None, value="low"
+        )
+    ]
+    assert await mocked_controller.update_elem(dev_update) == {"dimming"}
+    assert dev.dimming.brightness == 33
+    # Unknown preset names are ignored
+    dev_update.states[0].value = "turbo"
+    assert await mocked_controller.update_elem(dev_update) == set()
+    assert dev.dimming.brightness == 33

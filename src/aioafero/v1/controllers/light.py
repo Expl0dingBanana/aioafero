@@ -4,6 +4,7 @@ from contextlib import suppress
 import copy
 from dataclasses import replace
 import logging
+import re
 
 from aioafero import device, errors
 from aioafero.device import AferoDevice, AferoState
@@ -176,6 +177,51 @@ def apply_brightness_state_update(
     if cur_item.dimming.function_instance != instance:
         cur_item.dimming.function_instance = instance
         updated_keys.add("dimming")
+
+
+_PRESET_RANGE = re.compile(r"^\s*(\d+)\s*\.\.\.\s*(\d+)\s*$")
+
+
+def build_brightness_presets(
+    afero_device: AferoDevice, state: AferoState
+) -> features.BrightnessPresetsFeature | None:
+    """Build dimming from a ``brightness-presets`` state (e.g. low/medium/high).
+
+    Only used when the device has no ``brightness`` function, and only when
+    every preset carries a numeric device value to place it on the 1-100 scale.
+    """
+    if any(
+        func.get("functionClass") == "brightness" for func in afero_device.functions
+    ):
+        return None
+    func_def = device.get_function_from_device(
+        afero_device.functions, state.functionClass, state.functionInstance
+    )
+    if not func_def:
+        return None
+    presets: dict[str, int] = {}
+    ranges: dict[str, tuple[int, int]] = {}
+    for value in func_def.get("values", []):
+        name = value.get("name")
+        device_value = next(iter(value.get("deviceValues") or []), {})
+        try:
+            presets[name] = int(device_value["value"])
+        except (KeyError, TypeError, ValueError):
+            logger.debug("Brightness preset %r has no numeric value", name)
+            return None
+        if match := _PRESET_RANGE.match(str(device_value.get("expression", ""))):
+            ranges[name] = (int(match.group(1)), int(match.group(2)))
+    if not presets or state.value not in presets:
+        return None
+    presets = dict(sorted(presets.items(), key=lambda item: item[1]))
+    return features.BrightnessPresetsFeature(
+        brightness=presets[state.value],
+        supported=list(presets.values()),
+        presets=presets,
+        ranges={name: ranges[name] for name in presets if name in ranges},
+        function_class=state.functionClass,
+        function_instance=state.functionInstance,
+    )
 
 
 def get_split_instances(
@@ -505,6 +551,9 @@ class LightController(BaseResourcesController[Light]):
                         function_class=state.functionClass,
                         function_instance=state.functionInstance,
                     )
+            elif state.functionClass == "brightness-presets":
+                if dimming is None:
+                    dimming = build_brightness_presets(afero_device, state)
             elif state.functionClass == "color-sequence":
                 color_seq_states[state.functionInstance] = state
             elif state.functionClass == "color-rgb":
@@ -609,6 +658,14 @@ class LightController(BaseResourcesController[Light]):
                 apply_brightness_state_update(
                     afero_device, cur_item, state, updated_keys
                 )
+            elif state.functionClass == "brightness-presets":
+                dimming = cur_item.dimming
+                if not isinstance(dimming, features.BrightnessPresetsFeature):
+                    continue
+                new_val = dimming.presets.get(state.value)
+                if new_val is not None and dimming.brightness != new_val:
+                    dimming.brightness = new_val
+                    updated_keys.add("dimming")
             elif state.functionClass == "color-sequence":
                 color_seq_states[state.functionInstance] = state
             elif state.functionClass == "color-rgb":
@@ -841,6 +898,11 @@ def _populate_light_put(
     brightness_color_mode = color_mode
     if color_mode is not None and not channel_turning_off:
         color_mode = resolve_color_mode(cur_item, color_mode)
+    if brightness is not None and isinstance(
+        cur_item.dimming, features.BrightnessPresetsFeature
+    ):
+        # Snap so an unchanged preset is recognised as a no-op.
+        brightness = cur_item.dimming.snap(brightness)
     if brightness is not None and cur_item.dimming is not None:
         update_obj.dimming = replace(
             cur_item.dimming,

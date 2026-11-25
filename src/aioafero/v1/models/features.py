@@ -137,6 +137,41 @@ class DimmingFeature(AferoFeature):
 
 
 @dataclass(kw_only=True)
+class BrightnessPresetsFeature(DimmingFeature):
+    """Brightness exposed by the device as named presets (``brightness-presets``).
+
+    ``brightness`` is a percentage like :class:`DimmingFeature`, so callers can
+    treat it as a normal dimmer; the API receives the preset name instead.
+
+    Attributes:
+        presets: Preset name to the percentage it represents (e.g. ``low`` -> 33).
+        ranges: Preset name to the inclusive ``(low, high)`` percentages the
+            device maps to it. Brightness outside every range snaps to the
+            preset with the closest percentage.
+
+    """
+
+    presets: dict[str, int]
+    ranges: dict[str, tuple[int, int]]
+
+    def preset_for(self, brightness: float) -> str:
+        """Return the preset name a brightness percentage selects."""
+        for name, (low, high) in self.ranges.items():
+            if low <= brightness <= high:
+                return name
+        return min(self.presets, key=lambda name: abs(self.presets[name] - brightness))
+
+    def snap(self, brightness: float) -> int:
+        """Return the percentage of the preset a brightness percentage selects."""
+        return self.presets[self.preset_for(brightness)]
+
+    @property
+    def api_value(self) -> str:
+        """Value to send to Afero API."""
+        return self.preset_for(self.brightness)
+
+
+@dataclass(kw_only=True)
 class DirectionFeature(AferoFeature):
     """Represent Current Fan direction Feature."""
 
